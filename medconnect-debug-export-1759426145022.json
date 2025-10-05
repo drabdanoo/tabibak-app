@@ -1,0 +1,1225 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2025-10-02T17:29:05.018Z",
+  "systemInfo": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "platform": "Win32",
+    "language": "en-US",
+    "cookieEnabled": true,
+    "onLine": true,
+    "screen": {
+      "width": 1366,
+      "height": 768,
+      "colorDepth": 24
+    },
+    "viewport": {
+      "width": 1358,
+      "height": 612
+    },
+    "url": "https://medconnect-2.web.app/patient.html",
+    "timestamp": "2025-10-02T17:26:47.864Z"
+  },
+  "performance": {
+    "firebase": {
+      "initStart": 1759426007863,
+      "initComplete": 1759426007863,
+      "initTime": 0
+    },
+    "pageLoad": {
+      "domContentLoaded": 5.100000001490116,
+      "loadComplete": 0.09999999776482582,
+      "totalTime": 1043.7999999970198
+    }
+  },
+  "logs": [
+    {
+      "level": "log",
+      "message": "✅ Firebase loaded in 0ms",
+      "timestamp": "2025-10-02T17:26:47.863Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at checkFirebase (https://medconnect-2.web.app/debug/master-debugger.js:144:25)\n    at MedConnectDebugger.monitorFirebase (https://medconnect-2.web.app/debug/master-debugger.js:160:9)\n    at MedConnectDebugger.init (https://medconnect-2.web.app/debug/master-debugger.js:38:14)\n    at new MedConnectDebugger (https://medconnect-2.web.app/debug/master-debugger.js:14:18)\n    at https://medconnect-2.web.app/debug/master-debugger.js:403:20"
+    },
+    {
+      "level": "warn",
+      "message": "⚠️ Firestore persistence not supported: {\"code\":\"failed-precondition\",\"name\":\"FirebaseError\"}",
+      "timestamp": "2025-10-02T17:26:47.864Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.warn (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.monitorFirestore (https://medconnect-2.web.app/debug/master-debugger.js:174:21)\n    at checkFirebase (https://medconnect-2.web.app/debug/master-debugger.js:154:22)\n    at MedConnectDebugger.monitorFirebase (https://medconnect-2.web.app/debug/master-debugger.js:160:9)\n    at MedConnectDebugger.init (https://medconnect-2.web.app/debug/master-debugger.js:38:14)\n    at new MedConnectDebugger (https://medconnect-2.web.app/debug/master-debugger.js:14:18)\n    at https://medconnect-2.web.app/debug/master-debugger.js:403:20"
+    },
+    {
+      "level": "log",
+      "message": "💻 System Info: {\"userAgent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0\",\"platform\":\"Win32\",\"language\":\"en-US\",\"cookieEnabled\":true,\"onLine\":true,\"screen\":{\"width\":1366,\"height\":768,\"colorDepth\":24},\"viewport\":{\"width\":1358,\"height\":612},\"url\":\"https://medconnect-2.web.app/patient.html\",\"timestamp\":\"2025-10-02T17:26:47.864Z\"}",
+      "timestamp": "2025-10-02T17:26:47.864Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logSystemInfo (https://medconnect-2.web.app/debug/master-debugger.js:303:17)\n    at MedConnectDebugger.init (https://medconnect-2.web.app/debug/master-debugger.js:39:14)\n    at new MedConnectDebugger (https://medconnect-2.web.app/debug/master-debugger.js:14:18)\n    at https://medconnect-2.web.app/debug/master-debugger.js:403:20"
+    },
+    {
+      "level": "log",
+      "message": "🛠️ MedConnect Debug Suite is active",
+      "timestamp": "2025-10-02T17:26:47.864Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:410:13"
+    },
+    {
+      "level": "log",
+      "message": "💡 Look for the 🐛 button in the bottom-right corner",
+      "timestamp": "2025-10-02T17:26:47.864Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:411:13"
+    },
+    {
+      "level": "log",
+      "message": "📋 Available commands: runQuickTest(), runFullTest(), exportDebugData()",
+      "timestamp": "2025-10-02T17:26:47.864Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:412:13"
+    },
+    {
+      "level": "log",
+      "message": "🔐 Auth state changed: Signed out",
+      "timestamp": "2025-10-02T17:26:47.865Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:149:33\n    at next (https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js:1:134597)\n    at https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js:1:54159"
+    },
+    {
+      "level": "log",
+      "message": "📊 Page Performance: {\"domContentLoaded\":5.100000001490116,\"loadComplete\":0.09999999776482582,\"totalTime\":1043.7999999970198}",
+      "timestamp": "2025-10-02T17:26:47.971Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:127:25"
+    },
+    {
+      "level": "log",
+      "message": "🔍 Validating Firebase project configuration...",
+      "timestamp": "2025-10-02T17:26:48.538Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at validateFirebaseProject (https://medconnect-2.web.app/patient.html:2215:25)\n    at https://medconnect-2.web.app/patient.html:2255:27"
+    },
+    {
+      "level": "log",
+      "message": "✅ Firestore connection test passed",
+      "timestamp": "2025-10-02T17:26:50.150Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at validateFirebaseProject (https://medconnect-2.web.app/patient.html:2219:25)\n    at async https://medconnect-2.web.app/patient.html:2255:21"
+    },
+    {
+      "level": "log",
+      "message": "🔐 Auth state: Not authenticated",
+      "timestamp": "2025-10-02T17:26:50.150Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at validateFirebaseProject (https://medconnect-2.web.app/patient.html:2223:25)\n    at async https://medconnect-2.web.app/patient.html:2255:21"
+    },
+    {
+      "level": "log",
+      "message": "📱 Phone auth domain: medconnect-2.firebaseapp.com",
+      "timestamp": "2025-10-02T17:26:50.150Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at validateFirebaseProject (https://medconnect-2.web.app/patient.html:2226:25)\n    at async https://medconnect-2.web.app/patient.html:2255:21"
+    },
+    {
+      "level": "log",
+      "message": "📱 Starting OTP send process for: +9647717676562",
+      "timestamp": "2025-10-02T17:27:07.943Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendOTP (https://medconnect-2.web.app/patient.html:1627:25)\n    at sendLoginOTP (https://medconnect-2.web.app/patient.html:1469:38)\n    at handleLogin (https://medconnect-2.web.app/patient.html:1461:13)\n    at HTMLFormElement.onsubmit (https://medconnect-2.web.app/patient.html:903:71)"
+    },
+    {
+      "level": "log",
+      "message": "🔄 Creating fresh reCAPTCHA (visible for reliability)...",
+      "timestamp": "2025-10-02T17:27:07.943Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendOTP (https://medconnect-2.web.app/patient.html:1628:25)\n    at sendLoginOTP (https://medconnect-2.web.app/patient.html:1469:38)\n    at handleLogin (https://medconnect-2.web.app/patient.html:1461:13)\n    at HTMLFormElement.onsubmit (https://medconnect-2.web.app/patient.html:903:71)"
+    },
+    {
+      "level": "log",
+      "message": "🧹 reCAPTCHA state cleared",
+      "timestamp": "2025-10-02T17:27:07.943Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at clearExistingRecaptcha (https://medconnect-2.web.app/patient.html:1542:25)\n    at sendOTP (https://medconnect-2.web.app/patient.html:1631:17)\n    at sendLoginOTP (https://medconnect-2.web.app/patient.html:1469:38)\n    at handleLogin (https://medconnect-2.web.app/patient.html:1461:13)\n    at HTMLFormElement.onsubmit (https://medconnect-2.web.app/patient.html:903:71)"
+    },
+    {
+      "level": "log",
+      "message": "🧹 reCAPTCHA state cleared",
+      "timestamp": "2025-10-02T17:27:07.944Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at clearExistingRecaptcha (https://medconnect-2.web.app/patient.html:1542:25)\n    at initializeRecaptcha (https://medconnect-2.web.app/patient.html:1551:17)\n    at https://medconnect-2.web.app/patient.html:1636:48\n    at new Promise (<anonymous>)\n    at sendOTP (https://medconnect-2.web.app/patient.html:1634:24)\n    at sendLoginOTP (https://medconnect-2.web.app/patient.html:1469:38)\n    at handleLogin (https://medconnect-2.web.app/patient.html:1461:13)\n    at HTMLFormElement.onsubmit (https://medconnect-2.web.app/patient.html:903:71)"
+    },
+    {
+      "level": "log",
+      "message": "🔒 Creating fresh reCAPTCHA verifier (visible for reliability)",
+      "timestamp": "2025-10-02T17:27:07.944Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at initializeRecaptcha (https://medconnect-2.web.app/patient.html:1553:25)\n    at https://medconnect-2.web.app/patient.html:1636:48\n    at new Promise (<anonymous>)\n    at sendOTP (https://medconnect-2.web.app/patient.html:1634:24)\n    at sendLoginOTP (https://medconnect-2.web.app/patient.html:1469:38)\n    at handleLogin (https://medconnect-2.web.app/patient.html:1461:13)\n    at HTMLFormElement.onsubmit (https://medconnect-2.web.app/patient.html:903:71)"
+    },
+    {
+      "level": "log",
+      "message": "✅ reCAPTCHA rendered successfully",
+      "timestamp": "2025-10-02T17:27:10.050Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at initializeRecaptcha (https://medconnect-2.web.app/patient.html:1611:25)\n    at async https://medconnect-2.web.app/patient.html:1636:42"
+    },
+    {
+      "level": "log",
+      "message": "✅ reCAPTCHA ready - waiting for user to solve it",
+      "timestamp": "2025-10-02T17:27:10.050Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/patient.html:1643:33"
+    },
+    {
+      "level": "error",
+      "message": "🚨 JavaScript Error: {\"message\":\"Uncaught TypeError: window.testPhoneAuth is not a function\",\"filename\":\"https://medconnect-2.web.app/patient.html\",\"lineno\":1,\"colno\":8,\"stack\":\"TypeError: window.testPhoneAuth is not a function\\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)\"}",
+      "timestamp": "2025-10-02T17:27:19.907Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:48:18"
+    },
+    {
+      "level": "error",
+      "message": "🚨 JavaScript Error: {\"message\":\"Uncaught TypeError: window.testPhoneAuth is not a function\",\"filename\":\"https://medconnect-2.web.app/patient.html\",\"lineno\":1,\"colno\":8,\"stack\":\"TypeError: window.testPhoneAuth is not a function\\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)\"}",
+      "timestamp": "2025-10-02T17:27:21.838Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:48:18"
+    },
+    {
+      "level": "error",
+      "message": "🚨 JavaScript Error: {\"message\":\"Uncaught TypeError: window.debugFirebase is not a function\",\"filename\":\"https://medconnect-2.web.app/patient.html\",\"lineno\":1,\"colno\":8,\"stack\":\"TypeError: window.debugFirebase is not a function\\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)\"}",
+      "timestamp": "2025-10-02T17:27:23.557Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:48:18"
+    },
+    {
+      "level": "log",
+      "message": "🚀 Running full test suite...",
+      "timestamp": "2025-10-02T17:27:27.473Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:329:21)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "🚀 Starting MedConnect Appointment System Tests...",
+      "timestamp": "2025-10-02T17:27:27.473Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:385:17)\n    at window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:43)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:58)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "================================================",
+      "timestamp": "2025-10-02T17:27:27.473Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:386:17)\n    at window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:43)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:58)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Appointment System Tester initialized",
+      "timestamp": "2025-10-02T17:27:27.474Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.initialize (https://medconnect-2.web.app/debug/appointment-tester.js:22:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:388:40)\n    at window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:43)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:58)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing Firestore structure...",
+      "timestamp": "2025-10-02T17:27:27.474Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.testFirestoreStructure (https://medconnect-2.web.app/debug/appointment-tester.js:47:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:395:20)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Firestore Schedules Collection: Schedules collection accessible, 0 documents found",
+      "timestamp": "2025-10-02T17:27:27.939Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testFirestoreStructure (https://medconnect-2.web.app/debug/appointment-tester.js:54:18)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:395:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "🏃‍♂️ Running quick health check...",
+      "timestamp": "2025-10-02T17:27:28.689Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at exposeGlobalFunctions.window.runQuickTest (https://medconnect-2.web.app/debug/master-debugger.js:310:21)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Firebase: OK",
+      "timestamp": "2025-10-02T17:27:28.689Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:321:25\n    at Array.forEach (<anonymous>)\n    at exposeGlobalFunctions.window.runQuickTest (https://medconnect-2.web.app/debug/master-debugger.js:319:20)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Config: OK",
+      "timestamp": "2025-10-02T17:27:28.689Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:321:25\n    at Array.forEach (<anonymous>)\n    at exposeGlobalFunctions.window.runQuickTest (https://medconnect-2.web.app/debug/master-debugger.js:319:20)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Auth SDK: OK",
+      "timestamp": "2025-10-02T17:27:28.689Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:321:25\n    at Array.forEach (<anonymous>)\n    at exposeGlobalFunctions.window.runQuickTest (https://medconnect-2.web.app/debug/master-debugger.js:319:20)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Firestore SDK: OK",
+      "timestamp": "2025-10-02T17:27:28.689Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/master-debugger.js:321:25\n    at Array.forEach (<anonymous>)\n    at exposeGlobalFunctions.window.runQuickTest (https://medconnect-2.web.app/debug/master-debugger.js:319:20)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "🏃‍♂️ Quick check complete",
+      "timestamp": "2025-10-02T17:27:28.689Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at exposeGlobalFunctions.window.runQuickTest (https://medconnect-2.web.app/debug/master-debugger.js:324:21)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Firestore Appointments Collection: Appointments collection accessible, 0 documents found",
+      "timestamp": "2025-10-02T17:27:28.738Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testFirestoreStructure (https://medconnect-2.web.app/debug/appointment-tester.js:64:18)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:395:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Firestore Doctors Collection: Doctors collection accessible, 0 documents found",
+      "timestamp": "2025-10-02T17:27:29.054Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testFirestoreStructure (https://medconnect-2.web.app/debug/appointment-tester.js:74:18)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:395:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing doctor schedule creation...",
+      "timestamp": "2025-10-02T17:27:29.054Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.testCreateDoctorSchedule (https://medconnect-2.web.app/debug/appointment-tester.js:92:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:396:20)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Create Doctor Schedule: Sample schedule created for doctor test-doctor-123 on 2024-10-03",
+      "timestamp": "2025-10-02T17:27:29.979Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testCreateDoctorSchedule (https://medconnect-2.web.app/debug/appointment-tester.js:135:18)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:396:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   Data: {\"slots\":{\"slot-09-00\":{\"time\":\"09:00\",\"available\":true,\"duration\":30},\"slot-09-30\":{\"time\":\"09:30\",\"available\":true,\"duration\":30},\"slot-10-00\":{\"time\":\"10:00\",\"available\":false,\"heldUntil\":1759426059054},\"slot-10-30\":{\"time\":\"10:30\",\"available\":true,\"duration\":30}},\"doctorId\":\"test-doctor-123\",\"date\":\"2024-10-03\",\"createdAt\":\"2025-10-02T17:27:29.054Z\"}",
+      "timestamp": "2025-10-02T17:27:29.979Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:42:27)\n    at AppointmentSystemTester.testCreateDoctorSchedule (https://medconnect-2.web.app/debug/appointment-tester.js:135:18)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:396:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Verify Schedule Creation: Schedule successfully written and readable",
+      "timestamp": "2025-10-02T17:27:30.289Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testCreateDoctorSchedule (https://medconnect-2.web.app/debug/appointment-tester.js:145:22)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:396:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   Data: {\"doctorId\":\"test-doctor-123\",\"slots\":{\"slot-10-30\":{\"time\":\"10:30\",\"duration\":30,\"available\":true},\"slot-09-30\":{\"available\":true,\"time\":\"09:30\",\"duration\":30},\"slot-10-00\":{\"heldUntil\":1759426059054,\"available\":false,\"time\":\"10:00\"},\"slot-09-00\":{\"available\":true,\"time\":\"09:00\",\"duration\":30}},\"date\":\"2024-10-03\",\"createdAt\":\"2025-10-02T17:27:29.054Z\"}",
+      "timestamp": "2025-10-02T17:27:30.289Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:42:27)\n    at AppointmentSystemTester.testCreateDoctorSchedule (https://medconnect-2.web.app/debug/appointment-tester.js:145:22)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:396:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing direct appointment creation...",
+      "timestamp": "2025-10-02T17:27:30.289Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.testDirectAppointmentCreation (https://medconnect-2.web.app/debug/appointment-tester.js:225:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:397:20)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Direct Appointment Creation: Test appointment created with ID: test-appointment-1759426050289",
+      "timestamp": "2025-10-02T17:27:30.616Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testDirectAppointmentCreation (https://medconnect-2.web.app/debug/appointment-tester.js:244:18)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:397:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   Data: {\"id\":\"test-appointment-1759426050289\",\"patientId\":\"test-patient-123\",\"doctorId\":\"test-doctor-123\",\"date\":\"2024-10-03\",\"slotId\":\"slot-09-30\",\"status\":\"confirmed\",\"createdAt\":{\"_delegate\":{\"_methodName\":\"FieldValue.serverTimestamp\"}},\"patientName\":\"Test Patient\",\"doctorName\":\"Dr. Test\",\"reason\":\"Test appointment\"}",
+      "timestamp": "2025-10-02T17:27:30.616Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:42:27)\n    at AppointmentSystemTester.testDirectAppointmentCreation (https://medconnect-2.web.app/debug/appointment-tester.js:244:18)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:397:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Verify Appointment Creation: Appointment successfully written and readable",
+      "timestamp": "2025-10-02T17:27:30.956Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testDirectAppointmentCreation (https://medconnect-2.web.app/debug/appointment-tester.js:254:22)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:397:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   Data: {\"status\":\"confirmed\",\"slotId\":\"slot-09-30\",\"patientId\":\"test-patient-123\",\"createdAt\":{\"seconds\":1759426051,\"nanoseconds\":412000000},\"doctorId\":\"test-doctor-123\",\"date\":\"2024-10-03\",\"doctorName\":\"Dr. Test\",\"reason\":\"Test appointment\",\"patientName\":\"Test Patient\",\"id\":\"test-appointment-1759426050289\"}",
+      "timestamp": "2025-10-02T17:27:30.956Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:42:27)\n    at AppointmentSystemTester.testDirectAppointmentCreation (https://medconnect-2.web.app/debug/appointment-tester.js:254:22)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:397:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing real-time updates...",
+      "timestamp": "2025-10-02T17:27:30.957Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.testRealtimeUpdates (https://medconnect-2.web.app/debug/appointment-tester.js:276:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:398:20)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "📡 Real-time update received: {\"test\":true,\"timestamp\":1759426050957}",
+      "timestamp": "2025-10-02T17:27:30.961Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at Object.next (https://medconnect-2.web.app/debug/appointment-tester.js:289:33)\n    at Object.next (https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js:1:333574)\n    at next (https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js:1:320354)\n    at https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js:1:269329"
+    },
+    {
+      "level": "log",
+      "message": "📥 Debug data exported",
+      "timestamp": "2025-10-02T17:27:31.623Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at exposeGlobalFunctions.window.exportDebugData (https://medconnect-2.web.app/debug/master-debugger.js:361:21)\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Real-time Updates: Real-time updates working correctly",
+      "timestamp": "2025-10-02T17:27:32.288Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testRealtimeUpdates (https://medconnect-2.web.app/debug/appointment-tester.js:304:18)\n    at async AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:398:9)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing phone number validation...",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:325:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ❌ +9647701234567 - Valid Iraqi mobile (077) (Expected: true, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ❌ +9647801234567 - Valid Iraqi mobile (078) (Expected: true, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ❌ +9647901234567 - Valid Iraqi mobile (079) (Expected: true, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ❌ +9647501234567 - Valid Iraqi mobile (075) (Expected: true, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ❌ +9647601234567 - Valid Iraqi mobile (076) (Expected: true, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ✅ 07701234567 - Valid local format (Expected: true, Got: true)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ✅ +9647001234567 - Invalid prefix (070) (Expected: false, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ✅ 0770123456 - Too short (Expected: false, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ✅ +1234567890 - Wrong country (Expected: false, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ✅ 12345 - Invalid format (Expected: false, Got: false)",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:372:21\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:366:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "❌ Phone Number Validation: 5/10 validation tests passed",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:375:14)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   Data: {\"passedTests\":5,\"totalTests\":10,\"testNumbers\":[{\"phone\":\"+9647701234567\",\"expected\":true,\"note\":\"Valid Iraqi mobile (077)\"},{\"phone\":\"+9647801234567\",\"expected\":true,\"note\":\"Valid Iraqi mobile (078)\"},{\"phone\":\"+9647901234567\",\"expected\":true,\"note\":\"Valid Iraqi mobile (079)\"},{\"phone\":\"+9647501234567\",\"expected\":true,\"note\":\"Valid Iraqi mobile (075)\"},{\"phone\":\"+9647601234567\",\"expected\":true,\"note\":\"Valid Iraqi mobile (076)\"},{\"phone\":\"07701234567\",\"expected\":true,\"note\":\"Valid local format\"},{\"phone\":\"+9647001234567\",\"expected\":false,\"note\":\"Invalid prefix (070)\"},{\"phone\":\"0770123456\",\"expected\":false,\"note\":\"Too short\"},{\"phone\":\"+1234567890\",\"expected\":false,\"note\":\"Wrong country\"},{\"phone\":\"12345\",\"expected\":false,\"note\":\"Invalid format\"}]}",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:42:27)\n    at AppointmentSystemTester.testPhoneValidation (https://medconnect-2.web.app/debug/appointment-tester.js:375:14)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:399:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing slot reservation...",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.testSlotReservation (https://medconnect-2.web.app/debug/appointment-tester.js:167:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:400:20)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "❌ Slot Reservation Auth Check: User not authenticated - cannot test slot reservation",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.addTestResult (https://medconnect-2.web.app/debug/appointment-tester.js:41:17)\n    at AppointmentSystemTester.testSlotReservation (https://medconnect-2.web.app/debug/appointment-tester.js:173:22)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:400:20)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "\\n🏁 Test Suite Completed",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:402:17)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "================================================",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:403:17)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "\\n📊 Test Summary:",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.printSummary (https://medconnect-2.web.app/debug/appointment-tester.js:414:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:405:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   Total Tests: 10",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.printSummary (https://medconnect-2.web.app/debug/appointment-tester.js:415:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:405:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ✅ Passed: 8",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.printSummary (https://medconnect-2.web.app/debug/appointment-tester.js:416:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:405:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   ❌ Failed: 2",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.printSummary (https://medconnect-2.web.app/debug/appointment-tester.js:417:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:405:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   Success Rate: 80%",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.printSummary (https://medconnect-2.web.app/debug/appointment-tester.js:418:17)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:405:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "\\n❌ Failed Tests:",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at AppointmentSystemTester.printSummary (https://medconnect-2.web.app/debug/appointment-tester.js:421:21)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:405:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   - Phone Number Validation: 5/10 validation tests passed",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:424:39\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.printSummary (https://medconnect-2.web.app/debug/appointment-tester.js:424:18)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:405:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "   - Slot Reservation Auth Check: User not authenticated - cannot test slot reservation",
+      "timestamp": "2025-10-02T17:27:32.580Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/appointment-tester.js:424:39\n    at Array.forEach (<anonymous>)\n    at AppointmentSystemTester.printSummary (https://medconnect-2.web.app/debug/appointment-tester.js:424:18)\n    at AppointmentSystemTester.runAllTests (https://medconnect-2.web.app/debug/appointment-tester.js:405:14)\n    at async window.runAppointmentTests (https://medconnect-2.web.app/debug/appointment-tester.js:460:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:332:45)"
+    },
+    {
+      "level": "log",
+      "message": "🔍 Starting MedConnect Data Consistency Check...",
+      "timestamp": "2025-10-02T17:27:32.581Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:382:17)\n    at window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:37)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:59)"
+    },
+    {
+      "level": "log",
+      "message": "=============================================",
+      "timestamp": "2025-10-02T17:27:32.581Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:383:17)\n    at window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:37)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:59)"
+    },
+    {
+      "level": "log",
+      "message": "✅ Data Consistency Checker initialized",
+      "timestamp": "2025-10-02T17:27:32.581Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.initialize (https://medconnect-2.web.app/debug/data-checker.js:28:21)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:385:40)\n    at window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:37)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:59)"
+    },
+    {
+      "level": "log",
+      "message": "🔍 Checking Firestore collection structure...",
+      "timestamp": "2025-10-02T17:27:32.581Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.checkCollectionStructure (https://medconnect-2.web.app/debug/data-checker.js:58:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:394:20)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "⚠️ [STRUCTURE] Collection 'schedules' exists but is empty",
+      "timestamp": "2025-10-02T17:27:32.887Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.addIssue (https://medconnect-2.web.app/debug/data-checker.js:52:17)\n    at DataConsistencyChecker.checkCollectionStructure (https://medconnect-2.web.app/debug/data-checker.js:73:26)\n    at async DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:394:9)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "ℹ️ [STRUCTURE] Collection 'appointments' exists with data",
+      "timestamp": "2025-10-02T17:27:33.219Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.addIssue (https://medconnect-2.web.app/debug/data-checker.js:52:17)\n    at DataConsistencyChecker.checkCollectionStructure (https://medconnect-2.web.app/debug/data-checker.js:79:26)\n    at async DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:394:9)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "⚠️ [STRUCTURE] Collection 'doctors' exists but is empty",
+      "timestamp": "2025-10-02T17:27:33.521Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.addIssue (https://medconnect-2.web.app/debug/data-checker.js:52:17)\n    at DataConsistencyChecker.checkCollectionStructure (https://medconnect-2.web.app/debug/data-checker.js:73:26)\n    at async DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:394:9)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "⚠️ [STRUCTURE] Collection 'patients' exists but is empty",
+      "timestamp": "2025-10-02T17:27:33.803Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.addIssue (https://medconnect-2.web.app/debug/data-checker.js:52:17)\n    at DataConsistencyChecker.checkCollectionStructure (https://medconnect-2.web.app/debug/data-checker.js:73:26)\n    at async DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:394:9)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "🔍 Checking schedule data integrity...",
+      "timestamp": "2025-10-02T17:27:33.804Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.checkScheduleIntegrity (https://medconnect-2.web.app/debug/data-checker.js:98:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:395:20)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "🔍 Checking appointment data integrity...",
+      "timestamp": "2025-10-02T17:27:34.103Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.checkAppointmentIntegrity (https://medconnect-2.web.app/debug/data-checker.js:193:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:396:20)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "⚠️ [APPOINTMENTS] Appointment test-appointment-1759426050289 has invalid date format: 2024-10-03",
+      "timestamp": "2025-10-02T17:27:34.388Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.addIssue (https://medconnect-2.web.app/debug/data-checker.js:52:17)\n    at DataConsistencyChecker.validateAppointmentData (https://medconnect-2.web.app/debug/data-checker.js:241:18)\n    at DataConsistencyChecker.checkAppointmentIntegrity (https://medconnect-2.web.app/debug/data-checker.js:201:22)\n    at async DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:396:9)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   Data: {\"status\":\"confirmed\",\"doctorName\":\"Dr. Test\",\"date\":\"2024-10-03\",\"patientName\":\"Test Patient\",\"createdAt\":{\"seconds\":1759426051,\"nanoseconds\":412000000},\"reason\":\"Test appointment\",\"id\":\"test-appointment-1759426050289\",\"doctorId\":\"test-doctor-123\",\"patientId\":\"test-patient-123\",\"slotId\":\"slot-09-30\"}",
+      "timestamp": "2025-10-02T17:27:34.388Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.addIssue (https://medconnect-2.web.app/debug/data-checker.js:53:27)\n    at DataConsistencyChecker.validateAppointmentData (https://medconnect-2.web.app/debug/data-checker.js:241:18)\n    at DataConsistencyChecker.checkAppointmentIntegrity (https://medconnect-2.web.app/debug/data-checker.js:201:22)\n    at async DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:396:9)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "🔍 Checking for orphaned appointments...",
+      "timestamp": "2025-10-02T17:27:34.388Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.checkOrphanedAppointments (https://medconnect-2.web.app/debug/data-checker.js:252:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:397:20)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "🔍 Checking data relationships...",
+      "timestamp": "2025-10-02T17:27:34.970Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.checkDataRelationships (https://medconnect-2.web.app/debug/data-checker.js:305:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:398:20)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "🔍 Checking Firestore security rules...",
+      "timestamp": "2025-10-02T17:27:35.823Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.checkSecurityRules (https://medconnect-2.web.app/debug/data-checker.js:340:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:399:20)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "🚨 [SECURITY] Appointments collection accessible without authentication!",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.addIssue (https://medconnect-2.web.app/debug/data-checker.js:52:17)\n    at DataConsistencyChecker.checkSecurityRules (https://medconnect-2.web.app/debug/data-checker.js:356:26)\n    at async DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:399:9)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "\\n🏁 Data Consistency Check Completed",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:401:17)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "=====================================",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:402:17)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "\\n📊 Data Consistency Report:",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:413:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   🚨 Critical Issues: 1",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:414:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   ⚠️  Warnings: 4",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:415:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   ℹ️  Info: 1",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:416:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   Total Issues: 6",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:417:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "\\n📈 Database Statistics:",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:419:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   Schedules: 0 doctors",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:420:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   Appointments: 1 total",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:421:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   Doctors: 0 profiles",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:422:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   Orphaned Slots: 0",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:423:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   Expired Holds: 0",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:424:17)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "\\n🚨 Critical Issues Need Immediate Attention:",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:427:21)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "   - [SECURITY] Appointments collection accessible without authentication!",
+      "timestamp": "2025-10-02T17:27:36.116Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at https://medconnect-2.web.app/debug/data-checker.js:430:39\n    at Array.forEach (<anonymous>)\n    at DataConsistencyChecker.printSummary (https://medconnect-2.web.app/debug/data-checker.js:430:18)\n    at DataConsistencyChecker.runAllChecks (https://medconnect-2.web.app/debug/data-checker.js:404:14)\n    at async window.checkDataConsistency (https://medconnect-2.web.app/debug/data-checker.js:517:12)\n    at async exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:333:46)"
+    },
+    {
+      "level": "log",
+      "message": "🚀 Starting Portal Tests for: UNKNOWN",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:361:17)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "================================================",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:362:17)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing required scripts...",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.testRequiredScripts (https://medconnect-2.web.app/debug/portal-tester.js:52:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:368:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Required Scripts: Firebase App: Loaded",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:64:22\n    at Array.forEach (<anonymous>)\n    at PortalTester.testRequiredScripts (https://medconnect-2.web.app/debug/portal-tester.js:61:25)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:368:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Required Scripts: Firebase Auth: Loaded",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:64:22\n    at Array.forEach (<anonymous>)\n    at PortalTester.testRequiredScripts (https://medconnect-2.web.app/debug/portal-tester.js:61:25)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:368:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Required Scripts: Firebase Firestore: Loaded",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:64:22\n    at Array.forEach (<anonymous>)\n    at PortalTester.testRequiredScripts (https://medconnect-2.web.app/debug/portal-tester.js:61:25)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:368:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Required Scripts: Config: Loaded",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:64:22\n    at Array.forEach (<anonymous>)\n    at PortalTester.testRequiredScripts (https://medconnect-2.web.app/debug/portal-tester.js:61:25)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:368:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing Firebase configuration...",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.testFirebaseConfig (https://medconnect-2.web.app/debug/portal-tester.js:85:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:369:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Firebase Config: Configuration appears valid",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at PortalTester.testFirebaseConfig (https://medconnect-2.web.app/debug/portal-tester.js:106:18)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:369:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing UI elements...",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.testUIElements (https://medconnect-2.web.app/debug/portal-tester.js:112:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:370:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing form functionality...",
+      "timestamp": "2025-10-02T17:27:36.117Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:167:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Functionality: space-y-6: Structure looks OK",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:184:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Validation: space-y-6: 6 required fields found",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:195:22\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Functionality: space-y-6: Structure looks OK",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:184:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Validation: space-y-6: 1 required fields found",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:195:22\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Functionality: space-y-4: Structure looks OK",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:184:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Validation: space-y-4: 1 required fields found",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:195:22\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Functionality: space-y-4: Structure looks OK",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:184:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Validation: space-y-4: 4 required fields found",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:195:22\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Functionality: space-y-4: Structure looks OK",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:184:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Form Validation: space-y-4: 1 required fields found",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:195:22\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testFormFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:176:15)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:371:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing modal functionality...",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.testModalFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:206:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:372:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Modal Functionality: bookingModal: Has close button",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:221:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testModalFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:215:16)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:372:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Modal Functionality: doctorProfileModal: Has close button",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:221:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testModalFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:215:16)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:372:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Modal Functionality: loginModal: Has close button",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:221:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testModalFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:215:16)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:372:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Modal Functionality: registerModal: Has close button",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:221:18\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testModalFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:215:16)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:372:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing button functionality...",
+      "timestamp": "2025-10-02T17:27:36.118Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.testButtonFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:235:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:373:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "ℹ️ [UNKNOWN] Button \"إرسال رمز التحقق\" has no click handler",
+      "timestamp": "2025-10-02T17:27:36.119Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addIssue (https://medconnect-2.web.app/debug/portal-tester.js:47:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:251:22\n    at NodeList.forEach (<anonymous>)\n    at PortalTester.testButtonFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:241:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:373:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Button Functionality: 61 functional buttons, 1 without handlers",
+      "timestamp": "2025-10-02T17:27:36.119Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at PortalTester.testButtonFunctionality (https://medconnect-2.web.app/debug/portal-tester.js:255:14)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:373:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Checking for console errors...",
+      "timestamp": "2025-10-02T17:27:36.119Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.testConsoleErrors (https://medconnect-2.web.app/debug/portal-tester.js:264:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:374:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🧪 Testing unknown-specific functionality...",
+      "timestamp": "2025-10-02T17:27:36.119Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.testPortalSpecific (https://medconnect-2.web.app/debug/portal-tester.js:288:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:375:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Portal-Specific: No specific tests for this portal",
+      "timestamp": "2025-10-02T17:27:36.119Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at PortalTester.testPortalSpecific (https://medconnect-2.web.app/debug/portal-tester.js:301:22)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:375:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "\\n🏁 Portal Tests Completed",
+      "timestamp": "2025-10-02T17:27:36.119Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:377:17)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "==========================",
+      "timestamp": "2025-10-02T17:27:36.119Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:378:17)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "\\n📊 UNKNOWN Portal Test Summary:",
+      "timestamp": "2025-10-02T17:27:36.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.printSummary (https://medconnect-2.web.app/debug/portal-tester.js:392:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:380:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "   Total Tests: 21",
+      "timestamp": "2025-10-02T17:27:36.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.printSummary (https://medconnect-2.web.app/debug/portal-tester.js:393:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:380:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "   ✅ Passed: 21",
+      "timestamp": "2025-10-02T17:27:36.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.printSummary (https://medconnect-2.web.app/debug/portal-tester.js:394:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:380:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "   ❌ Failed: 0",
+      "timestamp": "2025-10-02T17:27:36.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.printSummary (https://medconnect-2.web.app/debug/portal-tester.js:395:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:380:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "   🚨 Critical Issues: 0",
+      "timestamp": "2025-10-02T17:27:36.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.printSummary (https://medconnect-2.web.app/debug/portal-tester.js:396:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:380:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "   ⚠️  Warnings: 0",
+      "timestamp": "2025-10-02T17:27:36.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.printSummary (https://medconnect-2.web.app/debug/portal-tester.js:397:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:380:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "   Success Rate: 100%",
+      "timestamp": "2025-10-02T17:27:36.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.printSummary (https://medconnect-2.web.app/debug/portal-tester.js:398:17)\n    at PortalTester.runAllTests (https://medconnect-2.web.app/debug/portal-tester.js:380:14)\n    at window.testCurrentPortal (https://medconnect-2.web.app/debug/portal-tester.js:447:38)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:334:56)"
+    },
+    {
+      "level": "log",
+      "message": "🚀 Full test suite complete",
+      "timestamp": "2025-10-02T17:27:36.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at exposeGlobalFunctions.window.runFullTest (https://medconnect-2.web.app/debug/master-debugger.js:336:21)"
+    },
+    {
+      "level": "log",
+      "message": "✅ [UNKNOWN] Console Errors: No new console errors",
+      "timestamp": "2025-10-02T17:27:37.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at PortalTester.addTestResult (https://medconnect-2.web.app/debug/portal-tester.js:32:17)\n    at https://medconnect-2.web.app/debug/portal-tester.js:278:18"
+    },
+    {
+      "level": "log",
+      "message": "✅ reCAPTCHA solved successfully",
+      "timestamp": "2025-10-02T17:27:58.525Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at callback (https://medconnect-2.web.app/patient.html:1560:33)\n    at https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js:1:95814\n    at Y4.<anonymous> (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:135:299)\n    at Ri0.wC (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:1544:444)\n    at Y.W (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:253:516)\n    at new Promise (<anonymous>)\n    at qL.j (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:253:488)\n    at Array.<anonymous> (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:749:198)"
+    },
+    {
+      "level": "log",
+      "message": "📱 Sending OTP to: +9647717676562",
+      "timestamp": "2025-10-02T17:27:58.525Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at callback (https://medconnect-2.web.app/patient.html:1565:41)\n    at https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js:1:95814\n    at Y4.<anonymous> (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:135:299)\n    at Ri0.wC (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:1544:444)\n    at Y.W (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:253:516)\n    at new Promise (<anonymous>)\n    at qL.j (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:253:488)\n    at Array.<anonymous> (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:749:198)"
+    },
+    {
+      "level": "log",
+      "message": "🔘 Send OTP button clicked!",
+      "timestamp": "2025-10-02T17:28:00.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2280:29)"
+    },
+    {
+      "level": "log",
+      "message": "🚀 sendVerificationCode called!",
+      "timestamp": "2025-10-02T17:28:00.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1793:21)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "📱 Phone number: 07717676562",
+      "timestamp": "2025-10-02T17:28:00.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1813:21)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "📞 Formatted phone: +96407717676562",
+      "timestamp": "2025-10-02T17:28:00.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1832:21)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "🔄 Initializing reCAPTCHA...",
+      "timestamp": "2025-10-02T17:28:00.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1835:25)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "📱 Sending OTP via Firebase...",
+      "timestamp": "2025-10-02T17:28:00.120Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1847:25)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "error",
+      "message": "❌ Error sending code: {\"code\":\"auth/captcha-check-failed\",\"customData\":{\"appName\":\"[DEFAULT]\"},\"name\":\"FirebaseError\"}",
+      "timestamp": "2025-10-02T17:28:00.471Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1861:25)"
+    },
+    {
+      "level": "error",
+      "message": "🚨 Unhandled Promise Rejection: {\"reason\":{},\"promise\":{}}",
+      "timestamp": "2025-10-02T17:28:00.476Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:59:18"
+    },
+    {
+      "level": "log",
+      "message": "✅ OTP sent successfully!",
+      "timestamp": "2025-10-02T17:28:02.281Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at callback (https://medconnect-2.web.app/patient.html:1572:41)"
+    },
+    {
+      "level": "log",
+      "message": "✅ reCAPTCHA solved successfully",
+      "timestamp": "2025-10-02T17:28:12.112Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at callback (https://medconnect-2.web.app/patient.html:1560:33)\n    at https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js:1:95814\n    at Y4.<anonymous> (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:135:299)\n    at Ri0.wC (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:1544:444)\n    at Y.W (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:253:516)\n    at new Promise (<anonymous>)\n    at qL.j (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:253:488)\n    at Array.<anonymous> (https://www.gstatic.com/recaptcha/releases/Jv8jlA-BQE5JD6rA-h_iqNH2/recaptcha__en.js:749:198)"
+    },
+    {
+      "level": "log",
+      "message": "🔘 Send OTP button clicked!",
+      "timestamp": "2025-10-02T17:28:13.037Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2280:29)"
+    },
+    {
+      "level": "log",
+      "message": "🚀 sendVerificationCode called!",
+      "timestamp": "2025-10-02T17:28:13.037Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1793:21)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "📱 Phone number: 07717676562",
+      "timestamp": "2025-10-02T17:28:13.037Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1813:21)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "📞 Formatted phone: +96407717676562",
+      "timestamp": "2025-10-02T17:28:13.037Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1832:21)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "🔄 Initializing reCAPTCHA...",
+      "timestamp": "2025-10-02T17:28:13.037Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1835:25)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "📱 Sending OTP via Firebase...",
+      "timestamp": "2025-10-02T17:28:13.037Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1847:25)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2282:21)"
+    },
+    {
+      "level": "log",
+      "message": "✅ OTP sent successfully!",
+      "timestamp": "2025-10-02T17:28:15.186Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1851:25)"
+    },
+    {
+      "level": "error",
+      "message": "❌ Error sending code: {}",
+      "timestamp": "2025-10-02T17:28:15.186Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at sendVerificationCode (https://medconnect-2.web.app/patient.html:1861:25)"
+    },
+    {
+      "level": "error",
+      "message": "🚨 Unhandled Promise Rejection: {\"reason\":{},\"promise\":{}}",
+      "timestamp": "2025-10-02T17:28:15.191Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:59:18"
+    },
+    {
+      "level": "log",
+      "message": "🔘 Verify OTP button clicked!",
+      "timestamp": "2025-10-02T17:28:47.635Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2292:29)"
+    },
+    {
+      "level": "error",
+      "message": "🚨 Unhandled Promise Rejection: {\"reason\":{},\"promise\":{}}",
+      "timestamp": "2025-10-02T17:28:47.651Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:59:18"
+    },
+    {
+      "level": "log",
+      "message": "🔘 Verify OTP button clicked!",
+      "timestamp": "2025-10-02T17:28:58.868Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2292:29)"
+    },
+    {
+      "level": "error",
+      "message": "🚨 Unhandled Promise Rejection: {\"reason\":{},\"promise\":{}}",
+      "timestamp": "2025-10-02T17:28:58.884Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:59:18"
+    },
+    {
+      "level": "log",
+      "message": "🔘 Verify OTP button clicked!",
+      "timestamp": "2025-10-02T17:29:02.223Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2292:29)"
+    },
+    {
+      "level": "error",
+      "message": "🚨 Unhandled Promise Rejection: {\"reason\":{},\"promise\":{}}",
+      "timestamp": "2025-10-02T17:29:02.233Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:59:18"
+    },
+    {
+      "level": "log",
+      "message": "🔘 Verify OTP button clicked!",
+      "timestamp": "2025-10-02T17:29:02.434Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.log (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at HTMLButtonElement.<anonymous> (https://medconnect-2.web.app/patient.html:2292:29)"
+    },
+    {
+      "level": "error",
+      "message": "🚨 Unhandled Promise Rejection: {\"reason\":{},\"promise\":{}}",
+      "timestamp": "2025-10-02T17:29:02.450Z",
+      "stack": "Error\n    at MedConnectDebugger.addLog (https://medconnect-2.web.app/debug/master-debugger.js:92:20)\n    at console.error (https://medconnect-2.web.app/debug/master-debugger.js:79:22)\n    at MedConnectDebugger.logError (https://medconnect-2.web.app/debug/master-debugger.js:113:17)\n    at https://medconnect-2.web.app/debug/master-debugger.js:59:18"
+    }
+  ],
+  "errors": [
+    {
+      "type": "JavaScript Error",
+      "details": {
+        "message": "Uncaught TypeError: window.testPhoneAuth is not a function",
+        "filename": "https://medconnect-2.web.app/patient.html",
+        "lineno": 1,
+        "colno": 8,
+        "stack": "TypeError: window.testPhoneAuth is not a function\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+      },
+      "timestamp": "2025-10-02T17:27:19.907Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    },
+    {
+      "type": "JavaScript Error",
+      "details": {
+        "message": "Uncaught TypeError: window.testPhoneAuth is not a function",
+        "filename": "https://medconnect-2.web.app/patient.html",
+        "lineno": 1,
+        "colno": 8,
+        "stack": "TypeError: window.testPhoneAuth is not a function\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+      },
+      "timestamp": "2025-10-02T17:27:21.838Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    },
+    {
+      "type": "JavaScript Error",
+      "details": {
+        "message": "Uncaught TypeError: window.debugFirebase is not a function",
+        "filename": "https://medconnect-2.web.app/patient.html",
+        "lineno": 1,
+        "colno": 8,
+        "stack": "TypeError: window.debugFirebase is not a function\n    at HTMLButtonElement.onclick (https://medconnect-2.web.app/patient.html:1:8)"
+      },
+      "timestamp": "2025-10-02T17:27:23.557Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    },
+    {
+      "type": "Unhandled Promise Rejection",
+      "details": {
+        "reason": {},
+        "promise": {}
+      },
+      "timestamp": "2025-10-02T17:28:00.476Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    },
+    {
+      "type": "Unhandled Promise Rejection",
+      "details": {
+        "reason": {},
+        "promise": {}
+      },
+      "timestamp": "2025-10-02T17:28:15.191Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    },
+    {
+      "type": "Unhandled Promise Rejection",
+      "details": {
+        "reason": {},
+        "promise": {}
+      },
+      "timestamp": "2025-10-02T17:28:47.651Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    },
+    {
+      "type": "Unhandled Promise Rejection",
+      "details": {
+        "reason": {},
+        "promise": {}
+      },
+      "timestamp": "2025-10-02T17:28:58.884Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    },
+    {
+      "type": "Unhandled Promise Rejection",
+      "details": {
+        "reason": {},
+        "promise": {}
+      },
+      "timestamp": "2025-10-02T17:29:02.233Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    },
+    {
+      "type": "Unhandled Promise Rejection",
+      "details": {
+        "reason": {},
+        "promise": {}
+      },
+      "timestamp": "2025-10-02T17:29:02.450Z",
+      "url": "https://medconnect-2.web.app/patient.html",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
+    }
+  ],
+  "config": {
+    "ENV": "development",
+    "APP_CHECK_KEY": "RECAPTCHA_ENTERPRISE_SITE_KEY",
+    "FIREBASE_CONFIG": {
+      "apiKey": "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+      "authDomain": "medconnect-2.firebaseapp.com",
+      "projectId": "medconnect-2",
+      "storageBucket": "medconnect-2.firebasestorage.app",
+      "messagingSenderId": "464755135042",
+      "appId": "1:464755135042:web:ac00e07a1aa0721683d3db",
+      "measurementId": "G-1Q7MTPV8XE"
+    }
+  },
+  "localStorage": {
+    "firestore_sequence_number_firestore/[DEFAULT]/medconnect-2/": "389",
+    "firestore_clients_firestore/[DEFAULT]/medconnect-2/_Zjlbsl2P5LBEj1E8HDbE": "{\"activeTargetIds\":[],\"updateTimeMs\":1759412555263}",
+    "_grecaptcha": "09AG7bzvH3j-46BFuE_SxJ4_HliDZKoUQsEJt_7ySk7l36QyZT7er546mWQjl7xDqabgJfk_MIBHRqtIk4jDRlTfGlXOJYUpbGWExHxkUatyiXe5_aqmRlcEpStyKxt2QX",
+    "gbFeaturesCache": "[[\"https://ab.reasonlabsapi.com||sdk-QtSYWOMLlkHBbNMB\",{\"data\":{\"status\":200,\"features\":{\"login-reminder\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"notification_backdrop\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"show_free_trial\":{\"defaultValue\":false,\"rules\":[{\"force\":false}]},\"block_page_detection\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"random_number\":{\"$lt\":100}},\"force\":true}]},\"scan_facebook_ads\":{\"defaultValue\":false,\"rules\":[{\"force\":false}]},\"enable_block_page_on_install\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"tabs_referrers_detection\":{\"defaultValue\":false},\"enable_data_monitoring_scan_notifications\":{\"defaultValue\":true},\"keep_blocking_target_url\":{\"defaultValue\":\"DEFAULT\",\"rules\":[{\"force\":\"https://lp.getmozo.com/idp/online-security/mozoai-protection/buy-app\"}]},\"display_mobile_promo_variant\":{\"defaultValue\":true,\"rules\":[{\"condition\":{\"ruserid\":\"44303a14-c8f7-42d1-b607-d0bfb0d462a5\"},\"force\":true}]},\"promo_target_url\":{\"defaultValue\":\"https://app.getmozo.com/\",\"rules\":[{\"force\":\"https://lp.getmozo.com/idp/safety_level_calculator/online-security/mozoai-protection/info\"}]},\"enable_live_chat\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"country\":{\"$in\":[\"US\",\"GB\",\"CA\",\"AU\",\"IL\",\"AE\"]}},\"force\":true}]},\"payment_redirect\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"random_number\":{\"$lt\":500}},\"force\":true}]},\"enable_google_button\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"enable_facebook_button\":{\"defaultValue\":false,\"rules\":[{\"force\":false}]},\"picker_trial\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"email_scan_sso_top\":{\"defaultValue\":false,\"rules\":[{\"force\":false}]},\"trustpilot\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"loggedIn\":true},\"force\":true}]},\"test-feature\":{\"defaultValue\":false,\"rules\":[{\"coverage\":0.8,\"hashAttribute\":\"ruserid\",\"seed\":\"7091aa3a-31cb-4989-8865-f409b30bf729\",\"hashVersion\":2,\"variations\":[false,true],\"weights\":[0.4,0.6],\"key\":\"test-experiment\",\"phase\":\"1\",\"meta\":[{\"key\":\"0\"},{\"key\":\"1\"}]}]},\"apple_sso_login\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"deviceType\":\"mobile\",\"mobileOS\":\"iOS\"},\"force\":true}]},\"enable_apple_button\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"google_one_tap_login\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"data_mon_get_started_modal\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"aflt\":{\"$ne\":83}},\"force\":true}]},\"vpn_download\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"country\":{\"$nin\":[\"BY\",\"CN\",\"IN\",\"IR\",\"KP\",\"OM\",\"PK\",\"RU\",\"SY\",\"TM\",\"AE\",\"VE\",\"YE\"]}},\"force\":true}]},\"insurance_page\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"loggedIn\":false,\"country\":\"US\"},\"force\":true},{\"condition\":{\"citizenship\":\"US\",\"loggedIn\":true},\"force\":true}]},\"show_risk_alerts\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"loggedIn\":false,\"country\":\"US\"},\"force\":true},{\"condition\":{\"citizenship\":\"US\",\"loggedIn\":true},\"force\":true}]},\"show_credit_monitoring\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"loggedIn\":false,\"country\":\"US\"},\"force\":true},{\"condition\":{\"citizenship\":\"US\",\"loggedIn\":true},\"force\":true}]},\"show_footprint_cleanup\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"citizenship\":\"US\",\"loggedIn\":true},\"force\":true}]},\"enable_free_trial\":{\"defaultValue\":false,\"rules\":[{\"force\":false}]},\"setup_verification_step\":{\"defaultValue\":false,\"rules\":[{\"force\":false}]},\"setup_watchlist_step\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"setup_show_skip\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"setup_show_help\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"setup_header_logo_nav\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"default_rating_star\":{\"defaultValue\":1,\"rules\":[{\"force\":5}]},\"show_sms_alert_step\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"show_sms_alert_consent\":{\"defaultValue\":false,\"rules\":[{\"force\":false}]},\"setup-manager\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"scam-scanner\":{\"defaultValue\":false,\"rules\":[{\"force\":true}]},\"enable_risk_type_filter\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"citizenship\":\"US\"},\"force\":true}]},\"display_hp_button_in_scan_results\":{\"defaultValue\":true,\"rules\":[{\"force\":true}]},\"setup_watchlist_scan\":{\"defaultValue\":\"OFF\",\"rules\":[{\"force\":\"watchlist_scan\"}]},\"allow_non_us_fruad_protection\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"citizenship\":\"US\"},\"force\":true}]},\"anti_scam_skip\":{\"defaultValue\":\"OFF\",\"rules\":[{\"force\":\"watchlist_scan\"}]},\"rate_us_target\":{\"defaultValue\":\"trustpilot\",\"rules\":[{\"condition\":{\"random_number\":{\"$gte\":500}},\"force\":\"extension_store\"}]},\"ext_scan_facebook_ads\":{\"defaultValue\":false,\"rules\":[{\"condition\":{\"random_number\":{\"$lte\":10}},\"force\":true}]},\"setup_email_protection_step\":{\"defaultValue\":false},\"enable_email_protection_page\":{\"defaultValue\":false}},\"experiments\":[],\"dateUpdated\":\"2025-09-30T11:55:22.953Z\"},\"version\":\"2025-09-30T11:55:22.953Z\",\"staleAt\":\"2025-10-02T17:27:38.900Z\",\"sse\":true}]]"
+  },
+  "sessionStorage": {}
+}

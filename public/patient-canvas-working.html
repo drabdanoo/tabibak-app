@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedConnect - منصة الاستشارات الطبية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        body {
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+        }
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal {
+            display: none !important;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal.show {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #10b981;
+            color: white;
+        }
+        .disconnected {
+            background-color: #ef4444;
+            color: white;
+        }
+        .time-slot {
+            transition: all 0.2s ease;
+        }
+        .time-slot:hover {
+            transform: scale(1.05);
+        }
+        .time-slot.selected {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            max-width: 400px;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            transform: translateY(-2px);
+        }
+        .doctor-avatar {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="connection-status connected">
+        🔥 متصل بـ Firebase - جاهز لإرسال الرسائل
+    </div>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center ml-3">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">MedConnect</h1>
+                        <p class="text-xs text-gray-500">منصة الاستشارات الطبية</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <button onclick="showBookingModal()" class="bg-gradient-to-r from-green-600 to-blue-600 text-white px-6 py-2 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium">
+                        احجز موعد
+                    </button>
+                    <button onclick="showLoginModal()" class="text-gray-600 hover:text-gray-900 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient text-white py-32">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div class="text-center lg:text-right">
+                    <h1 class="text-5xl md:text-7xl font-bold mb-8 fade-in leading-tight">
+                        استشارات طبية
+                        <span class="block text-yellow-300">موثوقة</span>
+                    </h1>
+                    <p class="text-xl md:text-2xl mb-10 opacity-90 fade-in leading-relaxed">
+                        احجز موعدك مع أفضل الأطباء المتخصصين في العراق واحصل على استشارة طبية عالية الجودة
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                        <button onclick="showBookingModal()" class="bg-white text-blue-600 px-10 py-5 rounded-xl text-xl font-bold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl fade-in">
+                            احجز الآن
+                        </button>
+                        <button onclick="switchTab('about')" class="border-2 border-white text-white px-10 py-5 rounded-xl text-xl font-bold hover:bg-white hover:text-blue-600 transition-all duration-300 fade-in">
+                            تعرف علينا
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="hidden lg:block">
+                    <div class="relative">
+                        <!-- Medical Icons Animation -->
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="w-96 h-96 relative">
+                                <!-- Floating Medical Icons -->
+                                <div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center animate-bounce">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                    </svg>
+                                </div>
+                                
+                                <div class="absolute top-1/4 right-0 w-12 h-12 bg-yellow-300 bg-opacity-30 rounded-full flex items-center justify-center animate-pulse">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                
+                                <div class="absolute bottom-1/4 left-0 w-14 h-14 bg-green-300 bg-opacity-25 rounded-full flex items-center justify-center animate-bounce" style="animation-delay: 0.5s;">
+                                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                </div>
+                                
+                                <div class="absolute bottom-0 right-1/3 w-10 h-10 bg-purple-300 bg-opacity-20 rounded-full flex items-center justify-center animate-pulse" style="animation-delay: 1s;">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                </div>
+                                
+                                <!-- Central Medical Cross -->
+                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white bg-opacity-10 rounded-3xl flex items-center justify-center backdrop-blur-sm">
+                                    <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl">
+                                        <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        
+        <!-- Tabs Navigation -->
+        <div class="flex flex-wrap justify-center mb-8 bg-white rounded-xl p-2 shadow-sm">
+            <button onclick="switchTab('doctors')" id="doctorsTab" class="tab-button active px-6 py-3 rounded-lg font-medium text-sm mx-1 mb-2">
+                الأطباء المتاحون
+            </button>
+            <button onclick="switchTab('specialties')" id="specialtiesTab" class="tab-button px-6 py-3 rounded-lg font-medium text-sm mx-1 mb-2 text-gray-600 hover:text-gray-900">
+                التخصصات
+            </button>
+            <button onclick="switchTab('about')" id="aboutTab" class="tab-button px-6 py-3 rounded-lg font-medium text-sm mx-1 mb-2 text-gray-600 hover:text-gray-900">
+                عن المنصة
+            </button>
+        </div>
+
+        <!-- Doctors Tab -->
+        <div id="doctorsContent" class="tab-content">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">أطباء متخصصون</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto">
+                    اختر من بين أفضل الأطباء المتخصصين في مختلف المجالات الطبية
+                </p>
+            </div>
+
+            <!-- Search and Filter -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1">
+                        <input type="text" id="searchInput" placeholder="ابحث عن طبيب أو تخصص..." class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="specialtyFilter" class="p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">جميع التخصصات</option>
+                            <option value="طب الأطفال">طب الأطفال</option>
+                            <option value="جراحة الأطفال">جراحة الأطفال</option>
+                        </select>
+                        <button onclick="filterDoctors()" class="bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors">
+                            بحث
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Doctors Grid -->
+            <div id="doctorsGrid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Doctor 1 -->
+                <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
+                    <div class="p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
+                                <span class="text-white font-bold text-lg">د.خ</span>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-gray-900 mb-1">د. خالد هاشم</h3>
+                                <p class="text-blue-600 font-medium">طب الأطفال</p>
+                                <p class="text-sm text-gray-500">12 سنة خبرة</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center">
+                                    <span class="text-yellow-500 ml-1">⭐⭐⭐⭐⭐</span>
+                                    <span class="text-sm text-gray-600">4.8 (89 تقييم)</span>
+                                </div>
+                                <span class="text-lg font-bold text-green-600">15 ألف د.ع</span>
+                            </div>
+                            
+                            <div class="text-sm text-gray-600 mb-2">
+                                <div class="flex items-center mb-1">
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    منطقة المثنى - قرب صيدلية الرملة
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    9:00 ص - 5:00 م
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="showDoctorProfile('1')" class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
+                                عرض الملف
+                            </button>
+                            <button onclick="showBookingModal('1')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
+                                احجز موعد
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Doctor 2 -->
+                <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
+                    <div class="p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
+                                <span class="text-white font-bold text-lg">د.ص</span>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-gray-900 mb-1">د. صفوان الهاشمي</h3>
+                                <p class="text-blue-600 font-medium">طب الأطفال</p>
+                                <p class="text-sm text-gray-500">10 سنوات خبرة</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center">
+                                    <span class="text-yellow-500 ml-1">⭐⭐⭐⭐⭐</span>
+                                    <span class="text-sm text-gray-600">4.7 (76 تقييم)</span>
+                                </div>
+                                <span class="text-lg font-bold text-green-600">15 ألف د.ع</span>
+                            </div>
+                            
+                            <div class="text-sm text-gray-600 mb-2">
+                                <div class="flex items-center mb-1">
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    منطقة البريد - قرب صيدلية الدانة
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    8:00 ص - 4:00 م
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="showDoctorProfile('2')" class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
+                                عرض الملف
+                            </button>
+                            <button onclick="showBookingModal('2')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
+                                احجز موعد
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Doctor 3 -->
+                <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
+                    <div class="p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
+                                <span class="text-white font-bold text-lg">د.و</span>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-gray-900 mb-1">د. وعد ادريس</h3>
+                                <p class="text-blue-600 font-medium">جراحة الأطفال</p>
+                                <p class="text-sm text-gray-500">15 سنة خبرة</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center">
+                                    <span class="text-yellow-500 ml-1">⭐⭐⭐⭐⭐</span>
+                                    <span class="text-sm text-gray-600">4.9 (124 تقييم)</span>
+                                </div>
+                                <span class="text-lg font-bold text-green-600">15 ألف د.ع</span>
+                            </div>
+                            
+                            <div class="text-sm text-gray-600 mb-2">
+                                <div class="flex items-center mb-1">
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    منطقة المصارف - قرب صيدلية لين
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    10:00 ص - 6:00 م
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="showDoctorProfile('3')" class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
+                                عرض الملف
+                            </button>
+                            <button onclick="showBookingModal('3')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
+                                احجز موعد
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Doctor 4 -->
+                <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
+                    <div class="p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
+                                <span class="text-white font-bold text-lg">د.ا</span>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-gray-900 mb-1">د. ايسر المدلج</h3>
+                                <p class="text-blue-600 font-medium">طب الأطفال</p>
+                                <p class="text-sm text-gray-500">8 سنوات خبرة</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center">
+                                    <span class="text-yellow-500 ml-1">⭐⭐⭐⭐⭐</span>
+                                    <span class="text-sm text-gray-600">4.6 (63 تقييم)</span>
+                                </div>
+                                <span class="text-lg font-bold text-green-600">15 ألف د.ع</span>
+                            </div>
+                            
+                            <div class="text-sm text-gray-600 mb-2">
+                                <div class="flex items-center mb-1">
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    منطقة المحروق - قرب صيدلية ذهب
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    9:00 ص - 5:00 م
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="showDoctorProfile('4')" class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
+                                عرض الملف
+                            </button>
+                            <button onclick="showBookingModal('4')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
+                                احجز موعد
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Specialties Tab -->
+        <div id="specialtiesContent" class="tab-content hidden">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">التخصصات الطبية</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto">
+                    تعرف على التخصصات المتاحة في منصتنا
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                    <div class="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">طب الأطفال</h3>
+                    <p class="text-gray-600 mb-4">رعاية شاملة للأطفال من الولادة حتى سن المراهقة</p>
+                    <p class="text-sm text-blue-600 font-medium">3 أطباء متاحين</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                    <div class="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">جراحة الأطفال</h3>
+                    <p class="text-gray-600 mb-4">جراحات متخصصة للأطفال بأحدث التقنيات</p>
+                    <p class="text-sm text-green-600 font-medium">1 طبيب متاح</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                    <div class="w-16 h-16 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">المزيد قريباً</h3>
+                    <p class="text-gray-600 mb-4">المزيد من التخصصات ستكون متاحة قريباً</p>
+                    <p class="text-sm text-purple-600 font-medium">قيد التطوير</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Tab -->
+        <div id="aboutContent" class="tab-content hidden">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">عن منصة MedConnect</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto">
+                    منصة طبية متطورة تهدف إلى تسهيل الوصول للرعاية الصحية
+                </p>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-6">مهمتنا</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center ml-3 mt-1">
+                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <p class="text-gray-600">توفير استشارات طبية عالية الجودة</p>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center ml-3 mt-1">
+                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <p class="text-gray-600">سهولة الوصول للأطباء المتخصصين</p>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center ml-3 mt-1">
+                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <p class="text-gray-600">أسعار مناسبة للجميع</p>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center ml-3 mt-1">
+                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <p class="text-gray-600">خدمة عملاء متميزة</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+                    <h4 class="text-xl font-bold mb-4">إحصائيات المنصة</h4>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span>الأطباء المسجلين</span>
+                            <span class="font-bold text-2xl">4+</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>المرضى الراضين</span>
+                            <span class="font-bold text-2xl">100+</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>الاستشارات المكتملة</span>
+                            <span class="font-bold text-2xl">200+</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>التقييم العام</span>
+                            <span class="font-bold text-2xl">4.8⭐</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">حجز موعد</h3>
+                <button onclick="closeBookingModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Doctor Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-3">اختر الطبيب</label>
+                <div id="doctorSelection" class="space-y-3">
+                    <div class="doctor-option p-4 border border-blue-500 bg-blue-50 rounded-lg cursor-pointer" onclick="selectDoctor('1')">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
+                                <span class="text-white font-bold">د.خ</span>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-gray-900">د. خالد هاشم</h4>
+                                <p class="text-sm text-gray-600">طب الأطفال</p>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-bold text-blue-600">15 ألف د.ع</p>
+                                <p class="text-xs text-gray-500">⭐ 4.8</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="doctor-option p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors" onclick="selectDoctor('2')">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
+                                <span class="text-white font-bold">د.ص</span>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-gray-900">د. صفوان الهاشمي</h4>
+                                <p class="text-sm text-gray-600">طب الأطفال</p>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-bold text-blue-600">15 ألف د.ع</p>
+                                <p class="text-xs text-gray-500">⭐ 4.7</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="doctor-option p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors" onclick="selectDoctor('3')">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
+                                <span class="text-white font-bold">د.و</span>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-gray-900">د. وعد ادريس</h4>
+                                <p class="text-sm text-gray-600">جراحة الأطفال</p>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-bold text-blue-600">15 ألف د.ع</p>
+                                <p class="text-xs text-gray-500">⭐ 4.9</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="doctor-option p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors" onclick="selectDoctor('4')">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
+                                <span class="text-white font-bold">د.ا</span>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-gray-900">د. ايسر المدلج</h4>
+                                <p class="text-sm text-gray-600">طب الأطفال</p>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-bold text-blue-600">15 ألف د.ع</p>
+                                <p class="text-xs text-gray-500">⭐ 4.6</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selected Doctor Info -->
+            <div id="selectedDoctorInfo" class="bg-blue-50 rounded-lg p-4 mb-6">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
+                        <span class="text-white font-bold" id="selectedDoctorInitials">د.خ</span>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-900" id="selectedDoctorName">د. خالد هاشم</h4>
+                        <p class="text-sm text-gray-600" id="selectedDoctorSpecialty">طب الأطفال</p>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-lg font-bold text-blue-600"><span id="selectedDoctorFee">15</span> ألف د.ع</p>
+                        <p class="text-xs text-gray-500">رسوم الاستشارة</p>
+                    </div>
+                </div>
+            </div>
+
+            <form onsubmit="submitBooking(event)" class="space-y-6">
+                <!-- Patient Info -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل</label>
+                        <input type="text" id="patientName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+                        <input type="tel" id="patientPhone" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">العمر</label>
+                        <input type="number" id="patientAge" min="1" max="120" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">الجنس</label>
+                        <select id="patientGender" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                            <option value="">اختر الجنس</option>
+                            <option value="male">ذكر</option>
+                            <option value="female">أنثى</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Date Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">اختر التاريخ</label>
+                    <input type="date" id="appointmentDate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+
+                <!-- Time Slots -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">اختر الوقت</label>
+                    <div id="timeSlots" class="grid grid-cols-3 md:grid-cols-4 gap-3">
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '9:00 ص')">9:00 ص</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '9:30 ص')">9:30 ص</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '10:00 ص')">10:00 ص</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '10:30 ص')">10:30 ص</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '11:00 ص')">11:00 ص</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '11:30 ص')">11:30 ص</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '12:00 م')">12:00 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '12:30 م')">12:30 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '1:00 م')">1:00 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '1:30 م')">1:30 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '2:00 م')">2:00 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '2:30 م')">2:30 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '3:00 م')">3:00 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '3:30 م')">3:30 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '4:00 م')">4:00 م</button>
+                        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '4:30 م')">4:30 م</button>
+                    </div>
+                </div>
+
+                <!-- Medical History -->
+                <div class="bg-blue-50 rounded-lg p-6 space-y-4">
+                    <h4 class="text-lg font-bold text-gray-900 mb-4">المعلومات الطبية</h4>
+                    
+                    <!-- Allergies -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">الحساسية من الأدوية أو الأطعمة</label>
+                        <textarea id="allergies" rows="2" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="اذكر أي حساسية من الأدوية أو الأطعمة (مثل: البنسلين، الفول السوداني، إلخ...)"></textarea>
+                        <p class="text-xs text-gray-500 mt-1">هذه المعلومات مهمة جداً لسلامة العلاج</p>
+                    </div>
+                    
+                    <!-- Chronic Conditions -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">الأمراض المزمنة</label>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="hypertension" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <label for="hypertension" class="mr-2 text-sm text-gray-700">ضغط الدم المرتفع</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="diabetes" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <label for="diabetes" class="mr-2 text-sm text-gray-700">السكري</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="heartDisease" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <label for="heartDisease" class="mr-2 text-sm text-gray-700">أمراض القلب</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="asthma" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <label for="asthma" class="mr-2 text-sm text-gray-700">الربو</label>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <input type="text" id="otherConditions" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="أمراض مزمنة أخرى...">
+                        </div>
+                    </div>
+                    
+                    <!-- Current Medications -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">الأدوية الحالية</label>
+                        <textarea id="currentMedications" rows="2" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="اذكر الأدوية التي يتناولها المريض حالياً..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Reason -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">سبب الزيارة</label>
+                    <textarea id="appointmentReason" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="اذكر سبب الزيارة أو الأعراض..." required></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-4 space-x-reverse pt-6 border-t">
+                    <button type="button" onclick="closeBookingModal()" class="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 transition-colors">
+                        إلغاء
+                    </button>
+                    <button type="submit" id="bookingSubmitBtn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors">
+                        تأكيد الحجز
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Doctor Profile Modal -->
+    <div id="doctorProfileModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">ملف الطبيب</h3>
+                <button onclick="closeDoctorProfileModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="doctorProfileContent">
+                <!-- Doctor profile content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">تسجيل الدخول</h2>
+                <p class="text-gray-600">ادخل بياناتك للوصول لحسابك</p>
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+                    <input type="tel" id="loginPhone" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                    <input type="password" id="loginPassword" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                
+                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium text-lg">
+                    تسجيل الدخول
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-gray-600">ليس لديك حساب؟ <button onclick="showRegisterModal()" class="text-blue-600 hover:text-blue-800 font-medium">سجل الآن</button></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-gradient-to-br from-green-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">إنشاء حساب جديد</h2>
+                <p class="text-gray-600">أدخل بياناتك لإنشاء حساب</p>
+            </div>
+
+            <form onsubmit="handleRegister(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل</label>
+                    <input type="text" id="registerName" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+                    <input type="tel" id="registerPhone" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="07XXXXXXXXX" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                    <input type="password" id="registerPassword" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تأكيد كلمة المرور</label>
+                    <input type="password" id="confirmPassword" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                
+                <button type="submit" id="registerBtn" class="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-4 px-6 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-lg">
+                    إنشاء الحساب
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-gray-600">لديك حساب بالفعل؟ <button onclick="showLoginModal()" class="text-blue-600 hover:text-blue-800 font-medium">سجل الدخول</button></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phone Verification Modal -->
+    <div id="phoneVerificationModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">تأكيد رقم الهاتف</h2>
+                <p class="text-gray-600 mb-2">تم إرسال رمز التحقق إلى</p>
+                <p class="text-lg font-bold text-blue-600" id="verificationPhoneNumber"></p>
+            </div>
+
+            <form onsubmit="handlePhoneVerification(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">رمز التحقق</label>
+                    <div class="flex justify-center space-x-2 space-x-reverse">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 0)">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 1)">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 2)">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 3)">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 4)">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 5)">
+                    </div>
+                </div>
+                
+                <button type="submit" id="verifyBtn" class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-4 px-6 rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 font-medium text-lg">
+                    تأكيد الرمز
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-gray-600 mb-2">لم تستلم الرمز؟</p>
+                <button onclick="resendVerificationCode()" id="resendBtn" class="text-blue-600 hover:text-blue-800 font-medium">
+                    إعادة الإرسال (<span id="countdown">60</span>)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Appointments Modal -->
+    <div id="appointmentsModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">مواعيدي</h3>
+                <button onclick="closeAppointmentsModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="appointmentsContent">
+                <div class="text-center py-8">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p class="text-gray-600">جاري تحميل مواعيدك...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- reCAPTCHA Container (hidden) -->
+    <div id="recaptcha-container"></div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+            authDomain: "medconnect-2.firebaseapp.com",
+            projectId: "medconnect-2",
+            storageBucket: "medconnect-2.firebasestorage.app",
+            messagingSenderId: "464755135042",
+            appId: "1:464755135042:web:ac00e07a1aa0721683d3db",
+            measurementId: "G-1Q7MTPV8XE"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Global reCAPTCHA verifier
+        let recaptchaVerifier = null;
+
+        // Initialize reCAPTCHA
+        function initializeRecaptcha() {
+            if (!recaptchaVerifier) {
+                recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                    'size': 'invisible',
+                    'callback': function(response) {
+                        console.log('reCAPTCHA solved, can proceed with SMS');
+                    },
+                    'expired-callback': function() {
+                        console.log('reCAPTCHA expired');
+                        recaptchaVerifier = null;
+                    }
+                });
+            }
+            return recaptchaVerifier;
+        }
+
+        // Global Variables
+        let selectedDoctorId = '1';
+        let selectedTimeSlot = null;
+        let confirmationResult = null;
+        
+        // Doctor data
+        const doctors = {
+            '1': { name: 'د. خالد هاشم', specialty: 'طب الأطفال', fee: '15', initials: 'د.خ' },
+            '2': { name: 'د. صفوان الهاشمي', specialty: 'طب الأطفال', fee: '15', initials: 'د.ص' },
+            '3': { name: 'د. وعد ادريس', specialty: 'جراحة الأطفال', fee: '15', initials: 'د.و' },
+            '4': { name: 'د. ايسر المدلج', specialty: 'طب الأطفال', fee: '15', initials: 'د.ا' }
+        };
+
+        // Modal Functions
+        function showBookingModal(doctorId = null) {
+            const doctorSelectionDiv = document.getElementById('doctorSelection').parentElement;
+            
+            if (doctorId) {
+                // Hide doctor selection when booking for specific doctor
+                doctorSelectionDiv.style.display = 'none';
+                selectDoctor(doctorId);
+            } else {
+                // Show doctor selection when booking from general button
+                doctorSelectionDiv.style.display = 'block';
+                selectDoctor('1'); // Default to first doctor
+            }
+            
+            document.getElementById('bookingModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+            
+            // Set minimum date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('appointmentDate').min = today;
+            document.getElementById('appointmentDate').value = today;
+        }
+
+        function closeBookingModal() {
+            document.getElementById('bookingModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+            
+            // Reset form
+            document.getElementById('bookingModal').querySelector('form').reset();
+            selectedTimeSlot = null;
+            
+            // Reset time slots
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selected');
+            });
+            
+            // Reset checkboxes
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+
+        function selectDoctor(doctorId) {
+            selectedDoctorId = doctorId;
+            const doctor = doctors[doctorId];
+            
+            if (doctor) {
+                // Update selection UI
+                document.querySelectorAll('.doctor-option').forEach(option => {
+                    option.classList.remove('border-blue-500', 'bg-blue-50');
+                    option.classList.add('border-gray-300');
+                });
+                
+                event.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
+                event.currentTarget.classList.remove('border-gray-300');
+                
+                // Update selected doctor info
+                document.getElementById('selectedDoctorInitials').textContent = doctor.initials;
+                document.getElementById('selectedDoctorName').textContent = doctor.name;
+                document.getElementById('selectedDoctorSpecialty').textContent = doctor.specialty;
+                document.getElementById('selectedDoctorFee').textContent = doctor.fee;
+            }
+        }
+
+        function selectTimeSlot(slotElement, time) {
+            // Remove selection from all slots
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selected');
+            });
+            
+            // Select current slot
+            slotElement.classList.add('selected');
+            selectedTimeSlot = time;
+        }
+
+        async function submitBooking(event) {
+            event.preventDefault();
+            
+            if (!selectedTimeSlot) {
+                showNotification('يرجى اختيار وقت للموعد', 'error');
+                return;
+            }
+            
+            // Check if user is logged in
+            const currentUser = localStorage.getItem('medconnect_current_user');
+            if (!currentUser) {
+                showNotification('يرجى تسجيل الدخول أولاً لحجز موعد', 'error');
+                closeBookingModal();
+                showLoginModal();
+                return;
+            }
+            
+            const user = JSON.parse(currentUser);
+            
+            // Collect chronic conditions
+            const chronicConditions = [];
+            if (document.getElementById('hypertension').checked) chronicConditions.push('ضغط الدم المرتفع');
+            if (document.getElementById('diabetes').checked) chronicConditions.push('السكري');
+            if (document.getElementById('heartDisease').checked) chronicConditions.push('أمراض القلب');
+            if (document.getElementById('asthma').checked) chronicConditions.push('الربو');
+            
+            const otherConditions = document.getElementById('otherConditions').value;
+            if (otherConditions) chronicConditions.push(otherConditions);
+            
+            const appointmentData = {
+                doctorId: selectedDoctorId,
+                doctorName: doctors[selectedDoctorId].name,
+                doctorSpecialty: doctors[selectedDoctorId].specialty,
+                patientName: document.getElementById('patientName').value,
+                patientPhone: document.getElementById('patientPhone').value,
+                patientAge: document.getElementById('patientAge').value,
+                patientGender: document.getElementById('patientGender').value,
+                appointmentDate: document.getElementById('appointmentDate').value,
+                appointmentTime: selectedTimeSlot,
+                reason: document.getElementById('appointmentReason').value,
+                // Medical Information
+                allergies: document.getElementById('allergies').value,
+                chronicConditions: chronicConditions,
+                currentMedications: document.getElementById('currentMedications').value,
+                // User info
+                userId: user.uid,
+                userPhone: user.phone,
+                // Status and timestamps
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                appointmentId: generateAppointmentId()
+            };
+            
+            const submitBtn = document.getElementById('bookingSubmitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'جاري الحجز...';
+            
+            try {
+                // Check for conflicting appointments
+                const conflictQuery = await db.collection('appointments')
+                    .where('doctorId', '==', selectedDoctorId)
+                    .where('appointmentDate', '==', appointmentData.appointmentDate)
+                    .where('appointmentTime', '==', selectedTimeSlot)
+                    .where('status', '!=', 'cancelled')
+                    .get();
+                
+                if (!conflictQuery.empty) {
+                    showNotification('هذا الموعد محجوز بالفعل. يرجى اختيار وقت آخر', 'error');
+                    return;
+                }
+                
+                // Save appointment to Firestore
+                const docRef = await db.collection('appointments').add(appointmentData);
+                
+                // Update appointment with document ID
+                await docRef.update({
+                    firestoreId: docRef.id
+                });
+                
+                const doctor = doctors[selectedDoctorId];
+                showNotification(`✅ تم حجز موعدك مع ${doctor.name} بنجاح!\nرقم الحجز: ${appointmentData.appointmentId}`, 'success');
+                
+                // Send confirmation SMS (if Firebase Functions are set up)
+                try {
+                    await sendAppointmentConfirmationSMS(appointmentData);
+                } catch (smsError) {
+                    console.log('SMS sending failed:', smsError);
+                    // Don't show error to user as appointment was successful
+                }
+                
+                closeBookingModal();
+                
+            } catch (error) {
+                console.error('Error booking appointment:', error);
+                showNotification('حدث خطأ أثناء حجز الموعد. يرجى المحاولة مرة أخرى', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'تأكيد الحجز';
+            }
+        }
+        
+        function generateAppointmentId() {
+            const timestamp = Date.now().toString();
+            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            return `MED${timestamp.slice(-6)}${random}`;
+        }
+        
+        async function sendAppointmentConfirmationSMS(appointmentData) {
+            // This would typically call a Firebase Cloud Function
+            // For now, we'll just log the SMS content
+            const smsContent = `
+تأكيد حجز موعد - MedConnect
+المريض: ${appointmentData.patientName}
+الطبيب: ${appointmentData.doctorName}
+التاريخ: ${appointmentData.appointmentDate}
+الوقت: ${appointmentData.appointmentTime}
+رقم الحجز: ${appointmentData.appointmentId}
+            `.trim();
+            
+            console.log('SMS would be sent:', smsContent);
+            
+            // In production, this would call your SMS service
+            // Example: await callCloudFunction('sendSMS', { phone: appointmentData.patientPhone, message: smsContent });
+        }
+
+        function showDoctorProfile(doctorId) {
+            const doctorProfiles = {
+                '1': {
+                    name: 'د. خالد هاشم',
+                    specialty: 'طب الأطفال',
+                    initials: 'د.خ',
+                    experience: '12 سنة خبرة',
+                    rating: '4.8',
+                    reviews: '89',
+                    location: 'منطقة المثنى - قرب صيدلية الرملة',
+                    hours: '9:00 ص - 5:00 م',
+                    fee: '15 ألف د.ع',
+                    education: 'بكالوريوس طب وجراحة - جامعة بغداد\nماجستير طب الأطفال - الجامعة المستنصرية',
+                    specializations: ['أمراض الجهاز التنفسي عند الأطفال', 'التطعيمات والوقاية', 'نمو وتطور الطفل', 'أمراض الجهاز الهضمي'],
+                    languages: ['العربية', 'الإنجليزية'],
+                    about: 'طبيب أطفال متخصص مع خبرة واسعة في علاج الأطفال من جميع الأعمار. يتميز بالصبر والتعامل اللطيف مع الأطفال وأولياء الأمور.'
+                },
+                '2': {
+                    name: 'د. صفوان الهاشمي',
+                    specialty: 'طب الأطفال',
+                    initials: 'د.ص',
+                    experience: '10 سنوات خبرة',
+                    rating: '4.7',
+                    reviews: '76',
+                    location: 'منطقة البريد - قرب صيدلية الدانة',
+                    hours: '8:00 ص - 4:00 م',
+                    fee: '15 ألف د.ع',
+                    education: 'بكالوريوس طب وجراحة - جامعة الموصل\nماجستير طب الأطفال - جامعة بغداد',
+                    specializations: ['طب الأطفال العام', 'الأمراض المعدية', 'التغذية العلاجية', 'الرعاية الوقائية'],
+                    languages: ['العربية', 'الإنجليزية'],
+                    about: 'طبيب أطفال مختص في الرعاية الشاملة للأطفال مع التركيز على الطب الوقائي والتغذية السليمة.'
+                },
+                '3': {
+                    name: 'د. وعد ادريس',
+                    specialty: 'جراحة الأطفال',
+                    initials: 'د.و',
+                    experience: '15 سنة خبرة',
+                    rating: '4.9',
+                    reviews: '124',
+                    location: 'منطقة المصارف - قرب صيدلية لين',
+                    hours: '10:00 ص - 6:00 م',
+                    fee: '15 ألف د.ع',
+                    education: 'بكالوريوس طب وجراحة - جامعة بغداد\nاختصاص جراحة الأطفال - مستشفى الطفل المركزي',
+                    specializations: ['جراحة الجهاز الهضمي', 'جراحة المسالك البولية', 'الجراحات التجميلية', 'جراحة الطوارئ'],
+                    languages: ['العربية', 'الإنجليزية', 'الفرنسية'],
+                    about: 'جراح أطفال متخصص مع خبرة واسعة في الجراحات الدقيقة والمعقدة. يستخدم أحدث التقنيات الجراحية.'
+                },
+                '4': {
+                    name: 'د. ايسر المدلج',
+                    specialty: 'طب الأطفال',
+                    initials: 'د.ا',
+                    experience: '8 سنوات خبرة',
+                    rating: '4.6',
+                    reviews: '63',
+                    location: 'منطقة المحروق - قرب صيدلية ذهب',
+                    hours: '9:00 ص - 5:00 م',
+                    fee: '15 ألف د.ع',
+                    education: 'بكالوريوس طب وجراحة - الجامعة المستنصرية\nماجستير طب الأطفال - جامعة بغداد',
+                    specializations: ['طب الأطفال العام', 'أمراض الحساسية', 'الربو عند الأطفال', 'الأمراض الجلدية'],
+                    languages: ['العربية', 'الإنجليزية'],
+                    about: 'طبيب أطفال شاب ومتحمس مع اهتمام خاص بأمراض الحساسية والجهاز التنفسي عند الأطفال.'
+                }
+            };
+
+            const doctor = doctorProfiles[doctorId];
+            if (!doctor) return;
+            
+            const profileContent = document.getElementById('doctorProfileContent');
+            profileContent.innerHTML = `
+                <!-- Doctor Header -->
+                <div class="text-center mb-8">
+                    <div class="w-24 h-24 doctor-avatar rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-white font-bold text-2xl">${doctor.initials}</span>
+                    </div>
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">${doctor.name}</h2>
+                    <p class="text-xl text-blue-600 font-medium mb-2">${doctor.specialty}</p>
+                    <p class="text-gray-600 mb-4">${doctor.experience}</p>
+                    
+                    <div class="flex items-center justify-center mb-4">
+                        <span class="text-yellow-500 ml-2">⭐⭐⭐⭐⭐</span>
+                        <span class="text-gray-600">${doctor.rating} (${doctor.reviews} تقييم)</span>
+                    </div>
+                    
+                    <div class="bg-green-50 rounded-lg p-4 inline-block">
+                        <p class="text-2xl font-bold text-green-600">${doctor.fee}</p>
+                        <p class="text-sm text-gray-600">رسوم الاستشارة</p>
+                    </div>
+                </div>
+
+                <!-- Doctor Details -->
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <!-- Basic Info -->
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="text-lg font-bold text-gray-900 mb-3">معلومات أساسية</h4>
+                            <div class="space-y-3">
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    <span class="text-gray-700">${doctor.location}</span>
+                                </div>
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="text-gray-700">${doctor.hours}</span>
+                                </div>
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+                                    </svg>
+                                    <span class="text-gray-700">${doctor.languages.join(', ')}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-lg font-bold text-gray-900 mb-3">التخصصات</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${doctor.specializations.map(spec => 
+                                    `<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">${spec}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Education & About -->
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="text-lg font-bold text-gray-900 mb-3">التعليم والمؤهلات</h4>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <p class="text-gray-700 whitespace-pre-line">${doctor.education}</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-lg font-bold text-gray-900 mb-3">نبذة عن الطبيب</h4>
+                            <p class="text-gray-700 leading-relaxed">${doctor.about}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="text-center border-t pt-6">
+                    <button onclick="closeDoctorProfileModal(); showBookingModal('${doctorId}')" class="bg-gradient-to-r from-green-600 to-blue-600 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-lg">
+                        احجز موعد مع ${doctor.name}
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('doctorProfileModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDoctorProfileModal() {
+            document.getElementById('doctorProfileModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        function showLoginModal() {
+            document.getElementById('loginModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const phone = document.getElementById('loginPhone').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            // Validate Iraqi phone number format
+            if (!validateIraqiPhone(phone)) {
+                showNotification('يرجى إدخال رقم هاتف عراقي صحيح (07XXXXXXXXX)', 'error');
+                return;
+            }
+            
+            const loginBtn = event.target.querySelector('button[type="submit"]');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'جاري تسجيل الدخول...';
+            
+            try {
+                // Query Firestore for user with this phone number
+                const usersRef = db.collection('users');
+                const snapshot = await usersRef.where('phone', '==', phone).get();
+                
+                if (snapshot.empty) {
+                    showNotification('رقم الهاتف غير مسجل', 'error');
+                    return;
+                }
+                
+                let userDoc = null;
+                snapshot.forEach(doc => {
+                    const userData = doc.data();
+                    if (userData.password === password) { // In production, use proper password hashing
+                        userDoc = { id: doc.id, ...userData };
+                    }
+                });
+                
+                if (userDoc) {
+                    // Sign in the user with Firebase Auth (for session management)
+                    const internationalPhone = '+964' + phone.substring(1);
+                    
+                    // Store user data locally
+                    const user = {
+                        uid: userDoc.uid,
+                        name: userDoc.name,
+                        phone: userDoc.phone,
+                        verified: userDoc.verified
+                    };
+                    
+                    localStorage.setItem('medconnect_current_user', JSON.stringify(user));
+                    showNotification(`مرحباً ${user.name}! تم تسجيل الدخول بنجاح`, 'success');
+                    closeLoginModal();
+                    updateUserInterface(user);
+                } else {
+                    showNotification('كلمة المرور غير صحيحة', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error during login:', error);
+                showNotification('حدث خطأ أثناء تسجيل الدخول', 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'تسجيل الدخول';
+            }
+        }
+
+        function showRegisterModal() {
+            closeLoginModal();
+            document.getElementById('registerModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeRegisterModal() {
+            document.getElementById('registerModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+            
+            // Reset form
+            document.getElementById('registerModal').querySelector('form').reset();
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('registerName').value;
+            const phone = document.getElementById('registerPhone').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // Validate inputs
+            if (!validateIraqiPhone(phone)) {
+                showNotification('يرجى إدخال رقم هاتف عراقي صحيح (07XXXXXXXXX)', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showNotification('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showNotification('كلمة المرور وتأكيدها غير متطابقتين', 'error');
+                return;
+            }
+            
+            const registerBtn = document.getElementById('registerBtn');
+            registerBtn.disabled = true;
+            registerBtn.textContent = 'جاري إنشاء الحساب...';
+            
+            try {
+                // Firebase is now properly configured
+                
+                // Store temporary user data
+                const tempUser = { name, phone, password };
+                localStorage.setItem('medconnect_temp_user', JSON.stringify(tempUser));
+                
+                // Convert Iraqi phone to international format
+                const internationalPhone = '+964' + phone.substring(1);
+                console.log('Attempting to send SMS to:', internationalPhone);
+                
+                // Initialize and get reCAPTCHA verifier
+                const appVerifier = initializeRecaptcha();
+                
+                // Send SMS verification
+                showNotification('جاري إرسال رمز التحقق...', 'info');
+                confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
+                
+                console.log('SMS sent successfully');
+                closeRegisterModal();
+                showPhoneVerificationModal(phone);
+                showNotification('✅ تم إرسال رمز التحقق إلى هاتفك', 'success');
+                
+            } catch (error) {
+                console.error('Error during phone verification:', error);
+                let errorMessage = 'حدث خطأ أثناء إرسال رمز التحقق';
+                
+                if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'تم إرسال عدد كبير من الطلبات. يرجى المحاولة لاحقاً';
+                } else if (error.code === 'auth/invalid-phone-number') {
+                    errorMessage = 'رقم الهاتف غير صحيح';
+                } else if (error.code === 'auth/missing-app-credential') {
+                    errorMessage = 'خطأ في إعدادات Firebase. يرجى التحقق من التكوين';
+                } else if (error.code === 'auth/quota-exceeded') {
+                    errorMessage = 'تم تجاوز حد الرسائل اليومي';
+                } else if (error.code === 'auth/captcha-check-failed') {
+                    errorMessage = 'فشل التحقق الأمني. يرجى المحاولة مرة أخرى';
+                }
+                
+                showNotification(errorMessage, 'error');
+                
+                // Reset reCAPTCHA on error
+                if (recaptchaVerifier) {
+                    recaptchaVerifier.clear();
+                    recaptchaVerifier = null;
+                }
+            } finally {
+                registerBtn.disabled = false;
+                registerBtn.textContent = 'إنشاء الحساب';
+            }
+        }
+
+        function showPhoneVerificationModal(phone) {
+            document.getElementById('verificationPhoneNumber').textContent = phone;
+            document.getElementById('phoneVerificationModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+            
+            // Start countdown
+            startCountdown();
+            
+            // Focus first input
+            document.querySelector('.verification-input').focus();
+        }
+
+        function closePhoneVerificationModal() {
+            document.getElementById('phoneVerificationModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+            
+            // Reset verification inputs
+            document.querySelectorAll('.verification-input').forEach(input => {
+                input.value = '';
+            });
+        }
+
+        async function handlePhoneVerification(event) {
+            event.preventDefault();
+            
+            const inputs = document.querySelectorAll('.verification-input');
+            const enteredCode = Array.from(inputs).map(input => input.value).join('');
+            
+            if (enteredCode.length !== 6) {
+                showNotification('يرجى إدخال الرمز المرسل إلى هاتفك', 'error');
+                return;
+            }
+            
+            const verifyBtn = document.getElementById('verifyBtn');
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = 'جاري التحقق من الرمز...';
+            
+            try {
+                if (!confirmationResult) {
+                    throw new Error('No confirmation result available');
+                }
+                
+                // Verify the real SMS code with Firebase
+                const result = await confirmationResult.confirm(enteredCode);
+                const user = result.user;
+                
+                console.log('Phone verification successful:', user.phoneNumber);
+                
+                // Get temporary user data
+                const tempUser = JSON.parse(localStorage.getItem('medconnect_temp_user'));
+                if (!tempUser) {
+                    throw new Error('No temporary user data found');
+                }
+                
+                // Create user document in Firestore with real Firebase user data
+                await db.collection('users').doc(user.uid).set({
+                    name: tempUser.name,
+                    phone: tempUser.phone,
+                    password: tempUser.password, // In production, hash this password
+                    verified: true,
+                    phoneNumber: user.phoneNumber,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    uid: user.uid
+                });
+                
+                const newUser = {
+                    uid: user.uid,
+                    name: tempUser.name,
+                    phone: tempUser.phone,
+                    phoneNumber: user.phoneNumber,
+                    verified: true
+                };
+                
+                // Store user data locally
+                localStorage.setItem('medconnect_current_user', JSON.stringify(newUser));
+                
+                // Clean up temporary data
+                localStorage.removeItem('medconnect_temp_user');
+                
+                closePhoneVerificationModal();
+                showNotification(`مرحباً ${newUser.name}! تم التحقق من رقم هاتفك وإنشاء حسابك بنجاح`, 'success');
+                updateUserInterface(newUser);
+                
+            } catch (error) {
+                console.error('Error verifying SMS code:', error);
+                let errorMessage = 'رمز التحقق المدخل غير صحيح';
+                
+                if (error.code === 'auth/invalid-verification-code') {
+                    errorMessage = 'رمز التحقق غير صحيح. يرجى التأكد من الرمز المرسل إلى هاتفك';
+                } else if (error.code === 'auth/code-expired') {
+                    errorMessage = 'انتهت صلاحية رمز التحقق. يرجى طلب رمز جديد';
+                } else if (error.code === 'auth/session-expired') {
+                    errorMessage = 'انتهت جلسة التحقق. يرجى المحاولة مرة أخرى';
+                } else if (error.message.includes('No confirmation result')) {
+                    errorMessage = 'حدث خطأ في عملية التحقق. يرجى المحاولة مرة أخرى';
+                }
+                
+                showNotification(errorMessage, 'error');
+                
+                // Clear inputs and highlight error
+                inputs.forEach(input => {
+                    input.value = '';
+                    input.classList.add('border-red-500');
+                });
+                inputs[0].focus();
+                
+                // Remove error styling after 3 seconds
+                setTimeout(() => {
+                    inputs.forEach(input => {
+                        input.classList.remove('border-red-500');
+                    });
+                }, 3000);
+            } finally {
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = 'تأكيد الرمز';
+            }
+        }
+
+        function moveToNext(currentInput, index) {
+            if (currentInput.value.length === 1) {
+                const inputs = document.querySelectorAll('.verification-input');
+                if (index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            }
+        }
+
+        function startCountdown() {
+            let seconds = 60;
+            const countdownElement = document.getElementById('countdown');
+            const resendBtn = document.getElementById('resendBtn');
+            
+            resendBtn.style.pointerEvents = 'none';
+            resendBtn.style.opacity = '0.5';
+            
+            const interval = setInterval(() => {
+                seconds--;
+                countdownElement.textContent = seconds;
+                
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    resendBtn.style.pointerEvents = 'auto';
+                    resendBtn.style.opacity = '1';
+                    resendBtn.innerHTML = 'إعادة الإرسال';
+                }
+            }, 1000);
+        }
+
+        async function resendVerificationCode() {
+            const phone = document.getElementById('verificationPhoneNumber').textContent;
+            const resendBtn = document.getElementById('resendBtn');
+            
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'جاري الإرسال...';
+            
+            try {
+                // Convert Iraqi phone to international format
+                const internationalPhone = '+964' + phone.substring(1);
+                console.log('Resending SMS to:', internationalPhone);
+                
+                // Clear existing reCAPTCHA and create new one
+                if (recaptchaVerifier) {
+                    recaptchaVerifier.clear();
+                    recaptchaVerifier = null;
+                }
+                
+                // Initialize new reCAPTCHA verifier
+                const appVerifier = initializeRecaptcha();
+                
+                // Send new SMS verification
+                showNotification('جاري إرسال رمز جديد...', 'info');
+                confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
+                
+                console.log('SMS resent successfully');
+                showNotification('✅ تم إرسال رمز جديد إلى هاتفك', 'success');
+                startCountdown();
+                
+            } catch (error) {
+                console.error('Error resending code:', error);
+                let errorMessage = 'حدث خطأ أثناء إعادة الإرسال';
+                
+                if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'تم إرسال عدد كبير من الطلبات. يرجى المحاولة لاحقاً';
+                } else if (error.code === 'auth/quota-exceeded') {
+                    errorMessage = 'تم تجاوز حد الرسائل اليومي';
+                }
+                
+                showNotification(errorMessage, 'error');
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'إعادة الإرسال';
+            }
+        }
+
+        function validateIraqiPhone(phone) {
+            // Iraqi phone number validation (07XXXXXXXXX - 11 digits total)
+            const iraqiPhoneRegex = /^07[0-9]{9}$/;
+            return iraqiPhoneRegex.test(phone);
+        }
+
+        function updateUserInterface(user) {
+            // Update navigation to show user info
+            const navButtons = document.querySelector('.flex.items-center.space-x-4.space-x-reverse');
+            navButtons.innerHTML = `
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <button onclick="showUserAppointments()" class="bg-blue-100 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium">
+                        مواعيدي
+                    </button>
+                    <div class="text-right">
+                        <p class="text-sm font-medium text-gray-900">${user.name}</p>
+                        <p class="text-xs text-gray-500">${user.phone}</p>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">${user.name.charAt(0)}</span>
+                    </div>
+                    <button onclick="logout()" class="text-gray-600 hover:text-gray-900 transition-colors text-sm">
+                        تسجيل الخروج
+                    </button>
+                </div>
+            `;
+        }
+
+        function logout() {
+            localStorage.removeItem('medconnect_current_user');
+            location.reload();
+        }
+        
+        async function showUserAppointments() {
+            const currentUser = localStorage.getItem('medconnect_current_user');
+            if (!currentUser) {
+                showNotification('يرجى تسجيل الدخول أولاً', 'error');
+                return;
+            }
+            
+            const user = JSON.parse(currentUser);
+            document.getElementById('appointmentsModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+            
+            try {
+                // Fetch user appointments from Firestore
+                const appointmentsQuery = await db.collection('appointments')
+                    .where('userId', '==', user.uid)
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                const appointments = [];
+                appointmentsQuery.forEach(doc => {
+                    appointments.push({ id: doc.id, ...doc.data() });
+                });
+                
+                displayUserAppointments(appointments);
+                
+            } catch (error) {
+                console.error('Error fetching appointments:', error);
+                document.getElementById('appointmentsContent').innerHTML = `
+                    <div class="text-center py-8">
+                        <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p class="text-gray-600">حدث خطأ في تحميل المواعيد</p>
+                        <button onclick="showUserAppointments()" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                            إعادة المحاولة
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayUserAppointments(appointments) {
+            const content = document.getElementById('appointmentsContent');
+            
+            if (appointments.length === 0) {
+                content.innerHTML = `
+                    <div class="text-center py-8">
+                        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10m6-10v10m-6-4h6"></path>
+                        </svg>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">لا توجد مواعيد</h3>
+                        <p class="text-gray-600 mb-4">لم تقم بحجز أي مواعيد بعد</p>
+                        <button onclick="closeAppointmentsModal(); showBookingModal()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                            احجز موعدك الأول
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const appointmentsHTML = appointments.map(appointment => {
+                const statusColors = {
+                    'pending': 'bg-yellow-100 text-yellow-800',
+                    'confirmed': 'bg-green-100 text-green-800',
+                    'cancelled': 'bg-red-100 text-red-800',
+                    'completed': 'bg-blue-100 text-blue-800'
+                };
+                
+                const statusTexts = {
+                    'pending': 'في الانتظار',
+                    'confirmed': 'مؤكد',
+                    'cancelled': 'ملغي',
+                    'completed': 'مكتمل'
+                };
+                
+                const appointmentDate = new Date(appointment.appointmentDate);
+                const isUpcoming = appointmentDate >= new Date();
+                
+                return `
+                    <div class="bg-white border rounded-xl p-6 mb-4 shadow-sm">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-4">
+                                    <span class="text-white font-bold">${doctors[appointment.doctorId]?.initials || 'د'}</span>
+                                </div>
+                                <div>
+                                    <h4 class="text-lg font-bold text-gray-900">${appointment.doctorName}</h4>
+                                    <p class="text-blue-600 font-medium">${appointment.doctorSpecialty}</p>
+                                    <p class="text-sm text-gray-500">رقم الحجز: ${appointment.appointmentId}</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColors[appointment.status] || statusColors.pending}">
+                                ${statusTexts[appointment.status] || statusTexts.pending}
+                            </span>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <div class="flex items-center text-gray-600">
+                                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10m6-10v10m-6-4h6"></path>
+                                </svg>
+                                ${appointment.appointmentDate}
+                            </div>
+                            <div class="flex items-center text-gray-600">
+                                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                ${appointment.appointmentTime}
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 rounded-lg p-3 mb-4">
+                            <p class="text-sm text-gray-700"><strong>سبب الزيارة:</strong> ${appointment.reason}</p>
+                        </div>
+                        
+                        <div class="flex space-x-2 space-x-reverse">
+                            ${isUpcoming && appointment.status === 'pending' ? `
+                                <button onclick="cancelAppointment('${appointment.id}')" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium">
+                                    إلغاء الموعد
+                                </button>
+                            ` : ''}
+                            <button onclick="showAppointmentDetails('${appointment.id}')" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium">
+                                عرض التفاصيل
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            content.innerHTML = `
+                <div class="mb-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-lg font-medium text-gray-900">إجمالي المواعيد: ${appointments.length}</h4>
+                        <button onclick="closeAppointmentsModal(); showBookingModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                            حجز موعد جديد
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    ${appointmentsHTML}
+                </div>
+            `;
+        }
+        
+        function closeAppointmentsModal() {
+            document.getElementById('appointmentsModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+        
+        async function cancelAppointment(appointmentId) {
+            if (!confirm('هل أنت متأكد من إلغاء هذا الموعد؟')) {
+                return;
+            }
+            
+            try {
+                await db.collection('appointments').doc(appointmentId).update({
+                    status: 'cancelled',
+                    cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showNotification('تم إلغاء الموعد بنجاح', 'success');
+                showUserAppointments(); // Refresh the list
+                
+            } catch (error) {
+                console.error('Error cancelling appointment:', error);
+                showNotification('حدث خطأ أثناء إلغاء الموعد', 'error');
+            }
+        }
+        
+        function showAppointmentDetails(appointmentId) {
+            // This could open a detailed view modal
+            console.log('Show details for appointment:', appointmentId);
+            showNotification('تفاصيل الموعد ستكون متاحة قريباً', 'info');
+        }
+
+        // Tab Management
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+                button.classList.add('text-gray-600');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + 'Content').classList.remove('hidden');
+            
+            // Add active class to selected tab
+            const activeTab = document.getElementById(tabName + 'Tab');
+            activeTab.classList.add('active');
+            activeTab.classList.remove('text-gray-600');
+        }
+
+        function filterDoctors() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const selectedSpecialty = document.getElementById('specialtyFilter').value;
+            const doctorCards = document.querySelectorAll('#doctorsGrid > div');
+            
+            doctorCards.forEach(card => {
+                const doctorName = card.querySelector('h3').textContent.toLowerCase();
+                const doctorSpecialty = card.querySelector('.text-blue-600').textContent;
+                
+                const matchesSearch = doctorName.includes(searchTerm) || doctorSpecialty.toLowerCase().includes(searchTerm);
+                const matchesSpecialty = !selectedSpecialty || doctorSpecialty === selectedSpecialty;
+                
+                if (matchesSearch && matchesSpecialty) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
+        // Add real-time search functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', filterDoctors);
+            }
+            
+            const specialtyFilter = document.getElementById('specialtyFilter');
+            if (specialtyFilter) {
+                specialtyFilter.addEventListener('change', filterDoctors);
+            }
+        });
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+            
+            notification.className = `notification ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    ${message}
+                </div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 4000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update connection status
+            const statusElement = document.getElementById('connectionStatus');
+            
+            // Check if Firebase is properly configured
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_ACTUAL_API_KEY") {
+                statusElement.textContent = '🔥 متصل بـ Firebase - جاهز لإرسال الرسائل';
+                statusElement.className = 'connection-status connected';
+                
+                // Show ready notification
+                setTimeout(() => {
+                    showNotification('✅ Firebase مُكوّن بنجاح! يمكنك الآن التسجيل وستصلك رسائل SMS حقيقية', 'success');
+                }, 1000);
+            } else {
+                statusElement.textContent = '⚠️ يجب تكوين Firebase';
+                statusElement.className = 'connection-status disconnected';
+                
+                // Show setup instructions
+                setTimeout(() => {
+                    showNotification('يرجى إضافة بيانات مشروع Firebase الخاص بك في الكود لتفعيل إرسال الرسائل النصية', 'error');
+                }, 1000);
+            }
+            
+            // Check if user is already logged in
+            const currentUser = localStorage.getItem('medconnect_current_user');
+            if (currentUser) {
+                const user = JSON.parse(currentUser);
+                updateUserInterface(user);
+            }
+            
+            // Monitor Firebase Auth state
+            auth.onAuthStateChanged((user) => {
+                if (user && user.phoneNumber) {
+                    console.log('User is signed in with phone:', user.phoneNumber);
+                } else {
+                    console.log('User is signed out');
+                }
+            });
+            
+            // Auto-hide connection status
+            setTimeout(() => {
+                if (statusElement) {
+                    statusElement.style.display = 'none';
+                }
+            }, 5000);
+        });
+
+        // Close modals when clicking outside
+        document.addEventListener('click', function(e) {
+            const modals = document.querySelectorAll('.modal.show');
+            modals.forEach(modal => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989c36ff478eb8c8',t:'MTc1OTY1OTkyNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

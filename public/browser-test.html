@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser SMS Compatibility Test</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="config.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .fail { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warn { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .logs { background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Browser SMS Compatibility Diagnostics</h1>
+    
+    <div id="results"></div>
+    
+    <h3>Detailed Logs:</h3>
+    <div id="logs" class="logs"></div>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="runFullTest()" style="padding: 10px 20px; font-size: 16px;">🚀 Run Full Test</button>
+        <button onclick="testQuickSMS()" style="padding: 10px 20px; font-size: 16px;">📱 Test SMS (+9647XXXXXXXXX)</button>
+    </div>
+    
+    <div id="recaptcha-container"></div>
+
+    <script>
+        let recaptchaVerifier = null;
+        const results = document.getElementById('results');
+        const logs = document.getElementById('logs');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.textContent += `[${timestamp}] ${message}\n`;
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+        
+        function addResult(test, status, message) {
+            const div = document.createElement('div');
+            div.className = `test-result ${status}`;
+            const icon = status === 'pass' ? '✅' : status === 'fail' ? '❌' : '⚠️';
+            div.innerHTML = `${icon} <strong>${test}:</strong> ${message}`;
+            results.appendChild(div);
+        }
+        
+        function runFullTest() {
+            results.innerHTML = '';
+            logs.textContent = '';
+            
+            log('🚀 Starting Browser Compatibility Test');
+            
+            // Test 1: Basic Browser Info
+            const userAgent = navigator.userAgent;
+            const browserName = getBrowserName(userAgent);
+            log(`🌐 Browser: ${browserName}`);
+            log(`📱 User Agent: ${userAgent}`);
+            addResult('Browser Detection', 'pass', browserName);
+            
+            // Test 2: Security Context
+            const isSecure = window.isSecureContext;
+            log(`🔒 Secure Context (HTTPS): ${isSecure}`);
+            addResult('HTTPS Security', isSecure ? 'pass' : 'fail', isSecure ? 'Secure HTTPS connection' : 'Insecure connection - SMS requires HTTPS');
+            
+            // Test 3: Cookies
+            const cookiesEnabled = navigator.cookieEnabled;
+            log(`🍪 Cookies Enabled: ${cookiesEnabled}`);
+            addResult('Cookies Support', cookiesEnabled ? 'pass' : 'fail', cookiesEnabled ? 'Cookies available' : 'Cookies disabled - may affect reCAPTCHA');
+            
+            // Test 4: Local Storage
+            const hasStorage = typeof(Storage) !== "undefined";
+            log(`💾 Local Storage: ${hasStorage}`);
+            addResult('Local Storage', hasStorage ? 'pass' : 'warn', hasStorage ? 'Local Storage available' : 'Local Storage not available');
+            
+            // Test 5: Third-party Access
+            testThirdPartyAccess();
+            
+            // Test 6: Firebase Init
+            testFirebaseInit();
+            
+            // Test 7: reCAPTCHA
+            setTimeout(testRecaptcha, 1000);
+        }
+        
+        function getBrowserName(userAgent) {
+            if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) return 'Google Chrome';
+            if (userAgent.includes('Firefox')) return 'Mozilla Firefox';
+            if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) return 'Safari';
+            if (userAgent.includes('Edg')) return 'Microsoft Edge';
+            if (userAgent.includes('OPR')) return 'Opera';
+            return 'Unknown Browser';
+        }
+        
+        function testThirdPartyAccess() {
+            try {
+                // Test Google access
+                const img = new Image();
+                img.onload = function() {
+                    log('🌐 Google Services: Accessible');
+                    addResult('Google Services Access', 'pass', 'Can reach Google services');
+                };
+                img.onerror = function() {
+                    log('❌ Google Services: Blocked');
+                    addResult('Google Services Access', 'fail', 'Google services blocked - check ad blocker/firewall');
+                };
+                img.src = 'https://www.google.com/favicon.ico?' + Date.now();
+                
+                // Test document.cookie access
+                try {
+                    document.cookie = 'test=1; path=/';
+                    const canSetCookie = document.cookie.includes('test=1');
+                    log(`🍪 Cookie Write Test: ${canSetCookie ? 'Success' : 'Failed'}`);
+                    addResult('Cookie Write Access', canSetCookie ? 'pass' : 'warn', canSetCookie ? 'Can write cookies' : 'Cookie writing restricted');
+                } catch (cookieError) {
+                    log(`❌ Cookie Error: ${cookieError.message}`);
+                    addResult('Cookie Write Access', 'fail', 'Cookie access blocked');
+                }
+            } catch (error) {
+                log(`❌ Third-party test error: ${error.message}`);
+                addResult('Third-party Access', 'fail', error.message);
+            }
+        }
+        
+        function testFirebaseInit() {
+            try {
+                firebase.initializeApp(window.__MC_ENV__.FIREBASE_CONFIG);
+                log('✅ Firebase initialized successfully');
+                addResult('Firebase Initialization', 'pass', 'Firebase SDK loaded and configured');
+            } catch (error) {
+                log(`❌ Firebase init failed: ${error.message}`);
+                addResult('Firebase Initialization', 'fail', error.message);
+            }
+        }
+        
+        function testRecaptcha() {
+            try {
+                log('🔧 Testing reCAPTCHA initialization...');
+                
+                const container = document.getElementById('recaptcha-container');
+                if (!container) {
+                    throw new Error('reCAPTCHA container not found');
+                }
+                
+                recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                    'size': 'invisible',
+                    'callback': function(response) {
+                        log('✅ reCAPTCHA solved successfully');
+                        addResult('reCAPTCHA Function', 'pass', 'reCAPTCHA callback working');
+                    },
+                    'expired-callback': function() {
+                        log('⚠️ reCAPTCHA expired');
+                        addResult('reCAPTCHA Expiry', 'warn', 'reCAPTCHA expired - normal behavior');
+                    },
+                    'error-callback': function(error) {
+                        log(`❌ reCAPTCHA error: ${error}`);
+                        addResult('reCAPTCHA Error Handler', 'fail', error);
+                    }
+                });
+                
+                recaptchaVerifier.render().then(function(widgetId) {
+                    log(`✅ reCAPTCHA rendered successfully (Widget ID: ${widgetId})`);
+                    addResult('reCAPTCHA Render', 'pass', `Widget created successfully (ID: ${widgetId})`);
+                }).catch(function(error) {
+                    log(`❌ reCAPTCHA render failed: ${error.message}`);
+                    let errorMsg = error.message;
+                    if (error.message.includes('network')) {
+                        errorMsg = 'Network blocked - check firewall/ad blocker';
+                    } else if (error.message.includes('domain')) {
+                        errorMsg = 'Domain not authorized in Firebase console';
+                    }
+                    addResult('reCAPTCHA Render', 'fail', errorMsg);
+                });
+                
+            } catch (error) {
+                log(`❌ reCAPTCHA test failed: ${error.message}`);
+                addResult('reCAPTCHA Setup', 'fail', error.message);
+            }
+        }
+        
+        async function testQuickSMS() {
+            const phone = prompt('Enter Iraqi phone number (+9647XXXXXXXXX):') || '+9647700000000';
+            
+            try {
+                log(`📱 Testing SMS to: ${phone}`);
+                
+                if (!recaptchaVerifier) {
+                    log('🔧 Initializing reCAPTCHA for SMS test...');
+                    await new Promise(resolve => {
+                        testRecaptcha();
+                        setTimeout(resolve, 2000);
+                    });
+                }
+                
+                const confirmationResult = await firebase.auth().signInWithPhoneNumber(phone, recaptchaVerifier);
+                log('✅ SMS sent successfully!');
+                addResult('SMS Test', 'pass', 'Real SMS sent via Firebase');
+                
+                const code = prompt('Enter the 6-digit verification code:');
+                if (code) {
+                    const result = await confirmationResult.confirm(code);
+                    log('✅ SMS verification successful!');
+                    addResult('SMS Verification', 'pass', `Verified user: ${result.user.uid}`);
+                }
+                
+            } catch (error) {
+                log(`❌ SMS test failed: ${error.code} - ${error.message}`);
+                addResult('SMS Test', 'fail', `${error.code}: ${error.message}`);
+            }
+        }
+        
+        // Auto-run basic tests on load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🏥 Browser SMS Compatibility Test Ready');
+            setTimeout(runFullTest, 500);
+        });
+    </script>
+</body>
+</html>
