@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedConnect - Debug Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase Config -->
+    <script src="config.js"></script>
+    
+    <!-- Firebase SDK v10 compat for consistency -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
+    
+    <!-- Debug utilities -->
+    <script src="debug/appointment-tester.js"></script>
+    <script src="debug/data-checker.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+        .console-output {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .test-button {
+            margin: 5px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .test-success { background: #4CAF50; color: white; }
+        .test-error { background: #f44336; color: white; }
+        .test-warning { background: #ff9800; color: white; }
+        .test-info { background: #2196F3; color: white; }
+    </style>
+</head>
+<body class="bg-gray-50 p-6">
+    
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-4xl font-bold text-center mb-8 text-gray-800">🏥 MedConnect Debug Console</h1>
+        
+        <!-- Status Panel -->
+        <div class="grid md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-bold mb-4">🔧 System Status</h3>
+                <div id="system-status">
+                    <div class="status-item">Checking...</div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-bold mb-4">🔥 Firebase Status</h3>
+                <div id="firebase-status">
+                    <div class="status-item">Checking...</div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-bold mb-4">👤 Auth Status</h3>
+                <div id="auth-status">
+                    <div class="status-item">Checking...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Test Buttons -->
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h3 class="text-xl font-bold mb-4">🧪 Debug Tests</h3>
+            <div class="flex flex-wrap">
+                <button class="test-button test-info" onclick="testFirebaseConnection()">Test Firebase</button>
+                <button class="test-button test-info" onclick="testAuthentication()">Test Auth</button>
+                <button class="test-button test-info" onclick="testFirestore()">Test Firestore</button>
+                <button class="test-button test-info" onclick="testCloudFunctions()">Test Functions</button>
+                <button class="test-button test-info" onclick="testPhoneValidation()">Test Phone Validation</button>
+                <button class="test-button test-success" onclick="runAppointmentTests()">🏥 Full Appointment Test</button>
+                <button class="test-button test-info" onclick="checkDataConsistency()">🔍 Check Data Integrity</button>
+                <button class="test-button test-warning" onclick="repairExpiredHolds()">🔧 Repair Expired Holds</button>
+                <button class="test-button test-warning" onclick="clearConsole()">Clear Console</button>
+                <button class="test-button test-success" onclick="exportLogs()">Export Logs</button>
+            </div>
+        </div>
+        
+        <!-- Console Output -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-xl font-bold mb-4">📊 Console Output</h3>
+            <div id="console-output" class="console-output">
+                <div>MedConnect Debug Console Initialized...</div>
+            </div>
+        </div>
+        
+        <!-- Manual Test Forms -->
+        <div class="grid md:grid-cols-2 gap-6 mt-6">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-bold mb-4">📱 Test Phone Auth</h3>
+                <input type="tel" id="phone-input" placeholder="+964 770 123 4567" 
+                       class="w-full p-3 border rounded mb-3" value="+9647701234567">
+                <button class="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700" 
+                        onclick="testPhoneAuth()">Send Test OTP</button>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-bold mb-4">🗂️ Test Firestore</h3>
+                <input type="text" id="collection-input" placeholder="Collection name" 
+                       class="w-full p-3 border rounded mb-3" value="test">
+                <button class="w-full bg-green-600 text-white p-3 rounded hover:bg-green-700" 
+                        onclick="testFirestoreCollection()">Test Collection</button>
+            </div>
+        </div>
+        
+        <!-- Navigation -->
+        <div class="mt-8 text-center">
+            <a href="index.html" class="mx-2 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Home</a>
+            <a href="patient.html" class="mx-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Patient Portal</a>
+            <a href="doctor.html" class="mx-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Doctor Portal</a>
+            <a href="admin.html" class="mx-2 bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">Admin Portal</a>
+        </div>
+    </div>
+
+    <script>
+        let debugLogs = [];
+        
+        // Enhanced logging function
+        function debugLog(message, type = 'info', data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = {
+                timestamp,
+                message,
+                type,
+                data
+            };
+            debugLogs.push(logEntry);
+            
+            const console = document.getElementById('console-output');
+            const colors = {
+                'info': '#00ff00',
+                'success': '#4CAF50', 
+                'error': '#ff4444',
+                'warning': '#ffaa00'
+            };
+            
+            const logDiv = document.createElement('div');
+            logDiv.style.color = colors[type] || '#00ff00';
+            logDiv.innerHTML = `[${timestamp}] ${message}`;
+            
+            if (data) {
+                logDiv.innerHTML += `<br><pre style="margin-left: 20px; color: #888;">${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            console.appendChild(logDiv);
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        // Initialize Firebase and run diagnostics
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('🏥 MedConnect Debug Console Starting...', 'info');
+            
+            setTimeout(() => {
+                runSystemDiagnostics();
+                initializeFirebase();
+            }, 100);
+        });
+        
+        function runSystemDiagnostics() {
+            debugLog('🔍 Running system diagnostics...', 'info');
+            
+            // Check environment
+            const systemStatus = document.getElementById('system-status');
+            let systemChecks = [];
+            
+            // Check if running locally
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            systemChecks.push(`Environment: ${isLocal ? 'Local' : 'Remote'}`);
+            
+            // Check config
+            if (window.__MC_ENV__) {
+                systemChecks.push(`Config: Loaded (${window.__MC_ENV__.ENV})`);
+                debugLog('✅ Config loaded successfully', 'success', window.__MC_ENV__);
+            } else {
+                systemChecks.push('Config: Missing');
+                debugLog('❌ Config not found', 'error');
+            }
+            
+            systemStatus.innerHTML = systemChecks.map(check => 
+                `<div class="text-sm mb-1">✓ ${check}</div>`
+            ).join('');
+        }
+        
+        function initializeFirebase() {
+            debugLog('🔥 Initializing Firebase...', 'info');
+            
+            try {
+                if (!firebase) {
+                    throw new Error('Firebase SDK not loaded');
+                }
+                
+                if (!window.__MC_ENV__ || !window.__MC_ENV__.FIREBASE_CONFIG) {
+                    throw new Error('Firebase config not found');
+                }
+                
+                // Initialize Firebase app
+                firebase.initializeApp(window.__MC_ENV__.FIREBASE_CONFIG);
+                
+                debugLog('✅ Firebase app initialized', 'success');
+                
+                // Test Firestore
+                const db = firebase.firestore();
+                debugLog('✅ Firestore initialized', 'success');
+                
+                // Test Auth
+                const auth = firebase.auth();
+                auth.onAuthStateChanged((user) => {
+                    const authStatus = document.getElementById('auth-status');
+                    if (user) {
+                        debugLog('✅ User authenticated', 'success', {
+                            uid: user.uid,
+                            phoneNumber: user.phoneNumber
+                        });
+                        authStatus.innerHTML = `
+                            <div class="text-sm text-green-600">✓ Authenticated</div>
+                            <div class="text-xs text-gray-500">${user.phoneNumber || 'No phone'}</div>
+                        `;
+                    } else {
+                        debugLog('ℹ️  No user authenticated', 'info');
+                        authStatus.innerHTML = '<div class="text-sm text-gray-500">Not authenticated</div>';
+                    }
+                });
+                
+                const firebaseStatus = document.getElementById('firebase-status');
+                firebaseStatus.innerHTML = `
+                    <div class="text-sm text-green-600 mb-1">✓ App: Connected</div>
+                    <div class="text-sm text-green-600 mb-1">✓ Firestore: Ready</div>
+                    <div class="text-sm text-green-600">✓ Auth: Ready</div>
+                `;
+                
+            } catch (error) {
+                debugLog('❌ Firebase initialization failed', 'error', {
+                    message: error.message,
+                    stack: error.stack
+                });
+                
+                const firebaseStatus = document.getElementById('firebase-status');
+                firebaseStatus.innerHTML = `<div class="text-sm text-red-600">❌ ${error.message}</div>`;
+            }
+        }
+        
+        // Test functions
+        function testFirebaseConnection() {
+            debugLog('🧪 Testing Firebase connection...', 'info');
+            
+            try {
+                const app = firebase.app();
+                debugLog('✅ Firebase app OK', 'success', { name: app.name });
+            } catch (error) {
+                debugLog('❌ Firebase app test failed', 'error', error.message);
+            }
+        }
+        
+        function testAuthentication() {
+            debugLog('🧪 Testing Authentication...', 'info');
+            
+            try {
+                const auth = firebase.auth();
+                const currentUser = auth.currentUser;
+                
+                if (currentUser) {
+                    debugLog('✅ User is signed in', 'success', {
+                        uid: currentUser.uid,
+                        phoneNumber: currentUser.phoneNumber
+                    });
+                } else {
+                    debugLog('ℹ️  No user currently signed in', 'info');
+                }
+                
+                debugLog('ℹ️  Auth providers available:', 'info', 
+                    firebase.auth.PhoneAuthProvider ? ['Phone'] : ['None']);
+                
+            } catch (error) {
+                debugLog('❌ Auth test failed', 'error', error.message);
+            }
+        }
+        
+        function testFirestore() {
+            debugLog('🧪 Testing Firestore...', 'info');
+            
+            try {
+                const db = firebase.firestore();
+                
+                // Test read
+                db.collection('test').limit(1).get()
+                    .then((snapshot) => {
+                        debugLog('✅ Firestore read test passed', 'success', {
+                            size: snapshot.size,
+                            empty: snapshot.empty
+                        });
+                    })
+                    .catch((error) => {
+                        debugLog('❌ Firestore read test failed', 'error', error.message);
+                    });
+                    
+            } catch (error) {
+                debugLog('❌ Firestore test failed', 'error', error.message);
+            }
+        }
+        
+        function testCloudFunctions() {
+            debugLog('🧪 Testing Cloud Functions...', 'info');
+            
+            try {
+                const functions = firebase.functions();
+                
+                // Test if functions are available
+                if (functions) {
+                    debugLog('✅ Cloud Functions SDK loaded', 'success');
+                    
+                    // Test reserveSlot function
+                    const reserveSlot = functions.httpsCallable('reserveSlot');
+                    debugLog('ℹ️  reserveSlot function callable created', 'info');
+                } else {
+                    debugLog('❌ Cloud Functions not available', 'error');
+                }
+                
+            } catch (error) {
+                debugLog('❌ Cloud Functions test failed', 'error', error.message);
+            }
+        }
+        
+        function testPhoneValidation() {
+            debugLog('🧪 Testing phone validation...', 'info');
+            
+            const testNumbers = [
+                '+9647701234567',  // Valid
+                '07701234567',     // Valid (local)
+                '+9647801234567',  // Valid
+                '+9647501234567',  // Valid
+                '+9647601234567',  // Valid  
+                '+9647901234567',  // Valid
+                '+9647001234567',  // Invalid prefix
+                '0770123456',      // Invalid length
+                '+1234567890'      // Invalid country
+            ];
+            
+            testNumbers.forEach(number => {
+                const isValid = validatePhone(number);
+                debugLog(`📱 ${number}: ${isValid ? '✅ Valid' : '❌ Invalid'}`, 
+                        isValid ? 'success' : 'error');
+            });
+        }
+        
+        function validatePhone(phone) {
+            const IRAQI_PREFIXES = ['077', '078', '079', '075', '076'];
+            const cleanPhone = phone.replace(/\D/g, '');
+            
+            // Check for +964 prefix
+            if (phone.startsWith('+964')) {
+                const localPart = cleanPhone.substring(3);
+                if (localPart.length === 10) {
+                    const prefix = localPart.substring(0, 3);
+                    return IRAQI_PREFIXES.includes(prefix);
+                }
+            }
+            
+            // Check local format
+            if (cleanPhone.length === 11 && cleanPhone.startsWith('07')) {
+                const prefix = cleanPhone.substring(0, 3);
+                return IRAQI_PREFIXES.includes(prefix);
+            }
+            
+            return false;
+        }
+        
+        function testPhoneAuth() {
+            const phoneInput = document.getElementById('phone-input');
+            const phoneNumber = phoneInput.value.trim();
+            
+            debugLog(`📱 Testing phone auth with: ${phoneNumber}`, 'info');
+            
+            if (!validatePhone(phoneNumber)) {
+                debugLog('❌ Invalid Iraqi phone number format', 'error');
+                return;
+            }
+            
+            debugLog('✅ Phone number format valid', 'success');
+            debugLog('ℹ️  Note: Actual OTP sending requires reCAPTCHA in production', 'warning');
+            
+            // In a real test, you would call the actual auth function here
+            // For now, just validate the format
+        }
+        
+        function testFirestoreCollection() {
+            const collectionInput = document.getElementById('collection-input');
+            const collectionName = collectionInput.value.trim();
+            
+            debugLog(`🗂️  Testing Firestore collection: ${collectionName}`, 'info');
+            
+            try {
+                const db = firebase.firestore();
+                
+                db.collection(collectionName).limit(5).get()
+                    .then((snapshot) => {
+                        debugLog(`✅ Collection "${collectionName}" accessible`, 'success', {
+                            size: snapshot.size,
+                            docs: snapshot.docs.length
+                        });
+                        
+                        snapshot.docs.forEach((doc, index) => {
+                            debugLog(`Document ${index + 1}:`, 'info', doc.data());
+                        });
+                    })
+                    .catch((error) => {
+                        debugLog(`❌ Collection "${collectionName}" access failed`, 'error', error.message);
+                    });
+                    
+            } catch (error) {
+                debugLog('❌ Firestore collection test failed', 'error', error.message);
+            }
+        }
+        
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = 
+                '<div>Console cleared...</div>';
+            debugLogs = [];
+        }
+        
+        function exportLogs() {
+            const logData = {
+                timestamp: new Date().toISOString(),
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+                logs: debugLogs,
+                config: window.__MC_ENV__
+            };
+            
+            const blob = new Blob([JSON.stringify(logData, null, 2)], { 
+                type: 'application/json' 
+            });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `medconnect-debug-${Date.now()}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            debugLog('📥 Debug logs exported', 'success');
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedConnect - بوابة الأطباء</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
+    
+    <!-- Debug Scripts (only loaded in development) -->
+    <script>
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || 
+            (window.__MC_ENV__ && window.__MC_ENV__.ENV === 'development')) {
+            const debugScripts = [
+                'debug/appointment-tester.js',
+                'debug/data-checker.js', 
+                'debug/portal-tester.js',
+                'debug/master-debugger.js'
+            ];
+            debugScripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                document.head.appendChild(script);
+            });
+        }
+    </script>
+    
+    <style>
+        body {
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal {
+            display: none !important;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal.show {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        .notification-dot {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .status-available { color: #10b981; }
+        .status-busy { color: #f59e0b; }
+        .status-offline { color: #ef4444; }
+        .firebase-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .firebase-connected {
+            background-color: #10b981;
+            color: white;
+        }
+        .firebase-disconnected {
+            background-color: #ef4444;
+            color: white;
+        }
+        .appointment-card {
+            transition: all 0.2s ease;
+        }
+        .appointment-card:hover {
+            transform: translateX(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            transform: translateY(-2px);
+        }
+        .patient-avatar {
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Firebase Connection Status -->
+    <div id="firebaseStatus" class="firebase-status firebase-disconnected">
+        🔄 جاري الاتصال بقاعدة البيانات...
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal show" style="display: flex; align-items: center; justify-content: center;">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">بوابة الأطباء</h2>
+                <p class="text-gray-600">أدخل بيانات الاعتماد للوصول إلى حسابك الطبي</p>
+            </div>
+            
+            <form onsubmit="doctorLogin(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+                    <div class="relative">
+                        <input type="email" id="doctorEmail" class="w-full p-4 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="doctor@medconnect.com" required>
+                        <svg class="absolute right-4 top-4 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
+                        </svg>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                    <div class="relative">
+                        <input type="password" id="doctorPassword" class="w-full p-4 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" required>
+                        <svg class="absolute right-4 top-4 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                        <button type="button" onclick="togglePassword('doctorPassword')" class="absolute left-4 top-4 text-gray-400 hover:text-gray-600">
+                            <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loginError" class="hidden bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-red-600 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-sm text-red-800" id="errorMessage">بيانات الدخول غير صحيحة</span>
+                    </div>
+                </div>
+                
+                <button type="submit" id="loginButton" class="w-full bg-gradient-to-r from-blue-600 to-green-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-green-700 transition-all duration-200 font-medium text-lg">
+                    <span id="loginText">تسجيل الدخول</span>
+                    <svg id="loginSpinner" class="hidden animate-spin w-5 h-5 text-white mx-auto" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <button onclick="contactAdmin()" class="text-sm text-blue-600 hover:text-blue-800">
+                    مشكلة في تسجيل الدخول؟ تواصل مع الإدارة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">تغيير كلمة المرور</h2>
+                <p class="text-gray-600">يجب تغيير كلمة المرور المؤقتة قبل المتابعة</p>
+            </div>
+            
+            <form onsubmit="changePassword(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور الجديدة</label>
+                    <div class="relative">
+                        <input type="password" id="newPassword" class="w-full p-4 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" placeholder="أدخل كلمة مرور قوية" required>
+                        <svg class="absolute right-4 top-4 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </div>
+                    <div class="mt-2">
+                        <div class="text-xs text-gray-600">
+                            <p>كلمة المرور يجب أن تحتوي على:</p>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li id="lengthCheck" class="text-red-500">8 أحرف على الأقل</li>
+                                <li id="upperCheck" class="text-red-500">حرف كبير واحد على الأقل</li>
+                                <li id="numberCheck" class="text-red-500">رقم واحد على الأقل</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تأكيد كلمة المرور</label>
+                    <div class="relative">
+                        <input type="password" id="confirmPassword" class="w-full p-4 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" placeholder="أعد إدخال كلمة المرور" required>
+                        <svg class="absolute right-4 top-4 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <div id="passwordError" class="hidden bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-red-600 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-sm text-red-800" id="passwordErrorMessage">كلمات المرور غير متطابقة</span>
+                    </div>
+                </div>
+                
+                <button type="submit" id="changePasswordButton" class="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 px-6 rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 font-medium text-lg">
+                    <span id="changePasswordText">تغيير كلمة المرور</span>
+                    <svg id="changePasswordSpinner" class="hidden animate-spin w-5 h-5 text-white mx-auto" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-green-600 rounded-lg flex items-center justify-center ml-3">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">MedConnect</h1>
+                        <p class="text-xs text-gray-500">بوابة الأطباء</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <!-- Status Toggle -->
+                    <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                        <button onclick="setStatus('available')" id="statusAvailable" class="px-3 py-1 rounded text-sm font-medium transition-colors">
+                            متاح
+                        </button>
+                        <button onclick="setStatus('busy')" id="statusBusy" class="px-3 py-1 rounded text-sm font-medium transition-colors">
+                            مشغول
+                        </button>
+                        <button onclick="setStatus('offline')" id="statusOffline" class="px-3 py-1 rounded text-sm font-medium transition-colors">
+                            غير متاح
+                        </button>
+                    </div>
+                    
+                    <!-- Notifications -->
+                    <div class="relative">
+                        <button onclick="toggleNotifications()" class="p-2 text-gray-600 hover:text-gray-900 relative">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM10.07 2.82l3.93 3.93-3.93 3.93-3.93-3.93 3.93-3.93z"></path>
+                            </svg>
+                            <span id="notificationBadge" class="notification-dot absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full hidden"></span>
+                        </button>
+                        <div id="notificationPanel" class="hidden absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
+                            <div class="p-4 border-b">
+                                <h3 class="font-bold text-gray-900">الإشعارات</h3>
+                            </div>
+                            <div id="notificationsList" class="max-h-64 overflow-y-auto">
+                                <!-- Notifications will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center bg-blue-50 px-3 py-2 rounded-lg">
+                        <div class="w-8 h-8 patient-avatar rounded-full flex items-center justify-center ml-2">
+                            <span class="text-white font-bold text-sm" id="doctorInitials">د</span>
+                        </div>
+                        <div>
+                            <span class="text-blue-800 font-medium text-sm" id="doctorName">د. أحمد محمد</span>
+                            <p class="text-blue-600 text-xs" id="doctorSpecialty">طب القلب</p>
+                        </div>
+                    </div>
+                    <button onclick="logout()" class="text-gray-600 hover:text-red-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Welcome Section -->
+        <div class="bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-2xl p-8 mb-8 fade-in">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-3xl font-bold mb-2">مرحباً د. <span id="welcomeDoctorName">أحمد محمد</span>! 👨‍⚕️</h2>
+                    <p class="text-blue-100 text-lg">لديك <span id="todayAppointments">8</span> مواعيد اليوم</p>
+                    <p class="text-blue-200 text-sm mt-2">آخر تسجيل دخول: <span id="lastLogin">اليوم 8:30 صباحاً</span></p>
+                </div>
+                <div class="hidden md:block">
+                    <div class="w-24 h-24 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid md:grid-cols-4 gap-6 mb-8">
+            <div class="card-hover bg-white p-6 rounded-xl shadow-sm border">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center ml-4">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-900" id="todayAppointmentsCount">8</p>
+                        <p class="text-sm text-gray-600">مواعيد اليوم</p>
+                        <p class="text-xs text-green-600">+2 من أمس</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-hover bg-white p-6 rounded-xl shadow-sm border">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center ml-4">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-900" id="totalPatientsCount">156</p>
+                        <p class="text-sm text-gray-600">إجمالي المرضى</p>
+                        <p class="text-xs text-blue-600">+12 هذا الشهر</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-hover bg-white p-6 rounded-xl shadow-sm border">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center ml-4">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-900" id="pendingReportsCount">23</p>
+                        <p class="text-sm text-gray-600">تقارير معلقة</p>
+                        <p class="text-xs text-orange-600">يحتاج مراجعة</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-hover bg-white p-6 rounded-xl shadow-sm border">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center ml-4">
+                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-900" id="avgConsultationTime">25</p>
+                        <p class="text-sm text-gray-600">دقيقة متوسط الكشف</p>
+                        <p class="text-xs text-green-600">-3 دقائق</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <div class="bg-white rounded-xl shadow-sm border mb-8">
+            <div class="border-b border-gray-200">
+                <nav class="flex space-x-8 space-x-reverse px-6">
+                    <button onclick="switchTab('appointments')" id="appointmentsTab" class="tab-button active py-4 px-2 border-b-2 border-blue-500 font-medium text-sm">
+                        📅 المواعيد
+                    </button>
+                    <button onclick="switchTab('patients')" id="patientsTab" class="tab-button py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm">
+                        👥 المرضى
+                    </button>
+                    <button onclick="switchTab('reports')" id="reportsTab" class="tab-button py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm">
+                        📋 التقارير
+                    </button>
+                    <button onclick="switchTab('schedule')" id="scheduleTab" class="tab-button py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm">
+                        🕐 الجدولة
+                    </button>
+                    <button onclick="switchTab('profile')" id="profileTab" class="tab-button py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm">
+                        ⚙️ الملف الشخصي
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-6">
+                <!-- Appointments Tab -->
+                <div id="appointmentsContent" class="tab-content">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">مواعيد اليوم</h3>
+                        <div class="flex space-x-3 space-x-reverse">
+                            <button onclick="refreshAppointments()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                                تحديث
+                            </button>
+                            <button onclick="addAppointment()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
+                                إضافة موعد
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="appointmentsList" class="space-y-4">
+                        <!-- Appointments will be loaded here -->
+                        <div class="text-center py-8 text-gray-500">
+                            <div class="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                            جاري تحميل المواعيد...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patients Tab -->
+                <div id="patientsContent" class="tab-content hidden">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">قائمة المرضى</h3>
+                        <div class="flex space-x-3 space-x-reverse">
+                            <input type="text" id="patientSearch" placeholder="البحث عن مريض..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <button onclick="addPatient()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
+                                إضافة مريض
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="patientsList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Patients will be loaded here -->
+                        <div class="col-span-full text-center py-8 text-gray-500">
+                            <div class="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                            جاري تحميل المرضى...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div id="reportsContent" class="tab-content hidden">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">التقارير الطبية</h3>
+                        <button onclick="createReport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                            إنشاء تقرير جديد
+                        </button>
+                    </div>
+                    
+                    <div id="reportsList" class="space-y-4">
+                        <!-- Reports will be loaded here -->
+                        <div class="text-center py-8 text-gray-500">
+                            <div class="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                            جاري تحميل التقارير...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule Tab -->
+                <div id="scheduleContent" class="tab-content hidden">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">إدارة الجدولة</h3>
+                        <button onclick="updateSchedule()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm">
+                            تحديث الجدول
+                        </button>
+                    </div>
+                    
+                    <div id="scheduleCalendar" class="bg-gray-50 rounded-lg p-6">
+                        <!-- Schedule calendar will be loaded here -->
+                        <div class="text-center py-8 text-gray-500">
+                            <div class="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                            جاري تحميل الجدول...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Tab -->
+                <div id="profileContent" class="tab-content hidden">
+                    <div class="max-w-2xl">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">الملف الشخصي</h3>
+                        
+                        <div id="profileForm" class="space-y-6">
+                            <!-- Profile form will be loaded here -->
+                            <div class="text-center py-8 text-gray-500">
+                                <div class="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                                جاري تحميل البيانات...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Config -->
+    <script src="config.js"></script>
+    
+    <script>
+        // Use centralized Firebase Configuration
+        const firebaseConfig = window.__MC_ENV__ ? window.__MC_ENV__.FIREBASE_CONFIG : null;
+        
+        if (!firebaseConfig) {
+            console.error('❌ Firebase config not found! Make sure config.js is loaded.');
+            alert('Configuration error. Please check console.');
+        }
+
+        // Initialize Firebase
+        let db, auth;
+        let isFirebaseConnected = false;
+        let currentDoctor = null;
+        let currentTab = 'appointments';
+
+        function initializeFirebase() {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+                
+                // Test connection
+                db.collection('doctors').limit(1).get()
+                    .then(() => {
+                        isFirebaseConnected = true;
+                        updateFirebaseStatus(true);
+                        console.log('✅ Firebase connected successfully!');
+                    })
+                    .catch((error) => {
+                        console.error('❌ Firebase connection failed:', error);
+                        updateFirebaseStatus(false);
+                    });
+                
+            } catch (error) {
+                console.error('Firebase initialization error:', error);
+                updateFirebaseStatus(false);
+            }
+        }
+
+        function updateFirebaseStatus(connected) {
+            const statusElement = document.getElementById('firebaseStatus');
+            
+            if (connected) {
+                statusElement.textContent = '🟢 متصل بقاعدة البيانات';
+                statusElement.className = 'firebase-status firebase-connected';
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+            } else {
+                statusElement.textContent = '🔴 فشل الاتصال بقاعدة البيانات';
+                statusElement.className = 'firebase-status firebase-disconnected';
+            }
+        }
+
+        // Authentication Functions
+        function checkAuthStatus() {
+            const doctorData = localStorage.getItem('doctorData');
+            const loginTime = localStorage.getItem('doctorLoginTime');
+            
+            if (doctorData && loginTime) {
+                const currentTime = new Date().getTime();
+                const sessionDuration = 8 * 60 * 60 * 1000; // 8 hours
+                
+                if (currentTime - parseInt(loginTime) < sessionDuration) {
+                    currentDoctor = JSON.parse(doctorData);
+                    hideLoginModal();
+                    initializeFirebase();
+                    loadDoctorData();
+                    return true;
+                }
+            }
+            
+            showLoginModal();
+            return false;
+        }
+
+        function doctorLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('doctorEmail').value;
+            const password = document.getElementById('doctorPassword').value;
+            const loginButton = document.getElementById('loginButton');
+            const loginText = document.getElementById('loginText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            const errorDiv = document.getElementById('loginError');
+            
+            // Show loading state
+            loginButton.disabled = true;
+            loginText.classList.add('hidden');
+            loginSpinner.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            
+            // Authenticate with Firestore
+            db.collection('doctors').where('email', '==', email).get()
+                .then((querySnapshot) => {
+                    if (querySnapshot.empty) {
+                        throw new Error('البريد الإلكتروني غير مسجل');
+                    }
+                    
+                    const doctorDoc = querySnapshot.docs[0];
+                    const doctorData = doctorDoc.data();
+                    
+                    // Check password (in real app, use proper hashing)
+                    if (doctorData.password !== password) {
+                        throw new Error('كلمة المرور غير صحيحة');
+                    }
+                    
+                    // Check if password is temporary
+                    if (doctorData.isTemporaryPassword) {
+                        currentDoctor = { id: doctorDoc.id, ...doctorData };
+                        hideLoginModal();
+                        showChangePasswordModal();
+                        return;
+                    }
+                    
+                    // Successful login
+                    currentDoctor = { id: doctorDoc.id, ...doctorData };
+                    localStorage.setItem('doctorData', JSON.stringify(currentDoctor));
+                    localStorage.setItem('doctorLoginTime', new Date().getTime().toString());
+                    
+                    // Update last login
+                    db.collection('doctors').doc(doctorDoc.id).update({
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    loginText.textContent = 'تم تسجيل الدخول بنجاح!';
+                    loginText.classList.remove('hidden');
+                    loginSpinner.classList.add('hidden');
+                    loginButton.classList.add('bg-green-600');
+                    
+                    setTimeout(() => {
+                        hideLoginModal();
+                        initializeFirebase();
+                        loadDoctorData();
+                        showWelcomeMessage();
+                    }, 1000);
+                })
+                .catch((error) => {
+                    console.error('Login error:', error);
+                    document.getElementById('errorMessage').textContent = error.message;
+                    errorDiv.classList.remove('hidden');
+                    
+                    loginButton.disabled = false;
+                    loginText.textContent = 'تسجيل الدخول';
+                    loginText.classList.remove('hidden');
+                    loginSpinner.classList.add('hidden');
+                });
+        }
+
+        function showChangePasswordModal() {
+            document.getElementById('changePasswordModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+            
+            // Add password validation
+            const newPasswordInput = document.getElementById('newPassword');
+            newPasswordInput.addEventListener('input', validatePassword);
+        }
+
+        function validatePassword() {
+            const password = document.getElementById('newPassword').value;
+            const lengthCheck = document.getElementById('lengthCheck');
+            const upperCheck = document.getElementById('upperCheck');
+            const numberCheck = document.getElementById('numberCheck');
+            
+            // Length check
+            if (password.length >= 8) {
+                lengthCheck.className = 'text-green-500';
+                lengthCheck.innerHTML = '✓ 8 أحرف على الأقل';
+            } else {
+                lengthCheck.className = 'text-red-500';
+                lengthCheck.innerHTML = '✗ 8 أحرف على الأقل';
+            }
+            
+            // Uppercase check
+            if (/[A-Z]/.test(password)) {
+                upperCheck.className = 'text-green-500';
+                upperCheck.innerHTML = '✓ حرف كبير واحد على الأقل';
+            } else {
+                upperCheck.className = 'text-red-500';
+                upperCheck.innerHTML = '✗ حرف كبير واحد على الأقل';
+            }
+            
+            // Number check
+            if (/[0-9]/.test(password)) {
+                numberCheck.className = 'text-green-500';
+                numberCheck.innerHTML = '✓ رقم واحد على الأقل';
+            } else {
+                numberCheck.className = 'text-red-500';
+                numberCheck.innerHTML = '✗ رقم واحد على الأقل';
+            }
+        }
+
+        function changePassword(event) {
+            event.preventDefault();
+            
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('passwordError');
+            const button = document.getElementById('changePasswordButton');
+            const buttonText = document.getElementById('changePasswordText');
+            const spinner = document.getElementById('changePasswordSpinner');
+            
+            // Validate password
+            if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+                document.getElementById('passwordErrorMessage').textContent = 'كلمة المرور لا تلبي المتطلبات';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                document.getElementById('passwordErrorMessage').textContent = 'كلمات المرور غير متطابقة';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            // Show loading
+            button.disabled = true;
+            buttonText.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            
+            // Update password in Firestore
+            db.collection('doctors').doc(currentDoctor.id).update({
+                password: newPassword,
+                isTemporaryPassword: false,
+                passwordChangedAt: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => {
+                currentDoctor.password = newPassword;
+                currentDoctor.isTemporaryPassword = false;
+                
+                localStorage.setItem('doctorData', JSON.stringify(currentDoctor));
+                localStorage.setItem('doctorLoginTime', new Date().getTime().toString());
+                
+                buttonText.textContent = 'تم تغيير كلمة المرور!';
+                buttonText.classList.remove('hidden');
+                spinner.classList.add('hidden');
+                button.classList.add('bg-green-600');
+                
+                setTimeout(() => {
+                    document.getElementById('changePasswordModal').classList.remove('show');
+                    document.body.style.overflow = 'auto';
+                    initializeFirebase();
+                    loadDoctorData();
+                    showWelcomeMessage();
+                }, 1500);
+            })
+            .catch((error) => {
+                console.error('Password change error:', error);
+                document.getElementById('passwordErrorMessage').textContent = 'خطأ في تغيير كلمة المرور';
+                errorDiv.classList.remove('hidden');
+                
+                button.disabled = false;
+                buttonText.classList.remove('hidden');
+                spinner.classList.add('hidden');
+            });
+        }
+
+        function loadDoctorData() {
+            if (!currentDoctor) return;
+            
+            // Update UI with doctor data
+            document.getElementById('doctorName').textContent = currentDoctor.name;
+            document.getElementById('welcomeDoctorName').textContent = currentDoctor.name;
+            document.getElementById('doctorSpecialty').textContent = currentDoctor.specialty;
+            document.getElementById('doctorInitials').textContent = getInitials(currentDoctor.name);
+            
+            // Set status
+            setStatus(currentDoctor.status || 'available');
+            
+            // Load tab content
+            loadAppointments();
+            loadPatients();
+            loadReports();
+            loadSchedule();
+            loadProfile();
+        }
+
+        function getInitials(name) {
+            return name.split(' ').map(n => n.charAt(0)).join('').substring(0, 2);
+        }
+
+        // Tab Management
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+                button.classList.add('text-gray-500');
+                button.classList.remove('border-blue-500');
+                button.classList.add('border-transparent');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + 'Content').classList.remove('hidden');
+            
+            // Add active class to selected tab
+            const activeTab = document.getElementById(tabName + 'Tab');
+            activeTab.classList.add('active');
+            activeTab.classList.remove('text-gray-500');
+            activeTab.classList.add('border-blue-500');
+            activeTab.classList.remove('border-transparent');
+            
+            currentTab = tabName;
+        }
+
+        // Load Functions for each tab
+        function loadAppointments() {
+            const appointmentsList = document.getElementById('appointmentsList');
+            
+            if (!isFirebaseConnected || !currentDoctor) {
+                appointmentsList.innerHTML = '<div class="text-center py-8 text-red-500">❌ غير متصل بقاعدة البيانات</div>';
+                return;
+            }
+            
+            // Load all appointments (not just today's)
+            db.collection('appointments')
+                .where('doctorId', '==', currentDoctor.id)
+                .orderBy('createdAt', 'desc')
+                .limit(20)
+                .get()
+                .then((querySnapshot) => {
+                    appointmentsList.innerHTML = '';
+                    
+                    if (querySnapshot.empty) {
+                        appointmentsList.innerHTML = `
+                            <div class="text-center py-8 text-gray-500">
+                                📅 لا توجد مواعيد
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let todayCount = 0;
+                    let pendingCount = 0;
+                    const today = new Date().toISOString().split('T')[0];
+                    
+                    querySnapshot.forEach((doc) => {
+                        const appointment = { id: doc.id, ...doc.data() };
+                        const appointmentCard = createAppointmentCard(appointment);
+                        appointmentsList.appendChild(appointmentCard);
+                        
+                        if (appointment.appointmentDate === today) {
+                            todayCount++;
+                        }
+                        if (appointment.status === 'pending') {
+                            pendingCount++;
+                        }
+                    });
+                    
+                    // Update stats
+                    document.getElementById('todayAppointments').textContent = todayCount;
+                    document.getElementById('todayAppointmentsCount').textContent = todayCount;
+                    if (document.getElementById('pendingAppointmentsCount')) {
+                        document.getElementById('pendingAppointmentsCount').textContent = pendingCount;
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error loading appointments:', error);
+                    appointmentsList.innerHTML = '<div class="text-center py-8 text-red-500">❌ خطأ في تحميل المواعيد</div>';
+                });
+                
+            // Load notifications
+            loadNotifications();
+        }
+
+        function createAppointmentCard(appointment) {
+            const card = document.createElement('div');
+            card.className = 'appointment-card bg-white border rounded-lg p-4 hover:shadow-md';
+            
+            const statusColors = {
+                pending: 'bg-yellow-100 text-yellow-800',
+                confirmed: 'bg-green-100 text-green-800',
+                postponed: 'bg-orange-100 text-orange-800',
+                cancelled: 'bg-red-100 text-red-800',
+                completed: 'bg-blue-100 text-blue-800',
+                in_progress: 'bg-purple-100 text-purple-800'
+            };
+            
+            const statusLabels = {
+                pending: 'في الانتظار',
+                confirmed: 'مؤكد',
+                postponed: 'مؤجل',
+                cancelled: 'ملغي',
+                completed: 'مكتمل',
+                in_progress: 'جاري'
+            };
+            
+            card.innerHTML = `
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 patient-avatar rounded-full flex items-center justify-center ml-4">
+                                <span class="text-white font-bold text-sm">${getInitials(appointment.patientName || 'مريض')}</span>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900">${appointment.patientName || 'غير محدد'}</h4>
+                                <p class="text-sm text-gray-600">${appointment.reason || 'كشف عام'}</p>
+                                <p class="text-xs text-gray-500">${appointment.appointmentDate} - ${appointment.appointmentTime}</p>
+                            </div>
+                        </div>
+                        <span class="${statusColors[appointment.status] || statusColors.pending} px-2 py-1 rounded-full text-xs font-medium">
+                            ${statusLabels[appointment.status] || statusLabels.pending}
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="viewAppointment('${appointment.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                عرض التفاصيل
+                            </button>
+                        </div>
+                        
+                        <div class="flex space-x-2 space-x-reverse">
+                            ${appointment.status === 'pending' ? `
+                                <button onclick="confirmAppointment('${appointment.id}')" class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                                    تأكيد
+                                </button>
+                                <button onclick="postponeAppointment('${appointment.id}')" class="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700">
+                                    تأجيل
+                                </button>
+                                <button onclick="cancelAppointment('${appointment.id}')" class="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700">
+                                    إلغاء
+                                </button>
+                            ` : ''}
+                            ${appointment.status === 'confirmed' ? `
+                                <button onclick="startAppointment('${appointment.id}')" class="bg-purple-600 text-white px-3 py-1 rounded text-xs hover:bg-purple-700">
+                                    بدء الموعد
+                                </button>
+                            ` : ''}
+                            ${appointment.status === 'in_progress' ? `
+                                <button onclick="completeAppointment('${appointment.id}')" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                                    إنهاء الموعد
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function loadPatients() {
+            const patientsList = document.getElementById('patientsList');
+            
+            if (!isFirebaseConnected || !currentDoctor) {
+                patientsList.innerHTML = '<div class="col-span-full text-center py-8 text-red-500">❌ غير متصل بقاعدة البيانات</div>';
+                return;
+            }
+            
+            db.collection('patients')
+                .where('doctorId', '==', currentDoctor.id)
+                .orderBy('lastVisit', 'desc')
+                .get()
+                .then((querySnapshot) => {
+                    patientsList.innerHTML = '';
+                    
+                    if (querySnapshot.empty) {
+                        patientsList.innerHTML = `
+                            <div class="col-span-full text-center py-8 text-gray-500">
+                                👥 لا توجد مرضى مسجلين بعد
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    querySnapshot.forEach((doc) => {
+                        const patient = { id: doc.id, ...doc.data() };
+                        const patientCard = createPatientCard(patient);
+                        patientsList.appendChild(patientCard);
+                    });
+                    
+                    // Update stats
+                    document.getElementById('totalPatientsCount').textContent = querySnapshot.size;
+                })
+                .catch((error) => {
+                    console.error('Error loading patients:', error);
+                    patientsList.innerHTML = '<div class="col-span-full text-center py-8 text-red-500">❌ خطأ في تحميل المرضى</div>';
+                });
+        }
+
+        function createPatientCard(patient) {
+            const card = document.createElement('div');
+            card.className = 'bg-white border rounded-lg p-4 hover:shadow-md transition-shadow';
+            
+            const lastVisit = patient.lastVisit ? (patient.lastVisit.toDate ? patient.lastVisit.toDate() : new Date(patient.lastVisit)) : null;
+            
+            card.innerHTML = `
+                <div class="flex items-center mb-3">
+                    <div class="w-10 h-10 patient-avatar rounded-full flex items-center justify-center ml-3">
+                        <span class="text-white font-bold text-sm">${getInitials(patient.name)}</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-900">${patient.name}</h4>
+                        <p class="text-sm text-gray-600">${patient.age} سنة</p>
+                    </div>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <p class="text-gray-600">📞 ${patient.phone}</p>
+                    <p class="text-gray-600">🩺 ${patient.condition || 'لا توجد حالة محددة'}</p>
+                    ${lastVisit ? `<p class="text-gray-500">آخر زيارة: ${lastVisit.toLocaleDateString('ar-SA')}</p>` : ''}
+                </div>
+                <div class="flex space-x-2 space-x-reverse mt-4">
+                    <button onclick="viewPatient('${patient.id}')" class="flex-1 bg-blue-600 text-white py-2 px-3 rounded text-sm hover:bg-blue-700">
+                        عرض الملف
+                    </button>
+                    <button onclick="bookAppointment('${patient.id}')" class="flex-1 bg-green-600 text-white py-2 px-3 rounded text-sm hover:bg-green-700">
+                        حجز موعد
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function loadReports() {
+            const reportsList = document.getElementById('reportsList');
+            
+            if (!isFirebaseConnected || !currentDoctor) {
+                reportsList.innerHTML = '<div class="text-center py-8 text-red-500">❌ غير متصل بقاعدة البيانات</div>';
+                return;
+            }
+            
+            db.collection('reports')
+                .where('doctorId', '==', currentDoctor.id)
+                .orderBy('createdAt', 'desc')
+                .limit(10)
+                .get()
+                .then((querySnapshot) => {
+                    reportsList.innerHTML = '';
+                    
+                    if (querySnapshot.empty) {
+                        reportsList.innerHTML = `
+                            <div class="text-center py-8 text-gray-500">
+                                📋 لا توجد تقارير بعد
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    querySnapshot.forEach((doc) => {
+                        const report = { id: doc.id, ...doc.data() };
+                        const reportCard = createReportCard(report);
+                        reportsList.appendChild(reportCard);
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error loading reports:', error);
+                    reportsList.innerHTML = '<div class="text-center py-8 text-red-500">❌ خطأ في تحميل التقارير</div>';
+                });
+        }
+
+        function createReportCard(report) {
+            const card = document.createElement('div');
+            card.className = 'bg-white border rounded-lg p-4 hover:shadow-md transition-shadow';
+            
+            const createdAt = report.createdAt ? (report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt)) : new Date();
+            
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-bold text-gray-900">${report.title}</h4>
+                    <span class="text-xs text-gray-500">${createdAt.toLocaleDateString('ar-SA')}</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-3">${report.patientName}</p>
+                <p class="text-sm text-gray-700 mb-4">${report.summary || 'لا يوجد ملخص'}</p>
+                <div class="flex space-x-2 space-x-reverse">
+                    <button onclick="viewReport('${report.id}')" class="flex-1 bg-blue-600 text-white py-2 px-3 rounded text-sm hover:bg-blue-700">
+                        عرض التقرير
+                    </button>
+                    <button onclick="editReport('${report.id}')" class="flex-1 bg-gray-600 text-white py-2 px-3 rounded text-sm hover:bg-gray-700">
+                        تعديل
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function loadSchedule() {
+            const scheduleCalendar = document.getElementById('scheduleCalendar');
+            
+            setTimeout(() => {
+                scheduleCalendar.innerHTML = `
+                    <div class="grid grid-cols-7 gap-4 mb-6">
+                        <div class="text-center font-bold text-gray-700">السبت</div>
+                        <div class="text-center font-bold text-gray-700">الأحد</div>
+                        <div class="text-center font-bold text-gray-700">الاثنين</div>
+                        <div class="text-center font-bold text-gray-700">الثلاثاء</div>
+                        <div class="text-center font-bold text-gray-700">الأربعاء</div>
+                        <div class="text-center font-bold text-gray-700">الخميس</div>
+                        <div class="text-center font-bold text-gray-700">الجمعة</div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-4">
+                        ${generateCalendarDays()}
+                    </div>
+                    <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                        <h4 class="font-bold text-blue-900 mb-2">ساعات العمل الحالية:</h4>
+                        <p class="text-blue-800">السبت - الخميس: 9:00 ص - 5:00 م</p>
+                        <p class="text-blue-800">الجمعة: مغلق</p>
+                    </div>
+                `;
+            }, 1000);
+        }
+
+        function generateCalendarDays() {
+            let days = '';
+            for (let i = 1; i <= 30; i++) {
+                const hasAppointments = Math.random() > 0.7;
+                days += `
+                    <div class="p-3 border rounded-lg text-center cursor-pointer hover:bg-blue-50 ${hasAppointments ? 'bg-blue-100 border-blue-300' : 'bg-white'}">
+                        <div class="font-bold">${i}</div>
+                        ${hasAppointments ? '<div class="text-xs text-blue-600 mt-1">3 مواعيد</div>' : ''}
+                    </div>
+                `;
+            }
+            return days;
+        }
+
+        function loadProfile() {
+            const profileForm = document.getElementById('profileForm');
+            
+            if (!currentDoctor) return;
+            
+            setTimeout(() => {
+                profileForm.innerHTML = `
+                    <form onsubmit="updateProfile(event)" class="space-y-6">
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل</label>
+                                <input type="text" id="profileName" value="${currentDoctor.name}" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">التخصص</label>
+                                <input type="text" id="profileSpecialty" value="${currentDoctor.specialty}" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                            </div>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+                                <input type="email" id="profileEmail" value="${currentDoctor.email}" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+                                <input type="tel" id="profilePhone" value="${currentDoctor.phone || ''}" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">نبذة مختصرة</label>
+                            <textarea id="profileBio" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="اكتب نبذة مختصرة عنك...">${currentDoctor.bio || ''}</textarea>
+                        </div>
+                        
+                        <div class="flex space-x-4 space-x-reverse">
+                            <button type="submit" class="bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                                حفظ التغييرات
+                            </button>
+                            <button type="button" onclick="changePasswordProfile()" class="bg-orange-600 text-white py-3 px-6 rounded-lg hover:bg-orange-700 transition-colors font-medium">
+                                تغيير كلمة المرور
+                            </button>
+                        </div>
+                    </form>
+                `;
+            }, 1000);
+        }
+
+        // Action Functions
+        function setStatus(status) {
+            // Update UI
+            document.querySelectorAll('[id^="status"]').forEach(btn => {
+                btn.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500', 'text-white');
+                btn.classList.add('text-gray-600');
+            });
+            
+            const statusBtn = document.getElementById('status' + status.charAt(0).toUpperCase() + status.slice(1));
+            if (statusBtn) {
+                statusBtn.classList.add('text-white');
+                if (status === 'available') statusBtn.classList.add('bg-green-500');
+                else if (status === 'busy') statusBtn.classList.add('bg-yellow-500');
+                else statusBtn.classList.add('bg-red-500');
+            }
+            
+            // Update in database
+            if (currentDoctor && isFirebaseConnected) {
+                db.collection('doctors').doc(currentDoctor.id).update({
+                    status: status,
+                    lastStatusUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+
+        function refreshAppointments() {
+            showNotification('جاري تحديث المواعيد...', 'info');
+            loadAppointments();
+        }
+
+        function addAppointment() {
+            showNotification('سيتم فتح نموذج إضافة موعد جديد...', 'info');
+        }
+
+        function addPatient() {
+            showNotification('سيتم فتح نموذج إضافة مريض جديد...', 'info');
+        }
+
+        function createReport() {
+            showNotification('سيتم فتح محرر التقارير الطبية...', 'info');
+        }
+
+        function updateSchedule() {
+            showNotification('سيتم فتح إعدادات الجدولة...', 'info');
+        }
+
+        function viewAppointment(appointmentId) {
+            showNotification(`عرض تفاصيل الموعد: ${appointmentId}`, 'info');
+        }
+
+        function startAppointment(appointmentId) {
+            if (confirm('هل تريد بدء هذا الموعد؟')) {
+                db.collection('appointments').doc(appointmentId).update({
+                    status: 'in_progress',
+                    startedAt: firebase.firestore.FieldValue.serverTimestamp()
+                })
+                .then(() => {
+                    showNotification('تم بدء الموعد بنجاح!', 'success');
+                    loadAppointments();
+                })
+                .catch((error) => {
+                    showNotification('خطأ في بدء الموعد', 'error');
+                });
+            }
+        }
+
+        function viewPatient(patientId) {
+            showNotification(`عرض ملف المريض: ${patientId}`, 'info');
+        }
+
+        function bookAppointment(patientId) {
+            showNotification(`حجز موعد للمريض: ${patientId}`, 'info');
+        }
+
+        function viewReport(reportId) {
+            showNotification(`عرض التقرير: ${reportId}`, 'info');
+        }
+
+        function editReport(reportId) {
+            showNotification(`تعديل التقرير: ${reportId}`, 'info');
+        }
+
+        function updateProfile(event) {
+            event.preventDefault();
+            
+            const updatedData = {
+                name: document.getElementById('profileName').value,
+                specialty: document.getElementById('profileSpecialty').value,
+                email: document.getElementById('profileEmail').value,
+                phone: document.getElementById('profilePhone').value,
+                bio: document.getElementById('profileBio').value
+            };
+            
+            db.collection('doctors').doc(currentDoctor.id).update(updatedData)
+                .then(() => {
+                    currentDoctor = { ...currentDoctor, ...updatedData };
+                    localStorage.setItem('doctorData', JSON.stringify(currentDoctor));
+                    loadDoctorData();
+                    showNotification('تم حفظ التغييرات بنجاح!', 'success');
+                })
+                .catch((error) => {
+                    showNotification('خطأ في حفظ التغييرات', 'error');
+                });
+        }
+
+        function changePasswordProfile() {
+            showChangePasswordModal();
+        }
+
+        // Utility Functions
+        function showLoginModal() {
+            document.getElementById('loginModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideLoginModal() {
+            document.getElementById('loginModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        function showWelcomeMessage() {
+            showNotification(`مرحباً د. ${currentDoctor.name}! تم تسجيل الدخول بنجاح`, 'success');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+            
+            notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 fade-in`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    ${message}
+                </div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function togglePassword(inputId) {
+            const passwordInput = document.getElementById(inputId);
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (passwordInput && eyeIcon) {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    eyeIcon.innerHTML = `
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                    `;
+                } else {
+                    passwordInput.type = 'password';
+                    eyeIcon.innerHTML = `
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    `;
+                }
+            }
+        }
+
+        function toggleNotifications() {
+            const panel = document.getElementById('notificationPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function contactAdmin() {
+            alert('للحصول على المساعدة، يرجى التواصل مع الإدارة على:\nالهاتف: 07xxxxxxxx\nالبريد الإلكتروني: admin@medconnect.com');
+        }
+
+        function logout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                localStorage.removeItem('doctorData');
+                localStorage.removeItem('doctorLoginTime');
+                location.reload();
+            }
+        }
+        
+        // Load notifications
+        async function loadNotifications() {
+            if (!currentDoctor || !db) return;
+            
+            try {
+                const notificationsQuery = await db.collection('notifications')
+                    .where('doctorId', '==', currentDoctor.id)
+                    .where('isRead', '==', false)
+                    .orderBy('createdAt', 'desc')
+                    .limit(10)
+                    .get();
+                
+                const notificationCount = notificationsQuery.size;
+                
+                // Update notification badge
+                const notificationBadge = document.getElementById('notificationBadge');
+                if (notificationBadge) {
+                    if (notificationCount > 0) {
+                        notificationBadge.textContent = notificationCount;
+                        notificationBadge.classList.remove('hidden');
+                    } else {
+                        notificationBadge.classList.add('hidden');
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+        
+        // Appointment actions
+        async function confirmAppointment(appointmentId) {
+            if (!confirm('تأكيد هذا الموعد؟')) return;
+            
+            try {
+                await db.collection('appointments').doc(appointmentId).update({
+                    status: 'confirmed',
+                    confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // Get appointment data to notify patient
+                const appointmentDoc = await db.collection('appointments').doc(appointmentId).get();
+                if (appointmentDoc.exists) {
+                    const appointment = appointmentDoc.data();
+                    await createPatientNotification(appointment.patientPhone, {
+                        type: 'appointment_confirmed',
+                        title: 'تم تأكيد الموعد',
+                        message: `تم تأكيد موعدك مع ${currentDoctor.name} في ${appointment.appointmentDate} الساعة ${appointment.appointmentTime}`,
+                        appointmentId: appointmentId
+                    });
+                }
+                
+                showNotification('تم تأكيد الموعد بنجاح', 'success');
+                loadAppointments();
+                
+            } catch (error) {
+                console.error('Error confirming appointment:', error);
+                showNotification('خطأ في تأكيد الموعد', 'error');
+            }
+        }
+        
+        async function postponeAppointment(appointmentId) {
+            const newDate = prompt('أدخل التاريخ الجديد (YYYY-MM-DD):');
+            const newTime = prompt('أدخل الوقت الجديد:');
+            
+            if (!newDate || !newTime) return;
+            
+            try {
+                await db.collection('appointments').doc(appointmentId).update({
+                    status: 'postponed',
+                    appointmentDate: newDate,
+                    appointmentTime: newTime,
+                    postponedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    doctorNotes: `تم تأجيل الموعد إلى ${newDate} الساعة ${newTime}`
+                });
+                
+                // Get appointment data to notify patient
+                const appointmentDoc = await db.collection('appointments').doc(appointmentId).get();
+                if (appointmentDoc.exists) {
+                    const appointment = appointmentDoc.data();
+                    await createPatientNotification(appointment.patientPhone, {
+                        type: 'appointment_postponed',
+                        title: 'تم تأجيل الموعد',
+                        message: `تم تأجيل موعدك مع ${currentDoctor.name} إلى ${newDate} الساعة ${newTime}`,
+                        appointmentId: appointmentId
+                    });
+                }
+                
+                showNotification('تم تأجيل الموعد بنجاح', 'success');
+                loadAppointments();
+                
+            } catch (error) {
+                console.error('Error postponing appointment:', error);
+                showNotification('خطأ في تأجيل الموعد', 'error');
+            }
+        }
+        
+        async function cancelAppointment(appointmentId) {
+            const reason = prompt('سبب الإلغاء (اختياري):');
+            if (!confirm('إلغاء هذا الموعد؟')) return;
+            
+            try {
+                await db.collection('appointments').doc(appointmentId).update({
+                    status: 'cancelled',
+                    cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    cancellationReason: reason || 'تم الإلغاء من قبل الطبيب',
+                    doctorNotes: `تم إلغاء الموعد. السبب: ${reason || 'غير محدد'}`
+                });
+                
+                // Get appointment data to notify patient
+                const appointmentDoc = await db.collection('appointments').doc(appointmentId).get();
+                if (appointmentDoc.exists) {
+                    const appointment = appointmentDoc.data();
+                    await createPatientNotification(appointment.patientPhone, {
+                        type: 'appointment_cancelled',
+                        title: 'تم إلغاء الموعد',
+                        message: `تم إلغاء موعدك مع ${currentDoctor.name}. ${reason ? 'السبب: ' + reason : ''}`,
+                        appointmentId: appointmentId
+                    });
+                }
+                
+                showNotification('تم إلغاء الموعد', 'success');
+                loadAppointments();
+                
+            } catch (error) {
+                console.error('Error cancelling appointment:', error);
+                showNotification('خطأ في إلغاء الموعد', 'error');
+            }
+        }
+        
+        async function startAppointment(appointmentId) {
+            if (!confirm('بدء هذا الموعد؟')) return;
+            
+            try {
+                await db.collection('appointments').doc(appointmentId).update({
+                    status: 'in_progress',
+                    startedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showNotification('تم بدء الموعد', 'success');
+                loadAppointments();
+                
+            } catch (error) {
+                console.error('Error starting appointment:', error);
+                showNotification('خطأ في بدء الموعد', 'error');
+            }
+        }
+        
+        async function completeAppointment(appointmentId) {
+            const notes = prompt('ملاحظات الطبيب (اختياري):');
+            
+            try {
+                await db.collection('appointments').doc(appointmentId).update({
+                    status: 'completed',
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    doctorNotes: notes || 'تم إكمال الموعد'
+                });
+                
+                showNotification('تم إنهاء الموعد بنجاح', 'success');
+                loadAppointments();
+                
+            } catch (error) {
+                console.error('Error completing appointment:', error);
+                showNotification('خطأ في إنهاء الموعد', 'error');
+            }
+        }
+        
+        // Create notification for patient
+        async function createPatientNotification(patientPhone, notification) {
+            try {
+                const patientNotification = {
+                    patientPhone: patientPhone,
+                    type: notification.type,
+                    title: notification.title,
+                    message: notification.message,
+                    appointmentId: notification.appointmentId,
+                    isRead: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                await db.collection('patientNotifications').add(patientNotification);
+                
+            } catch (error) {
+                console.error('Error creating patient notification:', error);
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
+        });
+
+        // Close notifications when clicking outside
+        document.addEventListener('click', function(e) {
+            const notificationPanel = document.getElementById('notificationPanel');
+            const notificationButton = e.target.closest('button');
+            
+            if (!notificationButton || !notificationButton.onclick || notificationButton.onclick.toString().indexOf('toggleNotifications') === -1) {
+                if (!notificationPanel.contains(e.target)) {
+                    notificationPanel.classList.add('hidden');
+                }
+            }
+        });
+
+        // Patient search functionality
+        document.getElementById('patientSearch').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const patientCards = document.querySelectorAll('#patientsList > div');
+            
+            patientCards.forEach(card => {
+                const patientName = card.querySelector('h4').textContent.toLowerCase();
+                if (patientName.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98761e434539a895',t:'MTc1OTI2MDQ1Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
