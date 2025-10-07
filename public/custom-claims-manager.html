@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Claims Management System</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 15px; margin-bottom: 20px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+        .section { background: rgba(255,255,255,0.95); margin: 15px 0; padding: 25px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        button { padding: 12px 24px; margin: 8px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; }
+        .primary { background: #007bff; color: white; } .primary:hover { background: #0056b3; }
+        .success { background: #28a745; color: white; } .success:hover { background: #1e7e34; }
+        .warning { background: #ffc107; color: black; } .warning:hover { background: #d39e00; }
+        .danger { background: #dc3545; color: white; } .danger:hover { background: #a71d2a; }
+        .info { background: #17a2b8; color: white; } .info:hover { background: #117a8b; }
+        input, select { padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; width: 100%; max-width: 300px; font-size: 14px; }
+        .result { margin: 15px 0; padding: 15px; border-radius: 8px; font-family: 'Courier New', monospace; white-space: pre-wrap; font-size: 13px; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .success-bg { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .warning-bg { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info-bg { background: #d1ecf1; color: #0c5460; border: 1px solid #b8daff; }
+        .user-card { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #007bff; }
+        .role-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin: 2px; }
+        .role-admin { background: #dc3545; color: white; }
+        .role-doctor { background: #28a745; color: white; }
+        .role-patient { background: #6c757d; color: white; }
+        .status-box { padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center; }
+        .authenticated { background: #d4edda; color: #155724; border: 2px solid #28a745; }
+        .unauthenticated { background: #f8d7da; color: #721c24; border: 2px solid #dc3545; }
+        h1 { color: #2c3e50; margin: 0; font-size: 28px; }
+        h2 { color: #34495e; border-bottom: 3px solid #3498db; padding-bottom: 8px; margin-top: 0; }
+        h3 { color: #2980b9; margin-top: 0; }
+        .instruction { background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #2196f3; }
+        .step-number { background: #2196f3; color: white; border-radius: 50%; width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-left: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 Custom Claims Management System</h1>
+            <p style="margin: 10px 0; color: #666; font-size: 16px;">Complete Role Management for Medical Appointment System</p>
+        </div>
+
+        <!-- Authentication Status -->
+        <div class="section">
+            <h2>🔑 Authentication Status</h2>
+            <div id="authStatus" class="status-box unauthenticated">🔄 Checking authentication...</div>
+            <div id="userInfo" style="display: none;"></div>
+            <div style="text-align: center; margin: 15px 0;">
+                <button class="primary" onclick="signInAnonymously()">🔓 Sign In Anonymously</button>
+                <button class="info" onclick="refreshAuthStatus()">🔄 Refresh Status</button>
+                <button class="warning" onclick="signOut()">🚪 Sign Out</button>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Step 1: Bootstrap Admin -->
+            <div class="section">
+                <h2><span class="step-number">1</span> Bootstrap First Admin</h2>
+                <div class="instruction">
+                    <strong>First-time setup:</strong> Create the initial admin user to manage the system.
+                </div>
+                
+                <h3>Create User Document</h3>
+                <button class="success" onclick="createUserDocument()">📝 Create My User Document</button>
+                
+                <h3>Manual Admin Setup</h3>
+                <div class="warning-bg" style="padding: 10px; border-radius: 5px; margin: 10px 0;">
+                    <strong>After creating user document:</strong><br>
+                    1. Copy your UID from above<br>
+                    2. Go to Firebase Console → Authentication → Users<br>
+                    3. Click on your user<br>
+                    4. Set custom claims: <code>{"admin": true}</code>
+                </div>
+                <button class="info" onclick="openFirebaseConsole()">🌐 Open Firebase Console</button>
+                
+                <div id="bootstrapResult" class="result"></div>
+            </div>
+
+            <!-- Step 2: Role Management -->
+            <div class="section">
+                <h2><span class="step-number">2</span> Manage User Roles</h2>
+                <div class="instruction">
+                    <strong>Admin only:</strong> Assign roles to users after you have admin privileges.
+                </div>
+                
+                <h3>Set User Role</h3>
+                <input type="text" id="targetUid" placeholder="Enter User UID" />
+                <select id="targetRole">
+                    <option value="patient">👤 Patient</option>
+                    <option value="doctor">👨‍⚕️ Doctor</option>
+                    <option value="admin">👑 Admin</option>
+                </select>
+                <button class="primary" onclick="setUserRole()">🎯 Set Role</button>
+                
+                <h3>Promote to Doctor</h3>
+                <input type="text" id="doctorUid" placeholder="User UID" />
+                <input type="text" id="doctorName" placeholder="Doctor Name (optional)" />
+                <input type="text" id="doctorSpecialty" placeholder="Specialty (optional)" />
+                <button class="success" onclick="promoteToDoctor()">⬆️ Promote to Doctor</button>
+                
+                <div id="roleResult" class="result"></div>
+            </div>
+        </div>
+
+        <!-- Step 3: Test Role Permissions -->
+        <div class="section">
+            <h2><span class="step-number">3</span> Test Role-Based Permissions</h2>
+            <div class="grid">
+                <div>
+                    <h3>🔍 Check Current Role</h3>
+                    <button class="info" onclick="getCurrentRole()">📋 Get My Role & Claims</button>
+                    <div id="currentRoleResult" class="result"></div>
+                </div>
+                
+                <div>
+                    <h3>🗄️ Test Database Access</h3>
+                    <button class="primary" onclick="testDoctorsAccess()">👨‍⚕️ Test Doctors Collection</button>
+                    <button class="primary" onclick="testUsersAccess()">👥 Test Users Collection</button>
+                    <button class="primary" onclick="testAppointmentsAccess()">📅 Test Appointments</button>
+                    <div id="accessResult" class="result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: User Directory -->
+        <div class="section">
+            <h2><span class="step-number">4</span> User Directory</h2>
+            <div style="text-align: center; margin: 15px 0;">
+                <button class="info" onclick="loadAllUsers()">👥 Load All Users</button>
+                <button class="warning" onclick="clearUserList()">🗑️ Clear List</button>
+            </div>
+            <div id="userDirectory"></div>
+        </div>
+
+        <!-- System Status -->
+        <div class="section">
+            <h2>📊 System Status</h2>
+            <div class="grid">
+                <div>
+                    <h3>🔥 Firebase Services</h3>
+                    <button class="info" onclick="testFirebaseServices()">🧪 Test All Services</button>
+                    <div id="servicesResult" class="result"></div>
+                </div>
+                <div>
+                    <h3>⚙️ Cloud Functions</h3>
+                    <button class="success" onclick="testCloudFunctions()">🚀 Test Functions</button>
+                    <div id="functionsResult" class="result"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+            authDomain: "medconnect-2.firebaseapp.com", 
+            projectId: "medconnect-2",
+            storageBucket: "medconnect-2.firebasestorage.app",
+            messagingSenderId: "131325717519",
+            appId: "1:131325717519:web:5476819a47e487b5e31c32"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const functions = firebase.functions();
+
+        let currentUser = null;
+        let userClaims = {};
+
+        // Auth state listener
+        auth.onAuthStateChanged(async (user) => {
+            currentUser = user;
+            await updateAuthStatus();
+        });
+
+        async function updateAuthStatus() {
+            const statusEl = document.getElementById("authStatus");
+            const userInfo = document.getElementById("userInfo");
+            
+            if (currentUser) {
+                try {
+                    const tokenResult = await currentUser.getIdTokenResult();
+                    userClaims = tokenResult.claims;
+                    
+                    statusEl.className = "status-box authenticated";
+                    statusEl.innerHTML = "✅ <strong>AUTHENTICATED</strong>";
+                    
+                    const isAdmin = userClaims.admin || false;
+                    const isDoctor = userClaims.doctor || false;
+                    const isPatient = userClaims.patient || false;
+                    
+                    let role = "No role assigned";
+                    let roleClass = "";
+                    if (isAdmin) { role = "Admin"; roleClass = "role-admin"; }
+                    else if (isDoctor) { role = "Doctor"; roleClass = "role-doctor"; }
+                    else if (isPatient) { role = "Patient"; roleClass = "role-patient"; }
+                    
+                    userInfo.style.display = "block";
+                    userInfo.innerHTML = `
+                        <div class="user-card">
+                            <h3>👤 User Information</h3>
+                            <strong>UID:</strong> <code>${currentUser.uid}</code><br>
+                            <strong>Email:</strong> ${currentUser.email || "None"}<br>
+                            <strong>Phone:</strong> ${currentUser.phoneNumber || "None"}<br>
+                            <strong>Provider:</strong> ${currentUser.providerData[0]?.providerId || "anonymous"}<br>
+                            <strong>Role:</strong> <span class="role-badge ${roleClass}">${role}</span><br>
+                            <strong>Claims:</strong> <code>${JSON.stringify(userClaims, null, 2)}</code>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error("Error getting token:", error);
+                }
+            } else {
+                statusEl.className = "status-box unauthenticated";
+                statusEl.innerHTML = "❌ <strong>NOT AUTHENTICATED</strong>";
+                userInfo.style.display = "none";
+            }
+        }
+
+        // Authentication functions
+        async function signInAnonymously() {
+            try {
+                await auth.signInAnonymously();
+                log("bootstrapResult", "✅ Signed in anonymously successfully!", "success");
+            } catch (error) {
+                log("bootstrapResult", `❌ Sign-in failed: ${error.message}`, "error");
+            }
+        }
+
+        async function signOut() {
+            try {
+                await auth.signOut();
+                log("bootstrapResult", "✅ Signed out successfully", "success");
+            } catch (error) {
+                log("bootstrapResult", `❌ Sign-out failed: ${error.message}`, "error");
+            }
+        }
+
+        function refreshAuthStatus() {
+            updateAuthStatus();
+            log("bootstrapResult", "🔄 Authentication status refreshed", "info");
+        }
+
+        // Bootstrap functions
+        async function createUserDocument() {
+            if (!currentUser) {
+                log("bootstrapResult", "❌ Please sign in first", "error");
+                return;
+            }
+
+            try {
+                const userData = {
+                    uid: currentUser.uid,
+                    role: "patient", // Default role
+                    email: currentUser.email || null,
+                    phoneNumber: currentUser.phoneNumber || null,
+                    provider: currentUser.providerData[0]?.providerId || "anonymous",
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    adminSetup: false
+                };
+
+                await db.collection("users").doc(currentUser.uid).set(userData, { merge: true });
+                
+                log("bootstrapResult", `✅ User document created successfully!\n\nUID: ${currentUser.uid}\nNext: Set custom claims in Firebase Console\n\nSteps:\n1. Copy UID above\n2. Go to Firebase Console\n3. Authentication → Users\n4. Click your user\n5. Set claims: {"admin": true}`, "success");
+            } catch (error) {
+                log("bootstrapResult", `❌ Failed to create user document: ${error.message}`, "error");
+            }
+        }
+
+        function openFirebaseConsole() {
+            window.open("https://console.firebase.google.com/project/medconnect-2/authentication/users", "_blank");
+        }
+
+        // Role management functions
+        async function setUserRole() {
+            const uid = document.getElementById("targetUid").value;
+            const role = document.getElementById("targetRole").value;
+            
+            if (!uid) {
+                log("roleResult", "❌ Please enter a target UID", "error");
+                return;
+            }
+            
+            if (!userClaims.admin) {
+                log("roleResult", "❌ Admin privileges required", "error");
+                return;
+            }
+            
+            try {
+                const setUserRoleFunc = functions.httpsCallable("setUserRole");
+                const result = await setUserRoleFunc({ uid, role });
+                log("roleResult", `✅ Role set successfully!\n${JSON.stringify(result.data, null, 2)}`, "success");
+            } catch (error) {
+                log("roleResult", `❌ Failed to set role: ${error.message}`, "error");
+            }
+        }
+
+        async function promoteToDoctor() {
+            const uid = document.getElementById("doctorUid").value;
+            const name = document.getElementById("doctorName").value;
+            const specialty = document.getElementById("doctorSpecialty").value;
+            
+            if (!uid) {
+                log("roleResult", "❌ Please enter a user UID", "error");
+                return;
+            }
+            
+            if (!userClaims.admin) {
+                log("roleResult", "❌ Admin privileges required", "error");
+                return;
+            }
+            
+            const doctorInfo = name || specialty ? { name, specialty } : null;
+            
+            try {
+                const promoteToDoctorFunc = functions.httpsCallable("promoteToDoctor");
+                const result = await promoteToDoctorFunc({ uid, doctorInfo });
+                log("roleResult", `✅ User promoted to doctor!\n${JSON.stringify(result.data, null, 2)}`, "success");
+            } catch (error) {
+                log("roleResult", `❌ Failed to promote user: ${error.message}`, "error");
+            }
+        }
+
+        // Test functions
+        async function getCurrentRole() {
+            if (!currentUser) {
+                log("currentRoleResult", "❌ Please sign in first", "error");
+                return;
+            }
+            
+            try {
+                const getUserRoleFunc = functions.httpsCallable("getUserRole");
+                const result = await getUserRoleFunc();
+                log("currentRoleResult", `✅ Current role information:\n${JSON.stringify(result.data, null, 2)}`, "success");
+            } catch (error) {
+                log("currentRoleResult", `❌ Failed to get role: ${error.message}`, "error");
+            }
+        }
+
+        async function testDoctorsAccess() {
+            try {
+                const snapshot = await db.collection("doctors").limit(5).get();
+                const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                log("accessResult", `✅ Doctors collection: ${docs.length} documents accessible\n${JSON.stringify(docs, null, 2)}`, "success");
+            } catch (error) {
+                log("accessResult", `❌ Doctors access failed: ${error.message}`, "error");
+            }
+        }
+
+        async function testUsersAccess() {
+            try {
+                const snapshot = await db.collection("users").limit(5).get();
+                const docs = snapshot.docs.map(doc => ({ id: doc.id, role: doc.data().role, email: doc.data().email }));
+                log("accessResult", `✅ Users collection: ${docs.length} documents accessible\n${JSON.stringify(docs, null, 2)}`, "success");
+            } catch (error) {
+                log("accessResult", `❌ Users access failed: ${error.message}`, "error");
+            }
+        }
+
+        async function testAppointmentsAccess() {
+            try {
+                const snapshot = await db.collection("appointments").limit(5).get();
+                const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                log("accessResult", `✅ Appointments collection: ${docs.length} documents accessible\n${JSON.stringify(docs, null, 2)}`, "success");
+            } catch (error) {
+                log("accessResult", `❌ Appointments access failed: ${error.message}`, "error");
+            }
+        }
+
+        // Advanced functions
+        async function loadAllUsers() {
+            try {
+                const snapshot = await db.collection("users").get();
+                const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                let userListHtml = `<h3>📊 Total Users: ${users.length}</h3>`;
+                users.forEach(user => {
+                    const roleClass = user.role === "admin" ? "role-admin" : user.role === "doctor" ? "role-doctor" : "role-patient";
+                    userListHtml += `
+                        <div class="user-card">
+                            <strong>UID:</strong> <code>${user.id}</code><br>
+                            <strong>Role:</strong> <span class="role-badge ${roleClass}">${user.role || "none"}</span><br>
+                            <strong>Email:</strong> ${user.email || "None"}<br>
+                            <strong>Provider:</strong> ${user.provider || "unknown"}
+                        </div>
+                    `;
+                });
+                
+                document.getElementById("userDirectory").innerHTML = userListHtml;
+            } catch (error) {
+                document.getElementById("userDirectory").innerHTML = `<div class="error">❌ Failed to load users: ${error.message}</div>`;
+            }
+        }
+
+        function clearUserList() {
+            document.getElementById("userDirectory").innerHTML = "";
+        }
+
+        async function testFirebaseServices() {
+            const tests = [];
+            
+            // Test Auth
+            try {
+                const user = auth.currentUser;
+                tests.push(`✅ Authentication: ${user ? "Active user" : "No user"}`);
+            } catch (error) {
+                tests.push(`❌ Authentication: ${error.message}`);
+            }
+            
+            // Test Firestore
+            try {
+                await db.collection("test").doc("connection").set({ test: true }, { merge: true });
+                tests.push("✅ Firestore: Read/Write OK");
+            } catch (error) {
+                tests.push(`❌ Firestore: ${error.message}`);
+            }
+            
+            log("servicesResult", tests.join("\n"), tests.every(t => t.includes("✅")) ? "success" : "warning");
+        }
+
+        async function testCloudFunctions() {
+            const functionTests = [];
+            
+            if (!currentUser) {
+                log("functionsResult", "❌ Sign in required to test functions", "error");
+                return;
+            }
+            
+            // Test getUserRole
+            try {
+                const getUserRoleFunc = functions.httpsCallable("getUserRole");
+                await getUserRoleFunc();
+                functionTests.push("✅ getUserRole: Working");
+            } catch (error) {
+                functionTests.push(`❌ getUserRole: ${error.message}`);
+            }
+            
+            log("functionsResult", functionTests.join("\n"), functionTests.every(t => t.includes("✅")) ? "success" : "error");
+        }
+
+        // Utility function
+        function log(elementId, message, type = "info") {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type === "error" ? "error" : type === "success" ? "success-bg" : type === "warning" ? "warning-bg" : "info-bg"}`;
+        }
+
+        // Initialize
+        window.addEventListener("load", () => {
+            console.log("🔐 Custom Claims Management System loaded");
+        });
+    </script>
+</body>
+</html>

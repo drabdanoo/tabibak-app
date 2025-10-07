@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Check Test</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Firebase App Check Test</h1>
+        <p>This page tests Firebase App Check integration and token generation.</p>
+        
+        <div class="test-section">
+            <h3>Firebase Initialization Status</h3>
+            <div id="firebase-status" class="status info">Initializing Firebase...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>App Check Status</h3>
+            <div id="appcheck-status" class="status info">Checking App Check...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Token Information</h3>
+            <div id="token-info" class="status info">Loading token info...</div>
+            <button onclick="getAppCheckToken()">Get New App Check Token</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>Database Test</h3>
+            <div id="db-status" class="status info">Ready to test database</div>
+            <button onclick="testDatabaseAccess()">Test Firestore Access</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>Console Logs</h3>
+            <div id="console-logs" style="background: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; max-height: 200px; overflow-y: auto;">
+                Starting tests...<br>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+            authDomain: "medconnect-2.firebaseapp.com",
+            projectId: "medconnect-2",
+            storageBucket: "medconnect-2.firebasestorage.app",
+            messagingSenderId: "464755135042",
+            appId: "1:464755135042:web:ac00e07a1aa0721683d3db",
+            measurementId: "G-1Q7MTPV8XE"
+        };
+
+        let db, appCheck;
+
+        // Custom console logging
+        function logToPage(message, type = 'info') {
+            const now = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('console-logs');
+            logDiv.innerHTML += `<span style="color: #666;">[${now}]</span> ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.className = `status ${type}`;
+            element.textContent = message;
+        }
+
+        // Initialize Firebase and App Check
+        async function initializeFirebase() {
+            try {
+                // Initialize Firebase
+                firebase.initializeApp(firebaseConfig);
+                updateStatus('firebase-status', '✅ Firebase initialized successfully', 'success');
+                logToPage('Firebase app initialized');
+
+                // Initialize App Check with ReCAPTCHA v3
+                appCheck = firebase.appCheck();
+                
+                // ReCAPTCHA v3 site key configured
+                const appCheckToken = await appCheck.activate(
+                    '6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T', // Your actual ReCAPTCHA v3 site key
+                    true // automatic token refresh
+                );
+                
+                updateStatus('appcheck-status', '✅ App Check activated successfully', 'success');
+                logToPage('App Check activated with ReCAPTCHA v3');
+
+                db = firebase.firestore();
+                logToPage('Firestore initialized');
+                
+                // Get initial token info
+                await getAppCheckToken();
+                
+            } catch (error) {
+                console.error('Firebase initialization error:', error);
+                updateStatus('firebase-status', `❌ Firebase init failed: ${error.message}`, 'error');
+                updateStatus('appcheck-status', `❌ App Check failed: ${error.message}`, 'error');
+                logToPage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Get App Check token
+        async function getAppCheckToken() {
+            try {
+                if (!appCheck) {
+                    updateStatus('token-info', '❌ App Check not initialized', 'error');
+                    return;
+                }
+                
+                const tokenResult = await appCheck.getToken();
+                
+                if (tokenResult.token) {
+                    const tokenPreview = tokenResult.token.substring(0, 20) + '...';
+                    updateStatus('token-info', `✅ Token obtained: ${tokenPreview}`, 'success');
+                    logToPage(`App Check token received (${tokenResult.token.length} chars)`);
+                } else {
+                    updateStatus('token-info', '⚠️ Token received but empty', 'warning');
+                    logToPage('App Check token is empty');
+                }
+            } catch (error) {
+                console.error('Token error:', error);
+                updateStatus('token-info', `❌ Token error: ${error.message}`, 'error');
+                logToPage(`Token error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test database access with App Check
+        async function testDatabaseAccess() {
+            try {
+                if (!db) {
+                    updateStatus('db-status', '❌ Database not initialized', 'error');
+                    return;
+                }
+
+                updateStatus('db-status', '⏳ Testing database access...', 'info');
+                logToPage('Testing Firestore access...');
+
+                // Try to read from appointments collection
+                const appointmentsRef = db.collection('appointments');
+                const snapshot = await appointmentsRef.limit(1).get();
+                
+                updateStatus('db-status', `✅ Database access successful (${snapshot.size} docs)`, 'success');
+                logToPage(`Firestore query successful - ${snapshot.size} documents found`);
+
+                // Try to write a test document (this should work with App Check)
+                const testDoc = {
+                    test: true,
+                    timestamp: new Date(),
+                    appCheckEnabled: true
+                };
+                
+                await db.collection('app_check_tests').add(testDoc);
+                logToPage('Test document written successfully');
+                
+            } catch (error) {
+                console.error('Database error:', error);
+                updateStatus('db-status', `❌ Database error: ${error.message}`, 'error');
+                logToPage(`Database error: ${error.message}`, 'error');
+                
+                // Check if this is an App Check related error
+                if (error.code === 'app-check/token-required') {
+                    logToPage('⚠️ This error suggests App Check is enforced but token is missing', 'warning');
+                } else if (error.code === 'app-check/invalid-token') {
+                    logToPage('⚠️ This error suggests App Check token is invalid', 'warning');
+                }
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeFirebase);
+
+        // Override console methods to show on page
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToPage(args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logToPage(`ERROR: ${args.join(' ')}`, 'error');
+        };
+    </script>
+</body>
+</html>

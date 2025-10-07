@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Check Provider Diagnostic</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; max-width: 900px; margin: 0 auto; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        button { background: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .test-section { background: #f8f9fa; padding: 20px; margin: 15px 0; border-radius: 5px; border: 1px solid #dee2e6; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        .provider-info { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #e9ecef; border-radius: 3px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 App Check Provider Diagnostic</h1>
+        <p>This tool helps diagnose ReCAPTCHA provider conflicts in Firebase App Check.</p>
+        
+        <div class="test-section">
+            <h3>🎯 Current Configuration</h3>
+            <div class="provider-info">
+                <span><strong>Site Key:</strong> 6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T</span>
+                <span><strong>Type:</strong> Detecting...</span>
+            </div>
+            <div id="config-status" class="status info">Analyzing configuration...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Provider Tests</h3>
+            
+            <h4>Test 1: ReCAPTCHA v3 Standard</h4>
+            <div id="recaptcha-v3-status" class="status info">Ready to test</div>
+            <button onclick="testReCAPTCHAv3()">Test ReCAPTCHA v3 Standard</button>
+            
+            <h4>Test 2: ReCAPTCHA Enterprise</h4>
+            <div id="recaptcha-enterprise-status" class="status info">Ready to test</div>
+            <button onclick="testReCAPTCHAEnterprise()">Test ReCAPTCHA Enterprise</button>
+            
+            <h4>Test 3: Auto-Detection</h4>
+            <div id="auto-detect-status" class="status info">Ready to detect</div>
+            <button onclick="autoDetectProvider()">Auto-Detect Working Provider</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Recommendations</h3>
+            <div id="recommendations" class="status info">Run tests first to get recommendations...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Quick Actions</h3>
+            <button onclick="generateFixedCode()">Generate Fixed Code</button>
+            <button onclick="window.location.href='patient.html'">Test Patient Portal</button>
+            <button onclick="window.location.href='diagnostic.html'">Full Diagnostic</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Console Output</h3>
+            <pre id="console-output">Starting App Check provider diagnostic...\n</pre>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+            authDomain: "medconnect-2.firebaseapp.com",
+            projectId: "medconnect-2",
+            storageBucket: "medconnect-2.firebasestorage.app",
+            messagingSenderId: "464755135042",
+            appId: "1:464755135042:web:ac00e07a1aa0721683d3db"
+        };
+
+        let testResults = {
+            recaptchaV3: null,
+            recaptchaEnterprise: null
+        };
+
+        function log(message, type = 'info') {
+            const now = new Date().toLocaleTimeString();
+            const output = document.getElementById('console-output');
+            const colorMap = { error: '#ff6b6b', success: '#51cf66', warning: '#ffd43b', info: '#74c0fc' };
+            output.innerHTML += `<span style="color: ${colorMap[type] || '#e2e8f0'}">[${now}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(id, message, type = 'info') {
+            const element = document.getElementById(id);
+            element.className = `status ${type}`;
+            element.textContent = message;
+        }
+
+        // Initialize Firebase (without App Check yet)
+        firebase.initializeApp(firebaseConfig);
+        log('Firebase app initialized');
+
+        // Test ReCAPTCHA v3 Standard
+        async function testReCAPTCHAv3() {
+            updateStatus('recaptcha-v3-status', '🔄 Testing ReCAPTCHA v3...', 'info');
+            log('Testing ReCAPTCHA v3 standard provider...');
+            
+            try {
+                // Create new app instance for testing
+                const testApp = firebase.app(); // Use existing app
+                const appCheck = firebase.appCheck(testApp);
+                
+                // Test with ReCAPTCHA v3
+                await appCheck.activate(
+                    '6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T', // Your site key
+                    true
+                );
+                
+                log('ReCAPTCHA v3 activation attempted');
+                
+                // Try to get token
+                const tokenResult = await appCheck.getToken();
+                
+                if (tokenResult && tokenResult.token) {
+                    updateStatus('recaptcha-v3-status', `✅ ReCAPTCHA v3 Working! Token: ${tokenResult.token.substring(0, 30)}...`, 'success');
+                    log(`ReCAPTCHA v3 token received (${tokenResult.token.length} chars)`);
+                    testResults.recaptchaV3 = 'success';
+                } else {
+                    updateStatus('recaptcha-v3-status', '⚠️ ReCAPTCHA v3 activated but no token', 'warning');
+                    log('ReCAPTCHA v3 activated but no token received');
+                    testResults.recaptchaV3 = 'partial';
+                }
+                
+            } catch (error) {
+                updateStatus('recaptcha-v3-status', `❌ ReCAPTCHA v3 Failed: ${error.message}`, 'error');
+                log(`ReCAPTCHA v3 error: ${error.message}`);
+                testResults.recaptchaV3 = 'failed';
+            }
+            
+            updateRecommendations();
+        }
+
+        // Test ReCAPTCHA Enterprise
+        async function testReCAPTCHAEnterprise() {
+            updateStatus('recaptcha-enterprise-status', '🔄 Testing ReCAPTCHA Enterprise...', 'info');
+            log('Testing ReCAPTCHA Enterprise provider...');
+            
+            try {
+                // For Enterprise, we need to use a different initialization
+                // This is just a test to see if Enterprise is configured
+                log('Note: ReCAPTCHA Enterprise requires different setup');
+                log('If you have Enterprise configured in Firebase Console, it may conflict with v3');
+                
+                // We can't easily test Enterprise without proper setup
+                // But we can check for common Enterprise error patterns
+                updateStatus('recaptcha-enterprise-status', '🔍 Enterprise requires manual configuration check', 'warning');
+                log('Enterprise test requires checking Firebase Console manually');
+                testResults.recaptchaEnterprise = 'unknown';
+                
+            } catch (error) {
+                updateStatus('recaptcha-enterprise-status', `❌ Enterprise Error: ${error.message}`, 'error');
+                log(`ReCAPTCHA Enterprise error: ${error.message}`);
+                testResults.recaptchaEnterprise = 'failed';
+            }
+            
+            updateRecommendations();
+        }
+
+        // Auto-detect working provider
+        async function autoDetectProvider() {
+            updateStatus('auto-detect-status', '🔄 Auto-detecting...', 'info');
+            log('Starting auto-detection of working provider...');
+            
+            // First test ReCAPTCHA v3
+            await testReCAPTCHAv3();
+            
+            // Analyze results
+            if (testResults.recaptchaV3 === 'success') {
+                updateStatus('auto-detect-status', '✅ ReCAPTCHA v3 is working correctly', 'success');
+                log('Auto-detection complete: ReCAPTCHA v3 is functional');
+            } else {
+                updateStatus('auto-detect-status', '⚠️ No working provider detected', 'warning');
+                log('Auto-detection: No functional provider found');
+            }
+        }
+
+        // Update recommendations based on test results
+        function updateRecommendations() {
+            const recDiv = document.getElementById('recommendations');
+            let recommendation = '';
+            
+            if (testResults.recaptchaV3 === 'success') {
+                recommendation = `✅ <strong>Recommendation:</strong> Use ReCAPTCHA v3 Standard
+                <br>• Remove ReCAPTCHA Enterprise from Firebase Console
+                <br>• Your current configuration is working with v3
+                <br>• Keep only one provider to avoid conflicts`;
+                recDiv.className = 'status success';
+            } else if (testResults.recaptchaV3 === 'failed') {
+                recommendation = `⚠️ <strong>Issue Detected:</strong> ReCAPTCHA v3 not working
+                <br>• Check if ReCAPTCHA Enterprise is blocking v3
+                <br>• Verify site key is correct for v3
+                <br>• Check domain configuration in Google ReCAPTCHA Console`;
+                recDiv.className = 'status warning';
+            } else {
+                recommendation = `🔍 <strong>Analysis:</strong> Run tests to get specific recommendations
+                <br>• Click "Test ReCAPTCHA v3" first
+                <br>• Check Firebase Console for provider conflicts
+                <br>• Ensure only one ReCAPTCHA type is active`;
+                recDiv.className = 'status info';
+            }
+            
+            recDiv.innerHTML = recommendation;
+        }
+
+        // Generate fixed code based on test results
+        function generateFixedCode() {
+            const results = Object.entries(testResults).filter(([key, value]) => value === 'success');
+            
+            if (results.length === 0) {
+                alert('Please run the tests first to determine which provider works.');
+                return;
+            }
+            
+            let code = `// Fixed App Check Configuration\n`;
+            code += `// Based on test results: ${results[0][0]} is working\n\n`;
+            
+            if (testResults.recaptchaV3 === 'success') {
+                code += `// Use this configuration in your Firebase initialization:\n`;
+                code += `const appCheck = firebase.appCheck();\n`;
+                code += `appCheck.activate(\n`;
+                code += `    '6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T', // ReCAPTCHA v3 site key\n`;
+                code += `    true // automatic refresh\n`;
+                code += `);\n\n`;
+                code += `// Action needed in Firebase Console:\n`;
+                code += `// 1. Go to App Check > Apps\n`;
+                code += `// 2. Remove ReCAPTCHA Enterprise provider\n`;
+                code += `// 3. Keep only ReCAPTCHA v3 provider`;
+            }
+            
+            // Show in a modal or new window
+            const newWindow = window.open('', '_blank', 'width=600,height=400');
+            newWindow.document.write(`<pre style="font-family: monospace; padding: 20px;">${code}</pre>`);
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            log('App Check provider diagnostic loaded');
+            updateRecommendations();
+        });
+    </script>
+</body>
+</html>

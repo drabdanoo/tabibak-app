@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Rules Debug</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .debug { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+        .success { border-left-color: #28a745; background: #d4edda; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .warning { border-left-color: #ffc107; background: #fff3cd; }
+        button { margin: 5px; padding: 8px 16px; }
+        pre { background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Firebase Rules Debug Tool</h1>
+    
+    <div id="auth-info" class="debug">Checking authentication...</div>
+    
+    <h3>Quick Actions</h3>
+    <button onclick="signInAnonymous()">Sign In Anonymously</button>
+    <button onclick="signOut()">Sign Out</button>
+    <button onclick="testRulesDetailed()">Test Rules (Detailed)</button>
+    <button onclick="checkUserToken()">Check Auth Token</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+            authDomain: "medconnect-2.firebaseapp.com",
+            projectId: "medconnect-2",
+            storageBucket: "medconnect-2.firebasestorage.app",
+            messagingSenderId: "464755135042",
+            appId: "1:464755135042:web:ac00e07a1aa0721683d3db",
+            measurementId: "G-1Q7MTPV8XE"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Monitor auth changes
+        auth.onAuthStateChanged(user => {
+            const authInfo = document.getElementById('auth-info');
+            if (user) {
+                authInfo.className = 'debug success';
+                authInfo.innerHTML = `
+                    <h4>✅ Authenticated User</h4>
+                    <strong>UID:</strong> ${user.uid}<br>
+                    <strong>Provider:</strong> ${user.providerData.length > 0 ? user.providerData[0].providerId : 'anonymous'}<br>
+                    <strong>Phone:</strong> ${user.phoneNumber || 'N/A'}<br>
+                    <strong>Email:</strong> ${user.email || 'N/A'}<br>
+                    <strong>Anonymous:</strong> ${user.isAnonymous}
+                `;
+            } else {
+                authInfo.className = 'debug error';
+                authInfo.innerHTML = '<h4>❌ Not Authenticated</h4>';
+            }
+        });
+
+        async function signInAnonymous() {
+            const results = document.getElementById('results');
+            try {
+                await auth.signInAnonymously();
+                results.innerHTML = '<div class="debug success">✅ Signed in anonymously</div>';
+            } catch (error) {
+                results.innerHTML = `<div class="debug error">❌ Anonymous sign-in failed: ${error.message}</div>`;
+            }
+        }
+
+        async function signOut() {
+            await auth.signOut();
+            document.getElementById('results').innerHTML = '<div class="debug">✅ Signed out</div>';
+        }
+
+        async function checkUserToken() {
+            const results = document.getElementById('results');
+            
+            if (!auth.currentUser) {
+                results.innerHTML = '<div class="debug error">❌ No authenticated user</div>';
+                return;
+            }
+
+            try {
+                const token = await auth.currentUser.getIdTokenResult();
+                results.innerHTML = `
+                    <div class="debug">
+                        <h4>🔑 ID Token Details</h4>
+                        <pre>${JSON.stringify({
+                            authTime: new Date(token.authTime).toLocaleString(),
+                            issuedAt: new Date(token.issuedAtTime).toLocaleString(),
+                            expiresAt: new Date(token.expirationTime).toLocaleString(),
+                            signInProvider: token.signInProvider,
+                            claims: token.claims
+                        }, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML = `<div class="debug error">❌ Token error: ${error.message}</div>`;
+            }
+        }
+
+        async function testRulesDetailed() {
+            const results = document.getElementById('results');
+            
+            if (!auth.currentUser) {
+                results.innerHTML = '<div class="debug error">❌ Please sign in first</div>';
+                return;
+            }
+
+            results.innerHTML = '<div class="debug">🔍 Testing rules with detailed logging...</div>';
+            let output = '';
+
+            // Test 1: Doctors Collection
+            output += '<h4>Test 1: Doctors Collection</h4>';
+            try {
+                console.log('Testing doctors collection access...');
+                const doctorsRef = db.collection('doctors');
+                console.log('Doctors reference created:', doctorsRef);
+                
+                const snapshot = await doctorsRef.get();
+                console.log('Doctors query successful:', snapshot.size, 'documents');
+                
+                output += `<div class="debug success">✅ Doctors: ${snapshot.size} documents accessible</div>`;
+                
+                // Show first few doctors
+                if (snapshot.size > 0) {
+                    output += '<strong>Sample doctors:</strong><ul>';
+                    snapshot.docs.slice(0, 3).forEach(doc => {
+                        const data = doc.data();
+                        output += `<li>${doc.id}: ${data.name || 'No name'} - ${data.specialty || 'No specialty'}</li>`;
+                    });
+                    output += '</ul>';
+                }
+            } catch (error) {
+                console.error('Doctors access failed:', error);
+                output += `<div class="debug error">❌ Doctors: ${error.code} - ${error.message}</div>`;
+            }
+
+            // Test 2: Users Collection (own profile)
+            output += '<h4>Test 2: User Profile</h4>';
+            try {
+                const userDoc = await db.collection('users').doc(auth.currentUser.uid).get();
+                if (userDoc.exists) {
+                    output += '<div class="debug success">✅ User profile: Accessible</div>';
+                } else {
+                    output += '<div class="debug warning">⚠️ User profile: Document does not exist</div>';
+                }
+            } catch (error) {
+                output += `<div class="debug error">❌ User profile: ${error.code} - ${error.message}</div>`;
+            }
+
+            // Test 3: Appointments Collection
+            output += '<h4>Test 3: Appointments Collection</h4>';
+            try {
+                const appointmentsSnapshot = await db.collection('appointments')
+                    .where('userId', '==', auth.currentUser.uid)
+                    .get();
+                output += `<div class="debug success">✅ Appointments: ${appointmentsSnapshot.size} documents accessible</div>`;
+            } catch (error) {
+                output += `<div class="debug error">❌ Appointments: ${error.code} - ${error.message}</div>`;
+            }
+
+            // Test 4: Try to create a test document
+            output += '<h4>Test 4: Write Test</h4>';
+            try {
+                await db.collection('users').doc(auth.currentUser.uid).set({
+                    testField: 'test',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                output += '<div class="debug success">✅ Write test: User document writable</div>';
+            } catch (error) {
+                output += `<div class="debug error">❌ Write test: ${error.code} - ${error.message}</div>`;
+            }
+
+            results.innerHTML = output;
+        }
+    </script>
+</body>
+</html>

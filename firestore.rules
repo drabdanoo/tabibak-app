@@ -1,44 +1,115 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
-    function signedIn() { return request.auth != null; }
-    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
-    function isDoctor() { return signedIn() && request.auth.token.role == 'doctor'; }
-    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    // Helper functions for authentication and authorization
+    function signedIn() { 
+      return request.auth != null; 
+    }
+    
+    function isAdmin() { 
+      return signedIn() && request.auth.token.admin == true; 
+    }
+    
+    function isDoctor() { 
+      return signedIn() && request.auth.token.doctor == true; 
+    }
+    
+    function isPatient() { 
+      return signedIn() && request.auth.token.patient == true; 
+    }
+    
+    function isSelf(uid) { 
+      return signedIn() && request.auth.uid == uid; 
+    }
+    
+    function hasRole(role) {
+      return signedIn() && request.auth.token[role] == true;
+    }
 
-    // Users collection for storing user profiles
+    // Users collection - user profiles and role information
     match /users/{uid} {
-      allow read, write: if isSelf(uid) || isAdmin();
+      allow read: if isSelf(uid) || isAdmin();
+      allow write: if isSelf(uid) || isAdmin();
       allow create: if signedIn() && request.auth.uid == uid;
     }
 
-    // Test collection for connection testing
+    // Test collection for debugging
     match /test/{document} {
-      allow read, write: if true;
+      allow read, write: if signedIn();
     }
 
+    // Patients collection - patient-specific data
     match /patients/{uid} {
       allow read, write: if isSelf(uid) || isAdmin();
+      allow read: if isDoctor(); // Doctors can read patient info
     }
 
+    // Doctors collection - public read for finding doctors
     match /doctors/{uid} {
-      allow read: if isSelf(uid) || isAdmin();
+      allow read: if signedIn(); // All authenticated users can read doctor info
       allow write: if isSelf(uid) || isAdmin();
+      allow create: if isAdmin(); // Only admins can create doctor profiles
     }
 
+    // Appointments collection - role-based access
     match /appointments/{id} {
-      allow create: if signedIn() && request.resource.data.patientId == request.auth.uid;
-      allow read: if isAdmin()
-                || (signedIn() && resource.data.patientId == request.auth.uid)
-                || (isDoctor() && resource.data.doctorId == request.auth.uid);
-      allow update, delete: if isAdmin()
-                || (signedIn() && resource.data.patientId == request.auth.uid)
-                || (isDoctor() && resource.data.doctorId == request.auth.uuid);
+      // Patients can create appointments for themselves
+      allow create: if signedIn() && 
+                   request.resource.data.patientId == request.auth.uid;
+      
+      // Users can read their own appointments
+      allow read: if signedIn() && (
+                    resource.data.patientId == request.auth.uid ||  // Patient's own
+                    (isDoctor() && resource.data.doctorId == request.auth.uid) || // Doctor's own
+                    isAdmin() // Admin can see all
+                  );
+      
+      // Users can update their own appointments, doctors can update their patients' appointments
+      allow update: if signedIn() && (
+                      resource.data.patientId == request.auth.uid || // Patient's own
+                      (isDoctor() && resource.data.doctorId == request.auth.uid) || // Doctor's own
+                      isAdmin() // Admin can modify all
+                    );
+      
+      // Only admins can delete appointments
+      allow delete: if isAdmin();
     }
 
-    // Temporary: Allow all access during development (REMOVE IN PRODUCTION!)
+    // Schedules collection - doctor scheduling
+    match /schedules/{doctorId} {
+      allow read: if signedIn(); // All users can read schedules to book appointments
+      allow write: if isSelf(doctorId) || isAdmin(); // Only the doctor or admin can modify
+    }
+    
+    match /schedules/{doctorId}/{date=**} {
+      allow read: if signedIn(); // All users can read schedules
+      allow write: if isSelf(doctorId) || isAdmin(); // Only the doctor or admin can modify
+    }
+
+    // Medical records - highly restricted
+    match /medical_records/{patientId} {
+      allow read, write: if isSelf(patientId) || isAdmin();
+      allow read: if isDoctor(); // Doctors can read medical records
+    }
+    
+    match /medical_records/{patientId}/{recordId} {
+      allow read, write: if isSelf(patientId) || isAdmin();
+      allow read: if isDoctor(); // Doctors can read medical records
+      allow create: if isDoctor(); // Doctors can create medical records
+    }
+
+    // Admin-only collections
+    match /admin/{document} {
+      allow read, write: if isAdmin();
+    }
+    
+    match /system/{document} {
+      allow read, write: if isAdmin();
+    }
+
+    // Deny all other access by default
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; max-width: 800px; margin: 0 auto; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Firebase Diagnostic Tool</h1>
+        <p>This page diagnoses Firebase connection issues without App Check.</p>
+        
+        <div id="basic-status" class="status info">🔄 Running basic checks...</div>
+        
+        <h3>Environment Check</h3>
+        <div id="env-check"></div>
+        
+        <h3>Firebase SDK Status</h3>
+        <div id="sdk-status" class="status info">Loading...</div>
+        
+        <h3>Firebase Connection Test</h3>
+        <div id="connection-status" class="status info">Ready to test</div>
+        <button onclick="testBasicConnection()">Test Firebase Connection (No App Check)</button>
+        
+        <h3>App Check Diagnostic</h3>
+        <div id="appcheck-diagnostic" class="status info">Ready to diagnose</div>
+        <button onclick="diagnoseAppCheck()">Diagnose App Check Issues</button>
+        
+        <h3>Console Output</h3>
+        <pre id="console-output">Starting diagnostics...\n</pre>
+        
+        <h3>Quick Links</h3>
+        <div>
+            <button onclick="window.location.href='patient.html'">Patient Portal</button>
+            <button onclick="window.location.href='simple-test.html'">Simple Test</button>
+            <button onclick="window.location.href='index.html'">Home Page</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK WITHOUT App Check first -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Custom logging
+        function log(message, type = 'info') {
+            const now = new Date().toLocaleTimeString();
+            const output = document.getElementById('console-output');
+            output.textContent += `[${now}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(id, message, type = 'info') {
+            const element = document.getElementById(id);
+            element.className = `status ${type}`;
+            element.textContent = message;
+        }
+
+        // Environment check
+        function checkEnvironment() {
+            const envDiv = document.getElementById('env-check');
+            let envInfo = '';
+            
+            envInfo += `<strong>URL:</strong> ${window.location.href}<br>`;
+            envInfo += `<strong>Protocol:</strong> ${window.location.protocol}<br>`;
+            envInfo += `<strong>Host:</strong> ${window.location.host}<br>`;
+            envInfo += `<strong>User Agent:</strong> ${navigator.userAgent.substring(0, 50)}...<br>`;
+            envInfo += `<strong>JavaScript:</strong> ✅ Enabled<br>`;
+            
+            envDiv.innerHTML = envInfo;
+            log('Environment check completed');
+        }
+
+        // Check Firebase SDK
+        function checkSDK() {
+            try {
+                if (typeof firebase === 'undefined') {
+                    updateStatus('sdk-status', '❌ Firebase SDK not loaded', 'error');
+                    log('ERROR: Firebase SDK not loaded');
+                    return false;
+                }
+                
+                updateStatus('sdk-status', '✅ Firebase SDK loaded successfully', 'success');
+                log('Firebase SDK loaded successfully');
+                log(`Firebase version: ${firebase.SDK_VERSION || 'Unknown'}`);
+                return true;
+            } catch (error) {
+                updateStatus('sdk-status', `❌ SDK Error: ${error.message}`, 'error');
+                log(`SDK Error: ${error.message}`);
+                return false;
+            }
+        }
+
+        // Test basic Firebase connection without App Check
+        async function testBasicConnection() {
+            updateStatus('connection-status', '🔄 Testing connection...', 'info');
+            log('Starting basic Firebase connection test...');
+            
+            try {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+                    authDomain: "medconnect-2.firebaseapp.com",
+                    projectId: "medconnect-2",
+                    storageBucket: "medconnect-2.firebasestorage.app",
+                    messagingSenderId: "464755135042",
+                    appId: "1:464755135042:web:ac00e07a1aa0721683d3db"
+                };
+
+                // Initialize Firebase WITHOUT App Check
+                firebase.initializeApp(firebaseConfig);
+                log('Firebase app initialized');
+
+                const db = firebase.firestore();
+                log('Firestore reference created');
+
+                // Try a simple read operation
+                const testQuery = db.collection('appointments').limit(1);
+                const snapshot = await testQuery.get();
+                
+                updateStatus('connection-status', `✅ Connection successful! Found ${snapshot.size} documents`, 'success');
+                log(`Basic connection test passed - ${snapshot.size} documents in appointments collection`);
+                
+            } catch (error) {
+                updateStatus('connection-status', `❌ Connection failed: ${error.message}`, 'error');
+                log(`Connection test failed: ${error.message}`);
+                log(`Error code: ${error.code || 'Unknown'}`);
+            }
+        }
+
+        // Diagnose App Check issues
+        async function diagnoseAppCheck() {
+            updateStatus('appcheck-diagnostic', '🔄 Diagnosing App Check...', 'info');
+            log('Starting App Check diagnostic...');
+            
+            try {
+                // Load App Check SDK dynamically
+                const script = document.createElement('script');
+                script.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js';
+                document.head.appendChild(script);
+                
+                script.onload = async () => {
+                    try {
+                        log('App Check SDK loaded');
+                        
+                        const appCheck = firebase.appCheck();
+                        log('App Check instance created');
+                        
+                        // Try to activate with your ReCAPTCHA key
+                        await appCheck.activate(
+                            '6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T',
+                            true
+                        );
+                        
+                        log('App Check activation attempted');
+                        
+                        // Try to get token
+                        const tokenResult = await appCheck.getToken();
+                        
+                        if (tokenResult.token) {
+                            updateStatus('appcheck-diagnostic', `✅ App Check working! Token: ${tokenResult.token.substring(0, 20)}...`, 'success');
+                            log(`App Check token obtained (${tokenResult.token.length} characters)`);
+                        } else {
+                            updateStatus('appcheck-diagnostic', '⚠️ App Check activated but no token received', 'warning');
+                            log('App Check activated but token is empty');
+                        }
+                        
+                    } catch (appCheckError) {
+                        updateStatus('appcheck-diagnostic', `❌ App Check error: ${appCheckError.message}`, 'error');
+                        log(`App Check error: ${appCheckError.message}`);
+                        
+                        if (appCheckError.message.includes('recaptcha')) {
+                            log('💡 This might be a ReCAPTCHA configuration issue');
+                            log('1. Check if ReCAPTCHA v3 is configured for this domain');
+                            log('2. Verify the site key is correct');
+                            log('3. Check if localhost is added to ReCAPTCHA domains');
+                        }
+                    }
+                };
+                
+                script.onerror = () => {
+                    updateStatus('appcheck-diagnostic', '❌ Failed to load App Check SDK', 'error');
+                    log('Failed to load App Check SDK');
+                };
+                
+            } catch (error) {
+                updateStatus('appcheck-diagnostic', `❌ Diagnostic error: ${error.message}`, 'error');
+                log(`Diagnostic error: ${error.message}`);
+            }
+        }
+
+        // Run initial checks
+        window.addEventListener('load', () => {
+            log('Diagnostic page loaded');
+            checkEnvironment();
+            
+            setTimeout(() => {
+                const sdkOk = checkSDK();
+                updateStatus('basic-status', sdkOk ? '✅ Basic checks passed' : '❌ Basic checks failed', sdkOk ? 'success' : 'error');
+            }, 1000);
+        });
+
+        // Capture console errors
+        window.addEventListener('error', (event) => {
+            log(`JavaScript Error: ${event.message} at ${event.filename}:${event.lineno}`);
+        });
+    </script>
+</body>
+</html>

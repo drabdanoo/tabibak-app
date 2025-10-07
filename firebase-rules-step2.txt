@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // === USERS COLLECTION ===
+    // Users can only read/write their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && 
+                        request.auth.uid == userId;
+    }
+    
+    // === APPOINTMENTS COLLECTION ===
+    match /appointments/{appointmentId} {
+      // Authenticated users can create appointments for themselves
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.userId &&
+                   validateAppointmentCreate(request.resource.data);
+      
+      // Users can read their own appointments
+      // TODO: Doctors and admins need custom claims to read others
+      allow read: if request.auth != null && 
+                 (request.auth.uid == resource.data.userId);
+      
+      // Only authenticated users can update (for now - will restrict to doctors/admin later)
+      allow update: if request.auth != null &&
+                   validateAppointmentUpdate(request.resource.data, resource.data);
+      
+      // Only authenticated users can delete (for now - will restrict to admin later)  
+      allow delete: if request.auth != null;
+    }
+    
+    // === DOCTORS COLLECTION ===
+    match /doctors/{doctorId} {
+      // Authenticated users can read public doctor info
+      allow read: if request.auth != null;
+      
+      // Only authenticated users can write (will restrict to admin later)
+      allow write: if request.auth != null;
+    }
+    
+    // === VALIDATION FUNCTIONS ===
+    function validateAppointmentCreate(data) {
+      return data.keys().hasAll(['userId', 'doctorId', 'doctorName', 
+                                'patientName', 'patientPhone', 'appointmentDate', 
+                                'appointmentTime', 'status']) &&
+             data.userId is string &&
+             data.doctorId is string &&
+             data.patientName is string &&
+             data.patientPhone is string &&
+             data.appointmentDate is string &&
+             data.appointmentTime is string &&
+             data.status == 'awaiting_confirmation' &&
+             data.createdAt == request.time;
+    }
+    
+    function validateAppointmentUpdate(newData, oldData) {
+      // Can only update status and timestamps
+      return newData.keys().hasAll(oldData.keys()) &&
+             newData.userId == oldData.userId &&
+             newData.doctorId == oldData.doctorId &&
+             newData.patientName == oldData.patientName &&
+             newData.updatedAt == request.time;
+    }
+    
+    // === DENY ALL OTHER ACCESS ===
+    // Block access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
