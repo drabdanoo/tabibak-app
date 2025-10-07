@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔄 Token Refresh - Get Admin Claims</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .section { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 10px; }
+        button { padding: 15px 25px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; }
+        .primary { background: #007bff; color: white; } .primary:hover { background: #0056b3; }
+        .success { background: #28a745; color: white; } .success:hover { background: #1e7e34; }
+        .warning { background: #ffc107; color: black; } .warning:hover { background: #d39e00; }
+        .danger { background: #dc3545; color: white; } .danger:hover { background: #a71d2a; }
+        .result { margin: 15px 0; padding: 15px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; }
+        .error { background: #f8d7da; color: #721c24; }
+        .success-bg { background: #d4edda; color: #155724; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning-bg { background: #fff3cd; color: #856404; }
+        .status-box { padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center; font-weight: bold; }
+        .admin { background: #dc3545; color: white; }
+        .no-admin { background: #6c757d; color: white; }
+        h1 { color: #2c3e50; text-align: center; margin: 0 0 20px 0; }
+        .progress { background: #e9ecef; height: 20px; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .progress-bar { background: #28a745; height: 100%; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Admin Token Refresh</h1>
+        
+        <div class="section">
+            <h2>🔍 Current Status</h2>
+            <div id="currentStatus" class="status-box no-admin">Checking...</div>
+            <div id="userInfo"></div>
+        </div>
+
+        <div class="section">
+            <h2>🔄 Force Token Refresh</h2>
+            <p><strong>Your admin claims are set but need token refresh to appear.</strong></p>
+            
+            <button class="primary" onclick="forceTokenRefresh()">🔄 Force Token Refresh</button>
+            <button class="success" onclick="signOutAndIn()">🔃 Sign Out & Sign In</button>
+            <button class="warning" onclick="checkTokenMultipleTimes()">🔍 Multiple Token Checks</button>
+            
+            <div class="progress" style="display: none;" id="progressBar">
+                <div class="progress-bar" id="progress" style="width: 0%;"></div>
+            </div>
+            
+            <div id="refreshResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>🧪 Verify Admin Access</h2>
+            <button class="success" onclick="testAdminFunctions()">🧪 Test Admin Functions</button>
+            <button class="primary" onclick="openAdminPanel()">🎛️ Open Admin Panel</button>
+            <div id="testResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>📋 Manual Verification</h2>
+            <button class="info" onclick="checkFirebaseConsole()">🌐 Check Firebase Console</button>
+            <button class="warning" onclick="viewRawClaims()">🔍 View Raw Claims</button>
+            <div id="manualResult" class="result"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+            authDomain: "medconnect-2.firebaseapp.com", 
+            projectId: "medconnect-2",
+            storageBucket: "medconnect-2.firebasestorage.app",
+            messagingSenderId: "131325717519",
+            appId: "1:131325717519:web:5476819a47e487b5e31c32"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const functions = firebase.functions();
+
+        let currentUser = null;
+        let refreshAttempts = 0;
+
+        // Auth state listener
+        auth.onAuthStateChanged(async (user) => {
+            currentUser = user;
+            await updateStatus();
+        });
+
+        async function updateStatus() {
+            const statusEl = document.getElementById("currentStatus");
+            const userInfo = document.getElementById("userInfo");
+            
+            if (!currentUser) {
+                statusEl.className = "status-box no-admin";
+                statusEl.innerHTML = "❌ Not Authenticated";
+                userInfo.innerHTML = "";
+                return;
+            }
+
+            try {
+                const tokenResult = await currentUser.getIdTokenResult(true); // Force refresh
+                const claims = tokenResult.claims;
+                const isAdmin = claims.admin || false;
+                const isEmergency = claims.emergency || false;
+                
+                statusEl.className = isAdmin ? "status-box admin" : "status-box no-admin";
+                statusEl.innerHTML = isAdmin ? 
+                    `✅ ADMIN ACCESS CONFIRMED ${isEmergency ? '(Emergency)' : ''}` : 
+                    "⏳ Admin Claims Pending";
+                
+                userInfo.innerHTML = `
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <strong>UID:</strong> ${currentUser.uid}<br>
+                        <strong>Admin:</strong> ${isAdmin ? '✅ Yes' : '❌ No'}<br>
+                        <strong>Emergency:</strong> ${isEmergency ? '✅ Yes' : '❌ No'}<br>
+                        <strong>Token Issued:</strong> ${new Date(claims.iat * 1000).toLocaleString()}<br>
+                        <strong>All Claims:</strong> <code style="font-size: 12px;">${JSON.stringify(claims, null, 2)}</code>
+                    </div>
+                `;
+            } catch (error) {
+                console.error("Error getting token:", error);
+                statusEl.innerHTML = "❌ Error checking status";
+            }
+        }
+
+        // Force token refresh
+        async function forceTokenRefresh() {
+            if (!currentUser) {
+                log("refreshResult", "❌ Please sign in first", "error");
+                return;
+            }
+
+            log("refreshResult", "🔄 Forcing token refresh...", "info");
+            
+            try {
+                // Force token refresh
+                const newToken = await currentUser.getIdToken(true);
+                const tokenResult = await currentUser.getIdTokenResult(true);
+                
+                await updateStatus();
+                
+                const isAdmin = tokenResult.claims.admin || false;
+                if (isAdmin) {
+                    log("refreshResult", `✅ SUCCESS! Admin token refreshed!\n\nNew token obtained with admin claims.\nToken: ${newToken.substring(0, 50)}...\n\n🎉 You now have admin access!`, "success");
+                } else {
+                    log("refreshResult", `⚠️ Token refreshed but no admin claims found.\n\nThis might mean:\n1. Claims haven't propagated yet (try again in 30 seconds)\n2. Emergency function didn't work\n3. Need to re-run emergency function`, "warning");
+                }
+            } catch (error) {
+                log("refreshResult", `❌ Token refresh failed: ${error.message}`, "error");
+            }
+        }
+
+        // Sign out and back in
+        async function signOutAndIn() {
+            if (!currentUser) {
+                log("refreshResult", "❌ Please sign in first", "error");
+                return;
+            }
+
+            log("refreshResult", "🔃 Signing out and back in...", "info");
+            
+            try {
+                await auth.signOut();
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait a second
+                await auth.signInAnonymously();
+                
+                log("refreshResult", "✅ Signed out and back in! Checking for admin claims...", "info");
+                
+                setTimeout(async () => {
+                    await updateStatus();
+                    const tokenResult = await currentUser.getIdTokenResult();
+                    const isAdmin = tokenResult.claims.admin || false;
+                    
+                    if (isAdmin) {
+                        log("refreshResult", "🎉 SUCCESS! Admin claims now active after sign-in cycle!", "success");
+                    } else {
+                        log("refreshResult", "⚠️ Still no admin claims after sign-in cycle. Try running emergency function again.", "warning");
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                log("refreshResult", `❌ Sign out/in failed: ${error.message}`, "error");
+            }
+        }
+
+        // Multiple token checks
+        async function checkTokenMultipleTimes() {
+            if (!currentUser) {
+                log("refreshResult", "❌ Please sign in first", "error");
+                return;
+            }
+
+            const progressBar = document.getElementById("progressBar");
+            const progress = document.getElementById("progress");
+            
+            progressBar.style.display = "block";
+            log("refreshResult", "🔍 Checking token multiple times for admin claims...", "info");
+            
+            for (let i = 1; i <= 5; i++) {
+                progress.style.width = (i * 20) + "%";
+                
+                try {
+                    const tokenResult = await currentUser.getIdTokenResult(true);
+                    const isAdmin = tokenResult.claims.admin || false;
+                    
+                    if (isAdmin) {
+                        log("refreshResult", `✅ SUCCESS on attempt ${i}! Admin claims found!\n\nAdmin: ${isAdmin}\nEmergency: ${tokenResult.claims.emergency || false}\n\n🎉 You now have admin access!`, "success");
+                        progressBar.style.display = "none";
+                        await updateStatus();
+                        return;
+                    }
+                    
+                    log("refreshResult", `Attempt ${i}/5: No admin claims yet... waiting...`, "info");
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } catch (error) {
+                    log("refreshResult", `Attempt ${i} failed: ${error.message}`, "error");
+                }
+            }
+            
+            progressBar.style.display = "none";
+            log("refreshResult", "⚠️ No admin claims found after 5 attempts.\n\nNext steps:\n1. Try running emergency function again\n2. Check Firebase Console\n3. Verify function deployment", "warning");
+        }
+
+        // Test admin functions
+        async function testAdminFunctions() {
+            if (!currentUser) {
+                log("testResult", "❌ Please sign in first", "error");
+                return;
+            }
+
+            log("testResult", "🧪 Testing admin functions...", "info");
+            
+            try {
+                // Test getUserRole function
+                const getUserRoleFunc = functions.httpsCallable("getUserRole");
+                const result = await getUserRoleFunc();
+                
+                log("testResult", `✅ Admin function test successful!\n\ngetUserRole response:\n${JSON.stringify(result.data, null, 2)}`, "success");
+            } catch (error) {
+                log("testResult", `❌ Admin function test failed:\n${error.code}: ${error.message}`, "error");
+            }
+        }
+
+        // Open admin panel
+        function openAdminPanel() {
+            window.open("custom-claims-manager.html", "_blank");
+        }
+
+        // Check Firebase Console
+        function checkFirebaseConsole() {
+            window.open("https://console.firebase.google.com/project/medconnect-2/authentication/users", "_blank");
+            log("manualResult", "🌐 Firebase Console opened. Look for your UID and check custom claims manually.", "info");
+        }
+
+        // View raw claims
+        async function viewRawClaims() {
+            if (!currentUser) {
+                log("manualResult", "❌ Please sign in first", "error");
+                return;
+            }
+
+            try {
+                const tokenResult = await currentUser.getIdTokenResult(true);
+                log("manualResult", `🔍 Raw Token Claims:\n\n${JSON.stringify(tokenResult.claims, null, 2)}\n\nToken Valid: ${!tokenResult.isExpired}\nAuth Time: ${new Date(tokenResult.authTime).toLocaleString()}`, "info");
+            } catch (error) {
+                log("manualResult", `❌ Error getting claims: ${error.message}`, "error");
+            }
+        }
+
+        // Utility function
+        function log(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type === "error" ? "error" : type === "success" ? "success-bg" : type === "warning" ? "warning-bg" : "info"}`;
+        }
+
+        // Initialize
+        window.addEventListener("load", () => {
+            console.log("🔄 Token refresh tool loaded");
+        });
+    </script>
+</body>
+</html>

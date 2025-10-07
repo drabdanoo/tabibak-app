@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 Emergency Admin Activation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { max-width: 600px; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center; }
+        .warning-header { background: #fff3cd; color: #856404; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #ffc107; }
+        .emergency-box { background: #f8d7da; color: #721c24; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #dc3545; }
+        .success-box { background: #d4edda; color: #155724; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #28a745; }
+        .status-box { padding: 20px; border-radius: 10px; margin: 20px 0; font-weight: bold; }
+        .authenticated { background: #d4edda; color: #155724; border: 2px solid #28a745; }
+        .unauthenticated { background: #f8d7da; color: #721c24; border: 2px solid #dc3545; }
+        button { padding: 15px 30px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; }
+        .emergency { background: #dc3545; color: white; font-size: 18px; } .emergency:hover { background: #a71d2a; }
+        .primary { background: #007bff; color: white; } .primary:hover { background: #0056b3; }
+        .success { background: #28a745; color: white; } .success:hover { background: #1e7e34; }
+        .warning { background: #ffc107; color: black; } .warning:hover { background: #d39e00; }
+        .result { margin: 20px 0; padding: 20px; border-radius: 10px; font-family: monospace; white-space: pre-wrap; }
+        .error { background: #f8d7da; color: #721c24; }
+        .success-result { background: #d4edda; color: #155724; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        h1 { color: #2c3e50; margin: 0 0 10px 0; font-size: 28px; }
+        .steps { text-align: right; background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .step { margin: 10px 0; padding: 10px; background: white; border-radius: 5px; border-right: 4px solid #2196f3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="warning-header">
+            <h1>🚨 Emergency Admin Activation</h1>
+            <p><strong>⚠️ TEMPORARY FUNCTION - USE ONCE ONLY</strong></p>
+        </div>
+
+        <!-- Authentication Status -->
+        <div id="authStatus" class="status-box unauthenticated">🔄 Checking authentication...</div>
+
+        <!-- Emergency Activation -->
+        <div class="emergency-box">
+            <h2>🔥 Emergency Admin Promotion</h2>
+            <p><strong>This will make you an admin instantly!</strong></p>
+            <button class="primary" onclick="signInAnonymously()" id="signInBtn">🔓 Sign In First</button>
+            <button class="emergency" onclick="activateEmergencyAdmin()" id="emergencyBtn" disabled>🚨 ACTIVATE EMERGENCY ADMIN</button>
+        </div>
+
+        <!-- Result Display -->
+        <div id="resultArea"></div>
+
+        <!-- Next Steps -->
+        <div class="steps" style="display: none;" id="nextSteps">
+            <h3>📋 Next Steps After Activation:</h3>
+            <div class="step">
+                <strong>Step 1:</strong> Sign out and sign in again to refresh your token
+            </div>
+            <div class="step">
+                <strong>Step 2:</strong> Test your admin access in custom-claims-manager.html
+            </div>
+            <div class="step">
+                <strong>Step 3:</strong> Remove emergency function from code (IMPORTANT!)
+            </div>
+            <div class="step">
+                <strong>Step 4:</strong> Redeploy functions without emergency function
+            </div>
+        </div>
+
+        <!-- Post-Activation Controls -->
+        <div style="margin-top: 30px;">
+            <button class="success" onclick="openCustomClaimsManager()">🎛️ Open Admin Panel</button>
+            <button class="warning" onclick="signOut()">🚪 Sign Out & Sign In Again</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
+            authDomain: "medconnect-2.firebaseapp.com", 
+            projectId: "medconnect-2",
+            storageBucket: "medconnect-2.firebasestorage.app",
+            messagingSenderId: "131325717519",
+            appId: "1:131325717519:web:5476819a47e487b5e31c32"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const functions = firebase.functions();
+
+        let currentUser = null;
+
+        // Auth state listener
+        auth.onAuthStateChanged(async (user) => {
+            currentUser = user;
+            updateAuthStatus();
+        });
+
+        async function updateAuthStatus() {
+            const statusEl = document.getElementById("authStatus");
+            const signInBtn = document.getElementById("signInBtn");
+            const emergencyBtn = document.getElementById("emergencyBtn");
+            
+            if (currentUser) {
+                statusEl.className = "status-box authenticated";
+                statusEl.innerHTML = `✅ <strong>AUTHENTICATED</strong><br>UID: ${currentUser.uid}<br>Ready for emergency promotion!`;
+                signInBtn.style.display = "none";
+                emergencyBtn.disabled = false;
+                
+                // Check if already admin
+                try {
+                    const tokenResult = await currentUser.getIdTokenResult();
+                    if (tokenResult.claims.admin) {
+                        statusEl.innerHTML += `<br><br>🎉 <strong>Already Admin!</strong> You can use the admin panel now.`;
+                        emergencyBtn.innerHTML = "✅ Already Admin";
+                        emergencyBtn.disabled = true;
+                        document.getElementById("nextSteps").style.display = "block";
+                    }
+                } catch (error) {
+                    console.log("Error checking claims:", error);
+                }
+            } else {
+                statusEl.className = "status-box unauthenticated";
+                statusEl.innerHTML = "❌ <strong>NOT AUTHENTICATED</strong><br>Please sign in first";
+                signInBtn.style.display = "inline-block";
+                emergencyBtn.disabled = true;
+            }
+        }
+
+        // Sign in anonymously
+        async function signInAnonymously() {
+            try {
+                showResult("🔄 Signing in...", "info");
+                await auth.signInAnonymously();
+                showResult("✅ Signed in successfully! You can now activate emergency admin.", "success");
+            } catch (error) {
+                showResult(`❌ Sign-in failed: ${error.message}`, "error");
+            }
+        }
+
+        // Emergency admin activation
+        async function activateEmergencyAdmin() {
+            if (!currentUser) {
+                showResult("❌ Please sign in first", "error");
+                return;
+            }
+
+            showResult("🚨 Activating emergency admin function...\n\nThis may take a few seconds...", "info");
+            
+            try {
+                const emergencyMakeAdminFunc = functions.httpsCallable("emergencyMakeAdmin");
+                const result = await emergencyMakeAdminFunc();
+                
+                const message = `🎉 EMERGENCY ADMIN ACTIVATION SUCCESSFUL!\n\nUID: ${result.data.uid}\nMessage: ${result.data.message}\n\n⚠️ ${result.data.warning}\n\nNext Steps:\n${result.data.nextSteps.map((step, i) => `${i + 1}. ${step}`).join('\n')}`;
+                
+                showResult(message, "success");
+                document.getElementById("nextSteps").style.display = "block";
+                
+                // Update button
+                const emergencyBtn = document.getElementById("emergencyBtn");
+                emergencyBtn.innerHTML = "✅ ADMIN ACTIVATED";
+                emergencyBtn.disabled = true;
+                emergencyBtn.className = "success";
+                
+            } catch (error) {
+                console.error("Emergency activation failed:", error);
+                showResult(`❌ Emergency activation failed!\n\nError: ${error.code}\nMessage: ${error.message}\n\nDetails: ${JSON.stringify(error.details, null, 2)}`, "error");
+            }
+        }
+
+        // Sign out
+        async function signOut() {
+            try {
+                await auth.signOut();
+                showResult("✅ Signed out successfully! Sign in again to refresh your admin token.", "success");
+            } catch (error) {
+                showResult(`❌ Sign out failed: ${error.message}`, "error");
+            }
+        }
+
+        // Open admin panel
+        function openCustomClaimsManager() {
+            window.open("custom-claims-manager.html", "_blank");
+        }
+
+        // Show result
+        function showResult(message, type) {
+            const resultArea = document.getElementById("resultArea");
+            resultArea.innerHTML = `<div class="result ${type === 'error' ? 'error' : type === 'success' ? 'success-result' : 'info'}">${message}</div>`;
+        }
+
+        // Initialize
+        window.addEventListener("load", () => {
+            console.log("�� Emergency Admin Activation loaded");
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Authentication</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 600px; background: white; padding: 20px; border-radius: 10px; }
+        .section { margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+        button { padding: 10px 15px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+        .primary { background: #007bff; color: white; }
+        .success { background: #28a745; color: white; }
+        .danger { background: #dc3545; color: white; }
+        .result { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 5px; font-family: monospace; white-space: pre-wrap; }
+        .error { background: #f8d7da; color: #721c24; }
+        .success-bg { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Authentication Debug Tool</h1>
+        
+        <div class="section">
+            <h3>Current Status</h3>
+            <div id="status">Loading...</div>
+        </div>
+
+        <div class="section">
+            <h3>Authentication Tests</h3>
+            <button class="primary" onclick="testAnonymousAuth()">Test Anonymous Sign-In</button>
+            <button class="success" onclick="testPhoneAuth()">Test Phone Auth Setup</button>
+            <button class="danger" onclick="signOut()">Sign Out</button>
+            <div id="authResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>Database Tests</h3>
+            <button class="primary" onclick="testBasicRead()">Test Basic Database Read</button>
+            <button class="primary" onclick="testUserWrite()">Test User Document Write</button>
+            <div id="dbResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>Cloud Functions Tests</h3>
+            <button class="primary" onclick="testGetUserRole()">Test getUserRole Function</button>
+            <div id="funcResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>Manual Admin Setup</h3>
+            <button class="success" onclick="createUserDoc()">Create User Document</button>
+            <div id="adminResult" class="result"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCTLJ4BVe7oN3t_orCWFeKnhAUfLoJ5sRo",
+            authDomain: "medconnect-2.firebaseapp.com", 
+            projectId: "medconnect-2",
+            storageBucket: "medconnect-2.firebasestorage.app",
+            messagingSenderId: "131325717519",
+            appId: "1:131325717519:web:5476819a47e487b5e31c32"
+        };
+
+        // Initialize Firebase
+        console.log("Initializing Firebase...");
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const functions = firebase.functions();
+
+        let currentUser = null;
+
+        // Auth state listener
+        auth.onAuthStateChanged((user) => {
+            currentUser = user;
+            updateStatus();
+            
+            if (user) {
+                console.log("User signed in:", user.uid);
+                user.getIdTokenResult().then((tokenResult) => {
+                    console.log("Token claims:", tokenResult.claims);
+                });
+            } else {
+                console.log("User signed out");
+            }
+        });
+
+        function updateStatus() {
+            const statusEl = document.getElementById("status");
+            if (currentUser) {
+                statusEl.innerHTML = `
+                    <div class="success-bg" style="padding: 10px; border-radius: 5px;">
+                        ✅ <strong>Authenticated</strong><br>
+                        UID: ${currentUser.uid}<br>
+                        Provider: ${currentUser.providerData[0]?.providerId || "anonymous"}<br>
+                        Email: ${currentUser.email || "None"}<br>
+                        Phone: ${currentUser.phoneNumber || "None"}
+                    </div>
+                `;
+            } else {
+                statusEl.innerHTML = `
+                    <div class="error" style="padding: 10px; border-radius: 5px;">
+                        ❌ <strong>Not Authenticated</strong>
+                    </div>
+                `;
+            }
+        }
+
+        // Test anonymous authentication
+        async function testAnonymousAuth() {
+            log("authResult", "Testing anonymous authentication...");
+            try {
+                const result = await auth.signInAnonymously();
+                log("authResult", `✅ Anonymous sign-in successful!\nUID: ${result.user.uid}\nProvider: anonymous`, "success");
+            } catch (error) {
+                console.error("Anonymous auth error:", error);
+                log("authResult", `❌ Anonymous sign-in failed:\n${error.code}: ${error.message}\n\nThis usually means anonymous auth is not enabled in Firebase Console.`, "error");
+            }
+        }
+
+        // Test phone auth setup
+        async function testPhoneAuth() {
+            log("authResult", "Checking phone auth configuration...");
+            try {
+                // Just test if the provider is available
+                const providers = firebase.auth.Auth.Persistence;
+                log("authResult", "✅ Phone auth provider available\n\nTo test phone auth:\n1. Need phone number\n2. Need reCAPTCHA verification\n3. Need SMS verification", "success");
+            } catch (error) {
+                log("authResult", `❌ Phone auth setup error: ${error.message}`, "error");
+            }
+        }
+
+        // Sign out
+        async function signOut() {
+            try {
+                await auth.signOut();
+                log("authResult", "✅ Signed out successfully", "success");
+            } catch (error) {
+                log("authResult", `❌ Sign out error: ${error.message}`, "error");
+            }
+        }
+
+        // Test basic database read
+        async function testBasicRead() {
+            if (!currentUser) {
+                log("dbResult", "❌ Must be authenticated first", "error");
+                return;
+            }
+
+            log("dbResult", "Testing database read access...");
+            try {
+                // Test reading doctors collection
+                const doctorsSnapshot = await db.collection("doctors").limit(3).get();
+                const doctorsCount = doctorsSnapshot.size;
+                
+                // Test reading test collection
+                const testSnapshot = await db.collection("test").limit(1).get();
+                
+                log("dbResult", `✅ Database read successful!\nDoctors collection: ${doctorsCount} documents\nTest collection accessible: ${testSnapshot.size >= 0}`, "success");
+            } catch (error) {
+                console.error("Database read error:", error);
+                log("dbResult", `❌ Database read failed:\n${error.code}: ${error.message}`, "error");
+            }
+        }
+
+        // Test user document write
+        async function testUserWrite() {
+            if (!currentUser) {
+                log("dbResult", "❌ Must be authenticated first", "error");
+                return;
+            }
+
+            log("dbResult", "Testing user document write...");
+            try {
+                await db.collection("users").doc(currentUser.uid).set({
+                    uid: currentUser.uid,
+                    role: "patient",
+                    testWrite: true,
+                    lastTest: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                
+                log("dbResult", `✅ User document write successful!\nDocument ID: ${currentUser.uid}`, "success");
+            } catch (error) {
+                console.error("User write error:", error);
+                log("dbResult", `❌ User document write failed:\n${error.code}: ${error.message}`, "error");
+            }
+        }
+
+        // Test Cloud Function
+        async function testGetUserRole() {
+            if (!currentUser) {
+                log("funcResult", "❌ Must be authenticated first", "error");
+                return;
+            }
+
+            log("funcResult", "Testing getUserRole cloud function...");
+            try {
+                const getUserRoleFunc = functions.httpsCallable("getUserRole");
+                const result = await getUserRoleFunc();
+                log("funcResult", `✅ Cloud function successful!\nResult: ${JSON.stringify(result.data, null, 2)}`, "success");
+            } catch (error) {
+                console.error("Function error:", error);
+                log("funcResult", `❌ Cloud function failed:\n${error.code}: ${error.message}\n\nDetails: ${JSON.stringify(error.details, null, 2)}`, "error");
+            }
+        }
+
+        // Create user document manually
+        async function createUserDoc() {
+            if (!currentUser) {
+                log("adminResult", "❌ Must be authenticated first", "error");
+                return;
+            }
+
+            log("adminResult", "Creating user document with admin setup...");
+            try {
+                await db.collection("users").doc(currentUser.uid).set({
+                    uid: currentUser.uid,
+                    role: "admin",
+                    email: currentUser.email || null,
+                    phoneNumber: currentUser.phoneNumber || null,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    manualAdminSetup: true,
+                    setupTimestamp: new Date().toISOString()
+                }, { merge: true });
+                
+                log("adminResult", `✅ User document created successfully!\n\nNext steps:\n1. Go to Firebase Console > Authentication > Users\n2. Click on user: ${currentUser.uid}\n3. Set custom claims: {"admin": true, "patient": false}\n4. Sign out and sign in again`, "success");
+            } catch (error) {
+                console.error("User creation error:", error);
+                log("adminResult", `❌ User document creation failed:\n${error.code}: ${error.message}`, "error");
+            }
+        }
+
+        // Utility function
+        function log(elementId, message, type = "normal") {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type === "error" ? "error" : type === "success" ? "success-bg" : ""}`;
+        }
+
+        // Initialize on load
+        window.addEventListener("load", () => {
+            console.log("Debug tool loaded");
+            setTimeout(updateStatus, 1000);
+        });
+    </script>
+</body>
+</html>

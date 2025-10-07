@@ -1,0 +1,8 @@
+/* Animation delay classes to replace inline styles */
+.animate-delay-0-5s {
+    animation-delay: 0.5s;
+}
+
+.animate-delay-1s {
+    animation-delay: 1s;
+}
