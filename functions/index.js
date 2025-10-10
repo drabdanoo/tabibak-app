@@ -168,6 +168,222 @@ exports.promoteToDoctor = functions.https.onCall(async (data, context) => {
   }
 });
 
+// ==== USER MANAGEMENT FUNCTIONS ====
+
+// Create doctor account with Firebase Auth and Firestore profile (admin only)
+exports.createDoctor = functions.https.onCall(async (data, context) => {
+  // Verify App Check token first
+  verifyAppCheck(context);
+  
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Must be authenticated");
+  }
+
+  const adminClaim = context.auth.token.admin || false;
+  if (!adminClaim) {
+    throw new functions.https.HttpsError("permission-denied", "Must be admin");
+  }
+
+  const { 
+    name, 
+    specialty, 
+    phone, 
+    email, 
+    password,
+    fee,
+    experience,
+    rating,
+    reviews,
+    location,
+    hours,
+    education,
+    languages,
+    specializations,
+    about
+  } = data;
+  
+  if (!name || !email || !password || !specialty) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing required fields: name, email, password, specialty");
+  }
+
+  try {
+    functions.logger.info("Creating doctor account for: " + email);
+    
+    // Step 1: Create Firebase Auth account
+    const userRecord = await admin.auth().createUser({
+      email: email,
+      password: password,
+      displayName: name,
+      emailVerified: false // Will send verification email
+    });
+    
+    functions.logger.info("Firebase Auth account created with UID: " + userRecord.uid);
+    
+    // Step 2: Send email verification
+    try {
+      const actionCodeSettings = {
+        url: 'https://medconnect-2.web.app/doctor.html',
+        handleCodeInApp: false
+      };
+      
+      // Generate verification link
+      const verificationLink = await admin.auth().generateEmailVerificationLink(email, actionCodeSettings);
+      functions.logger.info("Email verification link generated successfully");
+      
+      // Note: Firebase Admin SDK generates the link but doesn't send emails automatically
+      // The email will be sent via Firebase's email templates when the user tries to verify
+      // Or you can integrate with an email service (SendGrid, etc.) to send the link
+      
+    } catch (emailError) {
+      functions.logger.warn("Email verification setup warning:", emailError);
+      // Continue with doctor creation even if email generation fails
+    }
+    
+    // Step 3: Set doctor role
+    await admin.auth().setCustomUserClaims(userRecord.uid, {
+      doctor: true,
+      patient: false,
+      admin: false
+    });
+    
+    // Step 4: Generate initials
+    const generateInitials = (fullName) => {
+      if (!fullName) return 'د.م';
+      const parts = fullName.split(' ');
+      if (parts.length >= 2) {
+        return `د.${parts[1].charAt(0)}`;
+      }
+      return `د.${parts[0].charAt(0)}`;
+    };
+    
+    // Step 5: Create Firestore profile
+    const doctorData = {
+      name: name,
+      initials: generateInitials(name),
+      specialty: specialty,
+      phone: phone || '',
+      email: email,
+      fee: fee || '15',
+      consultationFee: parseInt(fee || '15') * 1000,
+      experience: experience || '5+ سنوات خبرة',
+      rating: rating || '4.5',
+      reviews: reviews || '25',
+      location: location || 'العيادة الطبية',
+      hours: hours || '9:00 ص - 5:00 م',
+      education: education || 'بكالوريوس طب وجراحة',
+      languages: languages || [],
+      specializations: specializations || [],
+      about: about || `طبيب متخصص في ${specialty} مع خبرة واسعة في المجال الطبي.`,
+      userId: userRecord.uid,
+      accountStatus: 'active',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    // Add to doctors collection
+    const doctorRef = await db.collection('doctors').add(doctorData);
+    
+    // Also add to users collection
+    await db.collection('users').doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      role: 'doctor',
+      email: email,
+      name: name,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    functions.logger.info("Doctor profile created successfully: " + name);
+    
+    return { 
+      success: true, 
+      message: `Doctor ${name} created successfully`,
+      doctorId: doctorRef.id,
+      userId: userRecord.uid,
+      verificationNote: "Doctor can request verification email from login page"
+    };
+    
+  } catch (error) {
+    functions.logger.error("Error creating doctor:", error);
+    
+    // Cleanup on error - delete auth account if it was created
+    try {
+      if (error.code !== 'auth/email-already-exists') {
+        // Try to find and delete the user if partially created
+        const userRecord = await admin.auth().getUserByEmail(email);
+        await admin.auth().deleteUser(userRecord.uid);
+        functions.logger.info("Cleaned up partially created auth account");
+      }
+    } catch (cleanupError) {
+      functions.logger.error("Cleanup error:", cleanupError);
+    }
+    
+    throw new functions.https.HttpsError("internal", "Failed to create doctor: " + error.message);
+  }
+});
+
+// Delete user account completely (admin only)
+exports.deleteUser = functions.https.onCall(async (data, context) => {
+  // Verify App Check token first
+  verifyAppCheck(context);
+  
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Must be authenticated");
+  }
+
+  const adminClaim = context.auth.token.admin || false;
+  if (!adminClaim) {
+    throw new functions.https.HttpsError("permission-denied", "Must be admin");
+  }
+
+  const { userId, userEmail } = data;
+  
+  if (!userId) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing userId");
+  }
+
+  try {
+    // Delete from Firebase Authentication
+    await admin.auth().deleteUser(userId);
+    functions.logger.info("Deleted Firebase Auth user: " + userId);
+
+    // Clean up related data in Firestore
+    const batch = db.batch();
+    
+    // Delete from users collection
+    batch.delete(db.collection("users").doc(userId));
+    
+    // If it's a doctor, also clean up doctor profile
+    const doctorQuery = await db.collection("doctors").where("userId", "==", userId).get();
+    doctorQuery.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    // Delete any appointments related to this user
+    const appointmentsQuery = await db.collection("appointments").where("patientId", "==", userId).get();
+    appointmentsQuery.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    // Also check for doctor appointments
+    const doctorAppointmentsQuery = await db.collection("appointments").where("doctorId", "==", userId).get();
+    doctorAppointmentsQuery.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+    functions.logger.info("Cleaned up Firestore data for user: " + userId);
+
+    return { 
+      success: true, 
+      message: `User ${userEmail || userId} completely deleted from Firebase Auth and Firestore` 
+    };
+  } catch (error) {
+    functions.logger.error("Error deleting user:", error);
+    throw new functions.https.HttpsError("internal", "Failed to delete user: " + error.message);
+  }
+});
+
 // ==== EXISTING APPOINTMENT FUNCTIONS ====
 
 exports.reserveSlot = functions.https.onCall(async (data, context) => {

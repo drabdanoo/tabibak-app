@@ -8,7 +8,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
+    <script src="config.js"></script>
     <style>
         body {
             box-sizing: border-box;
@@ -47,48 +49,12 @@
             justify-content: center;
         }
         
-        #adminContent { display: none; }
-        #loginContent { display: block; }
+        #adminContent { display: block; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
 
-    <!-- Admin Login Screen -->
-    <div id="loginContent" class="min-h-screen flex items-center justify-center">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
-            <div class="text-center mb-8">
-                <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.586-3H4a1 1 0 00-1 1v12a1 1 0 001 1h16a1 1 0 001-1V8.414a1 1 0 00-.293-.707L17.414 4.293A1 1 0 0016.707 4H13M9 12l2 2 4-4"></path>
-                    </svg>
-                </div>
-                <h2 class="text-3xl font-bold text-gray-900 mb-2">لوحة الإدارة</h2>
-                <p class="text-gray-600">تسجيل دخول المدير</p>
-            </div>
 
-            <form onsubmit="handleAdminLogin(event)" class="space-y-6">
-                <div>
-                    <label for="adminEmail" class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
-                    <input type="email" id="adminEmail" placeholder="admin@medconnect.com" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                </div>
-                
-                <div>
-                    <label for="adminPassword" class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
-                    <input type="password" id="adminPassword" placeholder="ادخل كلمة المرور" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                </div>
-                
-                <button type="submit" id="adminLoginBtn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium text-lg">
-                    تسجيل الدخول
-                </button>
-            </form>
-            
-            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 class="text-sm font-medium text-gray-900 mb-2">بيانات الدخول الافتراضية:</h4>
-                <p class="text-xs text-gray-600">البريد: admin@medconnect.com</p>
-                <p class="text-xs text-gray-600">كلمة المرور: Admin123!</p>
-            </div>
-        </div>
-    </div>
 
     <!-- Main Admin Content (hidden until login) -->
     <div id="adminContent">
@@ -97,6 +63,13 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center py-6">
                 <div class="flex items-center space-x-4 space-x-reverse">
+                    <!-- Back Button -->
+                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-all duration-200 mr-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </button>
+                    
                     <div class="bg-blue-500 p-3 rounded-full">
                         <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -112,7 +85,7 @@
                         <p class="text-sm text-gray-600">مرحباً</p>
                         <p class="font-semibold text-gray-900">المدير</p>
                     </div>
-                    <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
                         تسجيل الخروج
                     </button>
                 </div>
@@ -196,10 +169,48 @@
             <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">إضافة طبيب جديد</h2>
                 <form id="addDoctorForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" id="doctorName" placeholder="اسم الطبيب" required class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <input type="text" id="doctorSpecialty" placeholder="التخصص" required class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <input type="tel" id="doctorPhone" placeholder="رقم الهاتف" required class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <!-- Basic Information -->
+                    <div class="md:col-span-2 bg-gray-50 p-3 rounded-lg">
+                        <h3 class="font-semibold text-gray-700 mb-2">المعلومات الأساسية</h3>
+                    </div>
+                    <input type="text" id="doctorName" placeholder="اسم الطبيب الكامل (د. محمد أحمد)" required class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="text" id="doctorSpecialty" placeholder="التخصص الرئيسي (طب الأطفال)" required class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="tel" id="doctorPhone" placeholder="رقم الهاتف (07701234567)" required class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     <input type="email" id="doctorEmail" placeholder="البريد الإلكتروني" required class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
+                    <!-- Professional Information -->
+                    <div class="md:col-span-2 bg-gray-50 p-3 rounded-lg mt-4">
+                        <h3 class="font-semibold text-gray-700 mb-2">المعلومات المهنية</h3>
+                    </div>
+                    <input type="number" id="doctorFee" placeholder="رسوم الكشف (بالدينار)" min="5" max="50" value="15" required class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="text" id="doctorExperience" placeholder="سنوات الخبرة (5+ سنوات خبرة)" value="5+ سنوات خبرة" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="text" id="doctorEducation" placeholder="المؤهل العلمي" value="بكالوريوس طب وجراحة" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="text" id="doctorLocation" placeholder="موقع العيادة" value="العيادة الطبية" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="text" id="doctorHours" placeholder="ساعات العمل" value="9:00 ص - 5:00 م" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="number" id="doctorRating" placeholder="التقييم (1-5)" min="1" max="5" step="0.1" value="4.5" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="number" id="doctorReviews" placeholder="عدد التقييمات" min="0" value="25" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
+                    <!-- Additional Information -->
+                    <div class="md:col-span-2 bg-gray-50 p-3 rounded-lg mt-4">
+                        <h3 class="font-semibold text-gray-700 mb-2">معلومات إضافية</h3>
+                    </div>
+                    <input type="text" id="doctorLanguages" placeholder="اللغات (العربية، الإنجليزية)" value="العربية" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="text" id="doctorSpecializations" placeholder="التخصصات الفرعية (مفصولة بفاصلة)" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <textarea id="doctorAbout" placeholder="نبذة عن الطبيب وخبراته" rows="3" class="md:col-span-2 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"></textarea>
+                    
+                    <!-- Security -->
+                    <div class="md:col-span-2 bg-blue-50 p-3 rounded-lg mt-4">
+                        <h3 class="font-semibold text-blue-700 mb-2">كلمة المرور</h3>
+                    </div>
+                    <div class="md:col-span-2 flex gap-2">
+                        <input type="password" id="doctorPassword" placeholder="كلمة مرور الطبيب" required minlength="6" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <button type="button" onclick="togglePasswordVisibility()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            👁️
+                        </button>
+                    </div>
+                    <div class="md:col-span-2 text-sm text-gray-600">
+                        <p>كلمة المرور يجب أن تكون 6 أحرف على الأقل وتحتوي على أحرف وأرقام ورموز</p>
+                    </div>
                     <div class="md:col-span-2 flex gap-3">
                         <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors">
                             إضافة الطبيب
@@ -208,7 +219,7 @@
                             عرض كلمات المرور المؤقتة
                         </button>
                         <button type="button" onclick="initializeExistingDoctors()" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg transition-colors">
-                            إعادة تعيين كلمات المرور
+                            إنشاء الأطباء الأساسيين
                         </button>
                     </div>
                 </form>
@@ -366,152 +377,220 @@
             measurementId: "G-1Q7MTPV8XE"
         };
 
-        // Initialize Firebase with error handling
+        // Initialize Firebase and check authentication
         let db;
-        try {
-            if (typeof firebase === 'undefined') {
-                throw new Error('Firebase SDK not loaded');
+        
+        // Global variables (declared at top to avoid hoisting issues)
+        let appointments = [];
+        let doctors = [];
+        let currentAppointment = null;
+        
+        function initializeFirebaseAndAuth() {
+            DEBUG.log('INIT', '🔧 Starting Firebase initialization...');
+            
+            try {
+                DEBUG.log('INIT', '🔍 Checking Firebase SDK...');
+                if (typeof firebase === 'undefined') {
+                    DEBUG.error('INIT', 'Firebase SDK not loaded');
+                    alert('Firebase SDK not loaded. Check your internet connection.');
+                    return;
+                }
+                
+                DEBUG.log('INIT', '🔍 Checking Firebase config...');
+                if (typeof window.__MC_ENV__ === 'undefined') {
+                    DEBUG.error('INIT', 'Config object not found');
+                    alert('Configuration not loaded. Please refresh the page.');
+                    return;
+                }
+                
+                if (!window.__MC_ENV__.FIREBASE_CONFIG) {
+                    DEBUG.error('INIT', 'Firebase config not found in __MC_ENV__');
+                    alert('Firebase configuration missing.');
+                    return;
+                }
+                
+                DEBUG.log('INIT', '🔧 Initializing Firebase...');
+                firebase.initializeApp(window.__MC_ENV__.FIREBASE_CONFIG);
+                db = firebase.firestore();
+                
+                // Initialize Firebase Functions
+                const functions = firebase.functions();
+                
+                DEBUG.log('INIT', '✅ Firebase initialized successfully (including Functions)');
+                
+                // Small delay to ensure everything is ready
+                setTimeout(() => {
+                    DEBUG.log('INIT', '🔍 Starting authentication check...');
+                    checkAuthentication();
+                }, 100);
+                
+            } catch (error) {
+                DEBUG.error('INIT', 'Firebase initialization failed', error);
+                alert('Firebase initialization failed: ' + error.message);
             }
-            firebase.initializeApp(firebaseConfig);
-            const auth = firebase.auth();
-            db = firebase.firestore();
-            
-            // Initialize App Check (disabled to avoid CSP issues)
-            // const appCheck = firebase.appCheck();
-            // appCheck.activate('6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T', true);
-            
-            console.log('Firebase initialized successfully');
-        } catch (error) {
-            console.error('Firebase initialization failed:', error);
-            showNotification('خطأ في الاتصال بقاعدة البيانات', 'error');
         }
 
         // === AUTHENTICATION SYSTEM ===
         
         // Admin credentials (using your existing Firebase account)
-        const ADMIN_CREDENTIALS = {
-            email: 'Obaidaalluhebe@gmail.com',
-            password: 'Admin123!' // You can change this to your actual password
-        };
+
         
         // Check if admin is already logged in
         window.onload = function() {
-            const auth = firebase.auth();
-            auth.onAuthStateChanged((user) => {
-                if (user && user.email && user.email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase()) {
-                    const adminSession = localStorage.getItem('medconnect_admin_session');
-                    if (adminSession) {
-                        const session = JSON.parse(adminSession);
-                        if (Date.now() - session.loginTime < 24 * 60 * 60 * 1000) {
-                            showAdminPanel();
-                            return;
-                        }
-                    }
-                }
-                showLoginScreen();
-            });
+            console.log('🚀 Admin dashboard loading...');
+            
+            // Initialize Firebase first, then check authentication
+            initializeFirebaseAndAuth();
         };
-        
-        // Handle admin login
-        async function handleAdminLogin(event) {
-            event.preventDefault();
+
+        // Simple logging for production
+        const DEBUG = {
+            log: function(step, message, data = null) {
+                console.log(`[ADMIN ${step}] ${message}`, data || '');
+            },
             
-            const email = document.getElementById('adminEmail').value.trim();
-            const password = document.getElementById('adminPassword').value;
-            const loginBtn = document.getElementById('adminLoginBtn');
+            error: function(step, message, error) {
+                console.error(`[ADMIN ${step}] ERROR: ${message}`, error);
+            }
+        };
+
+        // Check if admin is authenticated, redirect to login if not
+        function checkAuthentication() {
+            DEBUG.log('1', 'Starting authentication check...');
             
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'جاري التحقق...';
+            // Step 1: Check localStorage session
+            DEBUG.log('2', 'Checking localStorage session...');
+            const adminSession = localStorage.getItem('medconnect_admin_session');
+            if (!adminSession) {
+                DEBUG.log('2', '❌ No admin session found');
+                redirectToLogin();
+                return;
+            }
+            DEBUG.log('2', '✅ Session found in localStorage', adminSession.slice(0, 100) + '...');
             
+            let session;
             try {
-                // Use Firebase Authentication
-                const auth = firebase.auth();
-                console.log('Attempting to sign in with:', email);
+                session = JSON.parse(adminSession);
+                DEBUG.log('3', '✅ Session parsed successfully', {email: session.email, loginTime: session.loginTime});
+            } catch (e) {
+                DEBUG.error('3', 'Failed to parse session data', e);
+                redirectToLogin();
+                return;
+            }
+            
+            // Step 2: Check session expiry
+            DEBUG.log('4', 'Checking session expiry...');
+            const sessionAge = Date.now() - session.loginTime;
+            const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+            
+            DEBUG.log('4', `Session age: ${Math.round(sessionAge/1000/60)} minutes (max: ${Math.round(maxAge/1000/60/60)} hours)`);
+            
+            if (sessionAge > maxAge) {
+                DEBUG.log('4', '❌ Session expired');
+                redirectToLogin();
+                return;
+            }
+            
+            DEBUG.log('4', '✅ Session is valid, checking Firebase auth...');
+            
+            // Step 3: Set up Firebase auth listener (only once)
+            DEBUG.log('5', 'Setting up Firebase auth listener...');
+            const auth = firebase.auth();
+            let authCheckComplete = false;
+            let authCallbackCount = 0;
+            
+            const unsubscribe = auth.onAuthStateChanged((user) => {
+                authCallbackCount++;
+                DEBUG.log('6', `Firebase auth callback #${authCallbackCount}`, {
+                    user: user ? user.email : 'null',
+                    uid: user ? user.uid : 'null',
+                    authCheckComplete
+                });
                 
-                let userCredential;
-                let user;
-                
-                try {
-                    // Try to sign in first
-                    userCredential = await auth.signInWithEmailAndPassword(email, password);
-                    user = userCredential.user;
-                } catch (authError) {
-                    if (authError.code === 'auth/user-not-found') {
-                        // If user doesn't exist, create the account
-                        console.log('User not found, creating new account...');
-                        userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                        user = userCredential.user;
-                        showNotification('تم إنشاء حساب الإدارة بنجاح', 'success');
-                    } else {
-                        // Re-throw other errors
-                        throw authError;
-                    }
+                if (authCheckComplete) {
+                    DEBUG.log('6', 'Auth check already completed, ignoring callback');
+                    return;
                 }
                 
-                // Verify this is the admin email (case-insensitive)
-                console.log('User email:', user.email);
-                console.log('Expected admin email:', ADMIN_CREDENTIALS.email);
+                authCheckComplete = true;
+                unsubscribe(); // Clean up listener
                 
-                if (user.email && user.email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase()) {
-                    // Store admin session
-                    localStorage.setItem('medconnect_admin_session', JSON.stringify({
-                        email: user.email,
-                        uid: user.uid,
-                        loginTime: Date.now()
-                    }));
-                    
-                    showNotification('مرحباً بك في لوحة الإدارة', 'success');
-                    await showAdminPanel();
-                } else {
-                    console.log('Email mismatch - User:', user.email, 'Expected:', ADMIN_CREDENTIALS.email);
-                    showNotification('هذا الحساب ليس له صلاحيات إدارية', 'error');
-                    await auth.signOut();
+                if (!user) {
+                    DEBUG.log('6', '❌ No Firebase user found');
+                    redirectToLogin();
+                    return;
                 }
+                
+                DEBUG.log('7', 'Checking user email...', {
+                    userEmail: user.email,
+                    expectedEmail: 'obaidaalluhebe@gmail.com',
+                    match: user.email.toLowerCase() === 'obaidaalluhebe@gmail.com'
+                });
+                
+                if (user.email.toLowerCase() !== 'obaidaalluhebe@gmail.com') {
+                    DEBUG.log('7', '❌ Wrong user email');
+                    redirectToLogin();
+                    return;
+                }
+                
+                DEBUG.log('8', '✅ Authentication complete, loading dashboard');
+                loadAdminDashboard();
+            });
+            
+            // Timeout fallback - if auth doesn't resolve in 10 seconds, redirect
+            setTimeout(() => {
+                if (!authCheckComplete) {
+                    DEBUG.log('TIMEOUT', '❌ Auth timeout after 10 seconds');
+                    unsubscribe();
+                    redirectToLogin();
+                }
+            }, 10000);
+        }
+        
+        function redirectToLogin() {
+            DEBUG.log('REDIRECT', '🔄 Redirecting to login page...');
+            localStorage.removeItem('medconnect_admin_session');
+            DEBUG.log('REDIRECT', 'Removed admin session from localStorage');
+            window.location.href = 'admin-login.html';
+        }
+
+        // Load admin dashboard data
+        async function loadAdminDashboard() {
+            try {
+                DEBUG.log('9', '📊 Starting dashboard data loading...');
+                
+                // Load all dashboard data
+                DEBUG.log('10', 'Loading doctors, appointments, and statistics...');
+                DEBUG.log('10a', 'Variables check', {
+                    doctorsArray: typeof doctors,
+                    appointmentsArray: typeof appointments,
+                    dbConnection: typeof db
+                });
+                
+                await Promise.all([
+                    loadDoctors(),
+                    loadAppointments(), 
+                    loadStatistics()
+                ]);
+                
+                DEBUG.log('11', '✅ Dashboard loaded successfully!');
+                showNotification('مرحباً بك في لوحة الإدارة', 'success');
+                
             } catch (error) {
-                console.error('Login error:', error);
-                if (error.code === 'auth/wrong-password') {
-                    showNotification('كلمة المرور غير صحيحة', 'error');
-                } else if (error.code === 'auth/user-not-found') {
-                    showNotification('لم يتم العثور على هذا المستخدم', 'error');
-                } else if (error.code === 'auth/invalid-email') {
-                    showNotification('البريد الإلكتروني غير صحيح', 'error');
-                } else if (error.code === 'auth/invalid-credential') {
-                    showNotification('بيانات الدخول غير صحيحة أو منتهية الصلاحية', 'error');
-                } else if (error.code === 'auth/user-disabled') {
-                    showNotification('هذا الحساب معطل', 'error');
-                } else if (error.code === 'auth/too-many-requests') {
-                    showNotification('محاولات كثيرة جداً، حاول لاحقاً', 'error');
-                } else {
-                    showNotification(`حدث خطأ: ${error.message}`, 'error');
-                }
-            } finally {
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'تسجيل الدخول';
+                console.error('❌ Error loading dashboard:', error);
+                showNotification('خطأ في تحميل البيانات', 'error');
             }
         }
         
-        // Show admin panel
-        async function showAdminPanel() {
-            document.getElementById('loginContent').style.display = 'none';
-            document.getElementById('adminContent').style.display = 'block';
-            
-            // Wait a moment for Firebase auth to fully initialize
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            initializeExistingDoctors(); // Initialize existing doctors with passwords
-            loadAppointments(); // Load appointments
-            loadDoctors(); // Load doctors
-            loadStatistics(); // Load statistics
+        // Logout function  
+        function handleLogout() {
+            console.log('🚪 Logging out admin...');
+            localStorage.removeItem('medconnect_admin_session');
+            firebase.auth().signOut();
+            window.location.href = 'admin-login.html';
         }
         
-        // Show login screen
-        function showLoginScreen() {
-            document.getElementById('loginContent').style.display = 'block';
-            document.getElementById('adminContent').style.display = 'none';
-            // Clear login form
-            document.getElementById('adminEmail').value = '';
-            document.getElementById('adminPassword').value = '';
-        }
+
         
         // Logout function
         async function logout() {
@@ -552,55 +631,103 @@
         }
         
         // Generate temporary password based on email
-        function generateTempPassword(email) {
-            const username = email.split('@')[0];
-            return `${username}Temp123!`;
-        }
-        
-        // Initialize existing doctors with passwords (run once)
-        async function initializeExistingDoctors() {
-            const existingDoctors = [
-                { name: 'د. خالد هاشم', specialty: 'طب الأطفال', phone: '07701234567', email: 'khalid@medconnect.com' },
-                { name: 'د. صفوان الهاشمي', specialty: 'طب الأطفال', phone: '07701234568', email: 'safwan@medconnect.com' },
-                { name: 'د. وعد ادريس', specialty: 'جراحة الأطفال', phone: '07701234569', email: 'waad@medconnect.com' },
-                { name: 'د. ايسر المدلج', specialty: 'طب الأطفال', phone: '07701234570', email: 'aysar@medconnect.com' }
-            ];
-            
-            for (const doctor of existingDoctors) {
-                try {
-                    // Check if doctor already exists
-                    const snapshot = await db.collection('doctors').where('email', '==', doctor.email).get();
-                    const tempPassword = generateTempPassword(doctor.email);
-                    
-                    if (snapshot.empty) {
-                        // Create new doctor
-                        await db.collection('doctors').add({
-                            ...doctor,
-                            tempPassword: tempPassword,
-                            passwordChanged: false,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        console.log(`Added doctor: ${doctor.name} with password: ${tempPassword}`);
-                    } else {
-                        // Update existing doctor's password
-                        snapshot.forEach(async (doc) => {
-                            await doc.ref.update({
-                                tempPassword: tempPassword,
-                                passwordChanged: false,
-                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                            console.log(`Updated doctor: ${doctor.name} with password: ${tempPassword}`);
-                        });
-                    }
-                } catch (error) {
-                    console.error('Error initializing doctor:', doctor.name, error);
-                }
-            }
+        // Toggle password visibility
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('doctorPassword');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
         }
 
-        let appointments = [];
-        let doctors = [];
-        let currentAppointment = null;
+        // Auto-fill about section when specialty changes
+        document.addEventListener('DOMContentLoaded', () => {
+            const specialtyInput = document.getElementById('doctorSpecialty');
+            const aboutTextarea = document.getElementById('doctorAbout');
+            
+            specialtyInput?.addEventListener('input', () => {
+                if (specialtyInput.value && !aboutTextarea.value) {
+                    aboutTextarea.value = `طبيب متخصص في ${specialtyInput.value} مع خبرة واسعة في المجال الطبي وتقديم أفضل الخدمات الطبية للمرضى.`;
+                }
+            });
+        });
+        
+        // Initialize existing doctors with direct passwords (simplified system)
+        async function initializeExistingDoctors() {
+            console.log('🔄 Starting comprehensive doctor profile update...');
+            
+            try {
+                // Get ALL doctors from the database (not just hardcoded ones)
+                const allDoctorsSnapshot = await db.collection('doctors').get();
+                let processedCount = 0;
+                let updatedCount = 0;
+                
+                console.log(`👥 Found ${allDoctorsSnapshot.size} doctors in database`);
+                
+                for (const doc of allDoctorsSnapshot.docs) {
+                    const doctorData = doc.data();
+                    const updates = {};
+                    let needsUpdate = false;
+                    
+                    // Check and add missing default fields
+                    const defaultFields = {
+                        experience: '5+ سنوات خبرة',
+                        rating: '4.5',
+                        reviews: '25',
+                        location: 'العيادة الطبية',
+                        hours: '9:00 ص - 5:00 م',
+                        education: 'بكالوريوس طب وجراحة',
+                        initials: doctorData.name ? `د.${doctorData.name.split(' ')[1]?.charAt(0) || 'م'}` : 'د.م',
+                        accountStatus: 'active'
+                    };
+                    
+                    // Add missing fields
+                    for (const [field, defaultValue] of Object.entries(defaultFields)) {
+                        if (!doctorData[field]) {
+                            updates[field] = defaultValue;
+                            needsUpdate = true;
+                        }
+                    }
+                    
+                    // Generate about text if missing
+                    if (!doctorData.about && doctorData.specialty) {
+                        updates.about = `طبيب متخصص في ${doctorData.specialty} مع خبرة واسعة في المجال الطبي.`;
+                        needsUpdate = true;
+                    }
+                    
+                    // Ensure consultationFee is properly set
+                    if (!doctorData.consultationFee && doctorData.fee) {
+                        updates.consultationFee = parseInt(doctorData.fee) * 1000;
+                        needsUpdate = true;
+                    }
+                    
+                    // Clean up old temp password fields if they exist
+                    if (doctorData.tempPassword) {
+                        updates.tempPassword = firebase.firestore.FieldValue.delete();
+                        updates.passwordChanged = firebase.firestore.FieldValue.delete();
+                        needsUpdate = true;
+                    }
+                    
+                    // Apply updates if needed
+                    if (needsUpdate) {
+                        updates.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+                        await doc.ref.update(updates);
+                        console.log(`✅ Updated profile: ${doctorData.name || doctorData.email}`);
+                        updatedCount++;
+                    } else {
+                        console.log(`ℹ️ Profile complete: ${doctorData.name || doctorData.email}`);
+                    }
+                    
+                    processedCount++;
+                }
+                
+                console.log(`🎉 Profile update completed! Processed: ${processedCount}, Updated: ${updatedCount}`);
+                showNotification(`تم تحديث ${updatedCount} من أصل ${processedCount} ملف طبيب`, 'success');
+                loadDoctors();
+                
+            } catch (error) {
+                console.error('❌ Error during doctor initialization:', error);
+                showNotification('خطأ في تحديث ملفات الأطباء: ' + error.message, 'error');
+            }
+        }
 
         // Tab Management
         function showTab(tabName) {
@@ -636,13 +763,7 @@
         // Load Appointments
         async function loadAppointments() {
             try {
-                // Check if user is authenticated
-                const user = firebase.auth().currentUser;
-                if (!user) {
-                    console.error('User not authenticated');
-                    showNotification('يجب تسجيل الدخول أولاً', 'error');
-                    return;
-                }
+                console.log('Loading appointments...');
                 
                 const snapshot = await db.collection('appointments').orderBy('createdAt', 'desc').get();
                 appointments = [];
@@ -873,41 +994,130 @@
         document.getElementById('addDoctorForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Generate a temporary password based on email
+            // Get the password
             const email = document.getElementById('doctorEmail').value;
-            const tempPassword = generateTempPassword(email);
+            const password = document.getElementById('doctorPassword').value;
             
-            const doctorData = {
-                name: document.getElementById('doctorName').value,
-                specialty: document.getElementById('doctorSpecialty').value,
-                phone: document.getElementById('doctorPhone').value,
-                email: email,
-                tempPassword: tempPassword,
-                passwordChanged: false,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            // Validate password
+            if (password.length < 6) {
+                showNotification('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+                return;
+            }
+            
+            // Get all form values
+            const name = document.getElementById('doctorName').value;
+            const specialty = document.getElementById('doctorSpecialty').value;
+            const languages = document.getElementById('doctorLanguages').value.split(',').map(lang => lang.trim());
+            const specializations = document.getElementById('doctorSpecializations').value 
+                ? document.getElementById('doctorSpecializations').value.split(',').map(spec => spec.trim())
+                : [specialty];
+            const aboutText = document.getElementById('doctorAbout').value || 
+                `طبيب متخصص في ${specialty} مع خبرة واسعة في المجال الطبي.`;
+            
+            // Generate initials from name
+            const generateInitials = (fullName) => {
+                if (!fullName) return 'د.م';
+                const parts = fullName.split(' ');
+                if (parts.length >= 2) {
+                    return `د.${parts[1].charAt(0)}`; // د. + first letter of last name
+                }
+                return `د.${parts[0].charAt(0)}`; // د. + first letter of first name
             };
-
+                
             try {
-                await db.collection('doctors').add(doctorData);
-                showPasswordModal(tempPassword);
+                console.log('🔥 Creating doctor via Cloud Function...');
+                console.log('Doctor details:', { name, email, specialty });
+                
+                // Call Cloud Function to create doctor
+                const createDoctorFunction = firebase.functions().httpsCallable('createDoctor');
+                const result = await createDoctorFunction({
+                    name: name,
+                    specialty: specialty,
+                    phone: document.getElementById('doctorPhone').value,
+                    email: email,
+                    password: password,
+                    fee: document.getElementById('doctorFee').value,
+                    experience: document.getElementById('doctorExperience').value,
+                    rating: document.getElementById('doctorRating').value,
+                    reviews: document.getElementById('doctorReviews').value,
+                    location: document.getElementById('doctorLocation').value,
+                    hours: document.getElementById('doctorHours').value,
+                    education: document.getElementById('doctorEducation').value,
+                    languages: languages,
+                    specializations: specializations,
+                    about: aboutText
+                });
+                
+                console.log('✅ Cloud Function result:', result.data);
+                showNotification(`تم إنشاء حساب الطبيب ${name} بنجاح. يجب على الطبيب تأكيد بريده الإلكتروني ${email} قبل تسجيل الدخول.`, 'success');
                 document.getElementById('addDoctorForm').reset();
                 loadDoctors();
+                
             } catch (error) {
-                console.error('Error adding doctor:', error);
-                showNotification('خطأ في إضافة الطبيب', 'error');
+                console.error('❌ Cloud Function error:', error);
+                
+                // Handle specific Cloud Function errors
+                if (error.code === 'functions/invalid-argument') {
+                    showNotification('بيانات غير صحيحة: ' + error.message, 'error');
+                } else if (error.code === 'functions/permission-denied') {
+                    showNotification('ليس لديك صلاحية لإنشاء الأطباء', 'error');
+                } else if (error.message && error.message.includes('email-already-in-use')) {
+                    showNotification('هذا البريد الإلكتروني مستخدم بالفعل', 'error');
+                } else if (error.message && error.message.includes('weak-password')) {
+                    showNotification('كلمة المرور ضعيفة جداً (6 أحرف على الأقل)', 'error');
+                } else {
+                    showNotification('خطأ في إنشاء الطبيب: ' + (error.message || 'خطأ غير معروف'), 'error');
+                }
             }
         });
 
         // Delete Doctor
         async function deleteDoctor(doctorId) {
-            if (confirm('هل أنت متأكد من حذف هذا الطبيب؟')) {
+            if (confirm('هل أنت متأكد من حذف هذا الطبيب؟ سيتم حذف الحساب والملف الشخصي نهائياً.')) {
                 try {
+                    // First, get the doctor's data to find their userId
+                    console.log('Getting doctor data for deletion...');
+                    const doctorDoc = await db.collection('doctors').doc(doctorId).get();
+                    
+                    if (!doctorDoc.exists) {
+                        showNotification('الطبيب غير موجود', 'error');
+                        return;
+                    }
+                    
+                    const doctorData = doctorDoc.data();
+                    console.log('Doctor data:', doctorData);
+                    
+                    // Delete from Firestore first
                     await db.collection('doctors').doc(doctorId).delete();
-                    showNotification('تم حذف الطبيب بنجاح', 'success');
+                    console.log('✅ Doctor profile deleted from Firestore');
+                    
+                    // Delete from Firebase Auth using Cloud Function if userId exists
+                    if (doctorData.userId) {
+                        try {
+                            console.log('🔥 Calling Cloud Function to delete Firebase Auth account...');
+                            
+                            // Call the Cloud Function to delete the user completely
+                            const deleteUserFunction = firebase.functions().httpsCallable('deleteUser');
+                            const result = await deleteUserFunction({
+                                userId: doctorData.userId,
+                                userEmail: doctorData.email
+                            });
+                            
+                            console.log('✅ Cloud Function result:', result.data);
+                            showNotification(`تم حذف الطبيب ${doctorData.name || 'غير محدد'} نهائياً من النظام. يمكن إعادة استخدام الإيميل.`, 'success');
+                            
+                        } catch (authError) {
+                            console.error('❌ Cloud Function deletion error:', authError);
+                            showNotification(`تم حذف ملف الطبيب لكن فشل حذف حساب المصادقة. الإيميل: ${doctorData.email}`, 'warning');
+                        }
+                    } else {
+                        showNotification(`تم حذف ملف الطبيب ${doctorData.name || 'غير محدد'} بنجاح`, 'success');
+                    }
+                    
                     loadDoctors();
                 } catch (error) {
                     console.error('Error deleting doctor:', error);
-                    showNotification('خطأ في حذف الطبيب', 'error');
+                    showNotification('خطأ في حذف الطبيب: ' + error.message, 'error');
                 }
             }
         }
@@ -1023,15 +1233,26 @@
             }, 3000);
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check if Firebase is properly initialized
-            if (!db) {
-                showNotification('لم يتم تحميل Firebase بشكل صحيح. يرجى إعادة تحميل الصفحة.', 'error');
-                return;
-            }
-            showTab('appointments');
-        });
+        // Wait for Firebase readiness with timeout safeguard
+        function onFirebaseReady(callback) {
+            const startTime = performance.now();
+            const pollIntervalMs = 100;
+            const timeoutMs = 5000;
+            const intervalId = setInterval(() => {
+                if (typeof firebase !== 'undefined' && db) {
+                    clearInterval(intervalId);
+                    callback();
+                    return;
+                }
+                if (performance.now() - startTime > timeoutMs) {
+                    clearInterval(intervalId);
+                    console.error('Firebase not properly initialized within timeout window');
+                    showNotification('لم يتم تحميل Firebase بشكل صحيح. يرجى إعادة تحميل الصفحة.', 'error');
+                }
+            }, pollIntervalMs);
+        }
+
+        // Initialize (handled by window.onload instead)
 
         // Close modal when clicking outside
         document.getElementById('appointmentModal').addEventListener('click', (e) => {
