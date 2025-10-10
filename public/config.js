@@ -5,7 +5,7 @@
   // Private configuration - not exposed globally
   const config = {
     ENV: "production", // Change to "development" only for local debugging
-    APP_CHECK_KEY: "RECAPTCHA_ENTERPRISE_SITE_KEY", // Remove when using real reCAPTCHA
+    APP_CHECK_KEY: "6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T", // reCAPTCHA v3 site key
     FIREBASE_CONFIG: {
       apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
       authDomain: "medconnect-2.firebaseapp.com",

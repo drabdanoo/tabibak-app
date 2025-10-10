@@ -8,37 +8,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     
-    <!-- Firebase v9 Modular SDK -->
-    <script type="module">
-        // Import Firebase v9 modules
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-        import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, where, getDocs, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
-        import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check.js';
-        
-        // Make Firebase functions available globally for the inline script
-        window.firebaseModules = {
-            initializeApp,
-            getAuth,
-            signInWithPhoneNumber,
-            RecaptchaVerifier,
-            onAuthStateChanged,
-            signOut,
-            getFirestore,
-            collection,
-            doc,
-            setDoc,
-            getDoc,
-            updateDoc,
-            query,
-            where,
-            getDocs,
-            addDoc,
-            serverTimestamp,
-            initializeAppCheck,
-            ReCaptchaV3Provider
-        };
-    </script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
     
     <style>
         body {
@@ -134,7 +108,6 @@
 
     <!-- Connection Status -->
     <div id="connectionStatus" class="connection-status connected">
-        🔥 متصل بـ Firebase - جاهز لإرسال الرسائل
     </div>
 
     <!-- Navigation -->
@@ -852,18 +825,16 @@
                     </svg>
                 </div>
                 <h2 class="text-2xl font-bold text-gray-900 mb-2">تسجيل الدخول</h2>
-                <p class="text-gray-600">سيتم التحقق من هويتك عبر رمز يرسل لهاتفك</p>
+                <p class="text-gray-600">ادخل بياناتك للوصول لحسابك</p>
             </div>
 
             <form onsubmit="handleLogin(event)" class="space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
-                    <input type="tel" id="loginPhone" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="07XXXXXXXXX" required>
+                    <input type="tel" id="loginPhone" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
                 </div>
                 
-                <p class="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                    سيتم إرسال رمز التحقق إلى رقم هاتفك المسجل
-                </p>
+                <!-- Phone-only authentication - no passwords needed -->
                 
                 <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium text-lg">
                     إرسال رمز التحقق
@@ -886,7 +857,7 @@
                     </svg>
                 </div>
                 <h2 class="text-2xl font-bold text-gray-900 mb-2">إنشاء حساب جديد</h2>
-                <p class="text-gray-600">سجل بياناتك وسيتم التحقق من هاتفك</p>
+                <p class="text-gray-600">أدخل بياناتك لإنشاء حساب</p>
             </div>
 
             <form onsubmit="handleRegister(event)" class="space-y-6">
@@ -900,17 +871,7 @@
                     <input type="tel" id="registerPhone" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="07XXXXXXXXX" required>
                 </div>
                 
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 text-green-600 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <div>
-                            <p class="text-sm text-green-800 font-medium">تسجيل آمن بدون كلمة مرور</p>
-                            <p class="text-xs text-green-600 mt-1">سيتم التحقق من هويتك عبر رمز يرسل لهاتفك</p>
-                        </div>
-                    </div>
-                </div>
+                <!-- Phone-only authentication - no passwords needed -->
                 
                 <button type="submit" id="registerBtn" class="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-4 px-6 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-lg">
                     إنشاء الحساب
@@ -940,13 +901,13 @@
             <form onsubmit="handlePhoneVerification(event)" class="space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">رمز التحقق</label>
-                    <div class="flex justify-center space-x-2 space-x-reverse">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 0)">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 1)">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 2)">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 3)">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 4)">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 5)">
+                    <div class="flex justify-center space-x-2" dir="ltr">
+                        <input type="tel" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 0)" onkeydown="handleKeyDown(event, 0)">
+                        <input type="tel" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 1)" onkeydown="handleKeyDown(event, 1)">
+                        <input type="tel" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 2)" onkeydown="handleKeyDown(event, 2)">
+                        <input type="tel" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 3)" onkeydown="handleKeyDown(event, 3)">
+                        <input type="tel" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 4)" onkeydown="handleKeyDown(event, 4)">
+                        <input type="tel" maxlength="1" class="verification-input w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" oninput="moveToNext(this, 5)" onkeydown="handleKeyDown(event, 5)">
                     </div>
                 </div>
                 
@@ -1000,35 +961,14 @@
             measurementId: "G-1Q7MTPV8XE"
         };
 
-        // Wait for modules to load, then initialize Firebase
-        let app, auth, db, appCheck;
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
         
-        // Initialize Firebase once modules are loaded
-        function initializeFirebase() {
-            if (window.firebaseModules && window.firebaseModules.initializeApp) {
-                // Initialize Firebase v9
-                app = window.firebaseModules.initializeApp(firebaseConfig);
-                auth = window.firebaseModules.getAuth(app);
-                db = window.firebaseModules.getFirestore(app);
-                
-                // Initialize App Check
-                appCheck = window.firebaseModules.initializeAppCheck(app, {
-                    provider: new window.firebaseModules.ReCaptchaV3Provider('6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T'),
-                    isTokenAutoRefreshEnabled: true
-                });
-                
-                console.log('Firebase v9 initialized successfully');
-                
-                // Initialize other components that depend on Firebase
-                loadDoctors();
-            } else {
-                // Retry if modules not loaded yet
-                setTimeout(initializeFirebase, 50);
-            }
-        }
-        
-        // Start initialization
-        initializeFirebase();
+        // Initialize App Check
+        const appCheck = firebase.appCheck();
+        appCheck.activate('6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T', true);
 
         // Global reCAPTCHA verifier
         let recaptchaVerifier = null;
@@ -1036,7 +976,7 @@
         // Initialize reCAPTCHA
         function initializeRecaptcha() {
             if (!recaptchaVerifier) {
-                recaptchaVerifier = new window.firebaseModules.RecaptchaVerifier('recaptcha-container', {
+                recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
                     'size': 'invisible',
                     'callback': function(response) {
                         console.log('reCAPTCHA solved, can proceed with SMS');
@@ -1045,7 +985,7 @@
                         console.log('reCAPTCHA expired');
                         recaptchaVerifier = null;
                     }
-                }, auth);
+                });
             }
             return recaptchaVerifier;
         }
@@ -1069,8 +1009,7 @@
         async function loadDoctors() {
             try {
                 console.log('Loading doctors from Firebase...');
-                const doctorsRef = window.firebaseModules.collection(db, 'doctors');
-                const snapshot = await window.firebaseModules.getDocs(doctorsRef);
+                const snapshot = await db.collection('doctors').get();
                 
                 if (snapshot.empty) {
                     console.log('No doctors found in Firebase, using defaults');
@@ -1357,7 +1296,16 @@
             
             const user = JSON.parse(currentUser);
             
-            // Basic appointment data only - medical details collected after confirmation
+            // Collect chronic conditions
+            const chronicConditions = [];
+            if (document.getElementById('hypertension').checked) chronicConditions.push('ضغط الدم المرتفع');
+            if (document.getElementById('diabetes').checked) chronicConditions.push('السكري');
+            if (document.getElementById('heartDisease').checked) chronicConditions.push('أمراض القلب');
+            if (document.getElementById('asthma').checked) chronicConditions.push('الربو');
+            
+            const otherConditions = document.getElementById('otherConditions').value;
+            if (otherConditions) chronicConditions.push(otherConditions);
+            
             const appointmentData = {
                 doctorId: selectedDoctorId,
                 doctorName: doctors[selectedDoctorId].name,
@@ -1369,14 +1317,17 @@
                 appointmentDate: document.getElementById('appointmentDate').value,
                 appointmentTime: selectedTimeSlot,
                 reason: document.getElementById('appointmentReason').value,
-                // Medical Information removed for security - will be collected after confirmation
+                // Medical Information
+                allergies: document.getElementById('allergies').value || '',
+                chronicConditions: chronicConditions || [],
+                currentMedications: document.getElementById('currentMedications').value || '',
                 // User info
                 userId: user.uid,
                 userPhone: user.phone,
                 // Status - waiting for doctor confirmation
                 status: 'awaiting_confirmation',
-                createdAt: window.firebaseModules.serverTimestamp(),
-                updatedAt: window.firebaseModules.serverTimestamp(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 appointmentId: generateAppointmentId()
             };
             
@@ -1386,23 +1337,20 @@
             
             try {
                 // Check for conflicting appointments (only confirmed ones)
-                const appointmentsRef = window.firebaseModules.collection(db, 'appointments');
-                const conflictQuery = window.firebaseModules.query(
-                    appointmentsRef,
-                    window.firebaseModules.where('doctorId', '==', selectedDoctorId),
-                    window.firebaseModules.where('appointmentDate', '==', appointmentData.appointmentDate),
-                    window.firebaseModules.where('appointmentTime', '==', selectedTimeSlot),
-                    window.firebaseModules.where('status', 'in', ['confirmed', 'awaiting_confirmation'])
-                );
-                const conflictSnapshot = await window.firebaseModules.getDocs(conflictQuery);
+                const conflictQuery = await db.collection('appointments')
+                    .where('doctorId', '==', selectedDoctorId)
+                    .where('appointmentDate', '==', appointmentData.appointmentDate)
+                    .where('appointmentTime', '==', selectedTimeSlot)
+                    .where('status', 'in', ['confirmed', 'awaiting_confirmation'])
+                    .get();
                 
-                if (!conflictSnapshot.empty) {
+                if (!conflictQuery.empty) {
                     showNotification('هذا الموعد محجوز بالفعل أو في انتظار التأكيد. يرجى اختيار وقت آخر', 'error');
                     return;
                 }
                 
                 // Save appointment to Firestore
-                const docRef = await window.firebaseModules.addDoc(appointmentsRef, appointmentData);
+                const docRef = await db.collection('appointments').add(appointmentData);
                 
                 // Update appointment with document ID
                 await docRef.update({
@@ -1586,55 +1534,28 @@
             loginBtn.textContent = 'جاري إرسال رمز التحقق...';
             
             try {
-                // Check if user exists in Firestore
-                const usersRef = window.firebaseModules.collection(db, 'users');
-                const usersQuery = window.firebaseModules.query(usersRef, window.firebaseModules.where('phone', '==', phone));
-                const snapshot = await window.firebaseModules.getDocs(usersQuery);
-                
-                if (snapshot.empty) {
-                    showNotification('رقم الهاتف غير مسجل. يرجى إنشاء حساب جديد', 'error');
-                    closeLoginModal();
-                    showRegisterModal();
-                    return;
-                }
-                
-                // Store temp login data (phone only)
-                const tempLogin = { phone };
-                localStorage.setItem('medconnect_temp_login', JSON.stringify(tempLogin));
-                
                 // Convert Iraqi phone to international format
                 const internationalPhone = '+964' + phone.substring(1);
-                console.log('Sending SMS verification for login to:', internationalPhone);
+                console.log('Attempting to send login SMS to:', internationalPhone);
+                
+                // Store phone for login verification
+                localStorage.setItem('medconnect_login_phone', phone);
                 
                 // Initialize and get reCAPTCHA verifier
                 const appVerifier = initializeRecaptcha();
                 
-                // Send SMS verification
+                // Send SMS verification for login
                 showNotification('جاري إرسال رمز التحقق...', 'info');
-                confirmationResult = await window.firebaseModules.signInWithPhoneNumber(auth, internationalPhone, appVerifier);
+                confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
                 
-                console.log('SMS sent successfully for login');
+                console.log('Login SMS sent successfully');
                 closeLoginModal();
-                showPhoneVerificationModal(phone);
+                showPhoneVerificationModal(phone, true); // true indicates this is for login
                 showNotification('✅ تم إرسال رمز التحقق إلى هاتفك', 'success');
                 
             } catch (error) {
-                console.error('Error during login SMS:', error);
-                let errorMessage = 'حدث خطأ أثناء إرسال رمز التحقق';
-                
-                if (error.code === 'auth/too-many-requests') {
-                    errorMessage = 'تم إرسال عدد كبير من الطلبات. يرجى المحاولة لاحقاً';
-                } else if (error.code === 'auth/invalid-phone-number') {
-                    errorMessage = 'رقم الهاتف غير صحيح';
-                }
-                
-                showNotification(errorMessage, 'error');
-                
-                // Reset reCAPTCHA on error
-                if (recaptchaVerifier) {
-                    recaptchaVerifier.clear();
-                    recaptchaVerifier = null;
-                }
+                console.error('Error during login:', error);
+                showNotification('حدث خطأ أثناء تسجيل الدخول', 'error');
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'تسجيل الدخول';
@@ -1669,22 +1590,10 @@
             
             const registerBtn = document.getElementById('registerBtn');
             registerBtn.disabled = true;
-            registerBtn.textContent = 'جاري التحقق من البيانات...';
+            registerBtn.textContent = 'جاري إنشاء الحساب...';
             
             try {
-                // Check if phone number already exists
-                const usersRef2 = window.firebaseModules.collection(db, 'users');
-                const usersQuery2 = window.firebaseModules.query(usersRef2, window.firebaseModules.where('phone', '==', phone));
-                const snapshot = await window.firebaseModules.getDocs(usersQuery2);
-                
-                if (!snapshot.empty) {
-                    showNotification('رقم الهاتف مسجل بالفعل. يرجى تسجيل الدخول', 'error');
-                    closeRegisterModal();
-                    showLoginModal();
-                    return;
-                }
-                
-                registerBtn.textContent = 'جاري إرسال رمز التحقق...';
+                // Firebase is now properly configured
                 
                 // Store temporary user data (name and phone only - no password)
                 const tempUser = { name, phone };
@@ -1699,7 +1608,7 @@
                 
                 // Send SMS verification
                 showNotification('جاري إرسال رمز التحقق...', 'info');
-                confirmationResult = await window.firebaseModules.signInWithPhoneNumber(auth, internationalPhone, appVerifier);
+                confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
                 
                 console.log('SMS sent successfully');
                 closeRegisterModal();
@@ -1735,10 +1644,13 @@
             }
         }
 
-        function showPhoneVerificationModal(phone) {
+        function showPhoneVerificationModal(phone, isLogin = false) {
             document.getElementById('verificationPhoneNumber').textContent = phone;
             document.getElementById('phoneVerificationModal').classList.add('show');
             document.body.style.overflow = 'hidden';
+            
+            // Store if this is for login
+            localStorage.setItem('medconnect_is_login', isLogin.toString());
             
             // Start countdown
             startCountdown();
@@ -1761,7 +1673,15 @@
             event.preventDefault();
             
             const inputs = document.querySelectorAll('.verification-input');
-            const enteredCode = Array.from(inputs).map(input => input.value).join('');
+            let enteredCode = Array.from(inputs).map(input => input.value.trim()).join('');
+            
+            // Clean the code - remove any non-digit characters
+            enteredCode = enteredCode.replace(/\D/g, '');
+            
+            console.log('Entered OTP code:', enteredCode);
+            console.log('Code length:', enteredCode.length);
+            console.log('Individual inputs:', Array.from(inputs).map(input => input.value));
+            console.log('Cleaned code:', enteredCode);
             
             if (enteredCode.length !== 6) {
                 showNotification('يرجى إدخال الرمز المرسل إلى هاتفك', 'error');
@@ -1778,68 +1698,83 @@
                 }
                 
                 // Verify the real SMS code with Firebase
+                console.log('Attempting to verify code with Firebase:', enteredCode);
                 const result = await confirmationResult.confirm(enteredCode);
-                const firebaseUser = result.user;
+                const user = result.user;
+                console.log('Firebase verification successful:', user);
                 
-                console.log('Phone verification successful:', firebaseUser.phoneNumber);
+                console.log('Phone verification successful:', user.phoneNumber);
                 
-                // Check if this is registration or login
-                const tempUser = JSON.parse(localStorage.getItem('medconnect_temp_user') || 'null');
-                const tempLogin = JSON.parse(localStorage.getItem('medconnect_temp_login') || 'null');
+                // Check if this is login or registration
+                const isLogin = localStorage.getItem('medconnect_is_login') === 'true';
                 
-                if (tempUser) {
-                    // This is registration - create new user
-                    const userDocRef = window.firebaseModules.doc(db, 'users', firebaseUser.uid);
-                    await window.firebaseModules.setDoc(userDocRef, {
+                if (isLogin) {
+                    // Login flow - find existing user
+                    const loginPhone = localStorage.getItem('medconnect_login_phone');
+                    
+                    try {
+                        // Get existing user data
+                        const userDoc = await db.collection('users').doc(user.uid).get();
+                        
+                        if (userDoc.exists) {
+                            const userData = userDoc.data();
+                            const existingUser = {
+                                uid: user.uid,
+                                name: userData.name,
+                                phone: userData.phone,
+                                phoneNumber: user.phoneNumber,
+                                verified: true
+                            };
+                            
+                            localStorage.setItem('medconnect_current_user', JSON.stringify(existingUser));
+                            localStorage.removeItem('medconnect_login_phone');
+                            localStorage.removeItem('medconnect_is_login');
+                            
+                            closePhoneVerificationModal();
+                            showNotification(`مرحباً ${existingUser.name}! تم تسجيل الدخول بنجاح`, 'success');
+                            updateUserInterface(existingUser);
+                        } else {
+                            throw new Error('User not found');
+                        }
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        showNotification('هذا الرقم غير مسجل. يرجى إنشاء حساب جديد', 'error');
+                    }
+                } else {
+                    // Registration flow - create new user
+                    const tempUser = JSON.parse(localStorage.getItem('medconnect_temp_user'));
+                    if (!tempUser) {
+                        throw new Error('No temporary user data found');
+                    }
+                    
+                    // Create user document in Firestore with real Firebase user data
+                    await db.collection('users').doc(user.uid).set({
                         name: tempUser.name,
                         phone: tempUser.phone,
                         verified: true,
-                        phoneNumber: firebaseUser.phoneNumber,
-                        createdAt: window.firebaseModules.serverTimestamp(),
-                        uid: firebaseUser.uid
+                        phoneNumber: user.phoneNumber,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        uid: user.uid
                     });
                     
                     const newUser = {
-                        uid: firebaseUser.uid,
+                        uid: user.uid,
                         name: tempUser.name,
                         phone: tempUser.phone,
-                        phoneNumber: firebaseUser.phoneNumber,
+                        phoneNumber: user.phoneNumber,
                         verified: true
                     };
                     
+                    // Store user data locally
                     localStorage.setItem('medconnect_current_user', JSON.stringify(newUser));
+                    
+                    // Clean up temporary data
                     localStorage.removeItem('medconnect_temp_user');
+                    localStorage.removeItem('medconnect_is_login');
                     
                     closePhoneVerificationModal();
-                    showNotification(`مرحباً ${newUser.name}! تم إنشاء حسابك بنجاح`, 'success');
+                    showNotification(`مرحباً ${newUser.name}! تم التحقق من رقم هاتفك وإنشاء حسابك بنجاح`, 'success');
                     updateUserInterface(newUser);
-                    
-                } else if (tempLogin) {
-                    // This is login - get existing user data
-                    const existingUserDocRef = window.firebaseModules.doc(db, 'users', firebaseUser.uid);
-                    const userDoc = await window.firebaseModules.getDoc(existingUserDocRef);
-                    
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
-                        const existingUser = {
-                            uid: firebaseUser.uid,
-                            name: userData.name,
-                            phone: userData.phone,
-                            phoneNumber: firebaseUser.phoneNumber,
-                            verified: true
-                        };
-                        
-                        localStorage.setItem('medconnect_current_user', JSON.stringify(existingUser));
-                        localStorage.removeItem('medconnect_temp_login');
-                        
-                        closePhoneVerificationModal();
-                        showNotification(`مرحباً بعودتك ${existingUser.name}!`, 'success');
-                        updateUserInterface(existingUser);
-                    } else {
-                        throw new Error('User account not found');
-                    }
-                } else {
-                    throw new Error('No verification context found');
                 }
                 
             } catch (error) {
@@ -1877,7 +1812,28 @@
             }
         }
 
+        function handleKeyDown(event, index) {
+            const key = event.key;
+            const inputs = document.querySelectorAll('.verification-input');
+            
+            // Allow backspace
+            if (key === 'Backspace') {
+                if (inputs[index].value === '' && index > 0) {
+                    inputs[index - 1].focus();
+                }
+                return;
+            }
+            
+            // Only allow digits
+            if (!/^\d$/.test(key)) {
+                event.preventDefault();
+            }
+        }
+
         function moveToNext(currentInput, index) {
+            // Only allow digits
+            currentInput.value = currentInput.value.replace(/\D/g, '');
+            
             if (currentInput.value.length === 1) {
                 const inputs = document.querySelectorAll('.verification-input');
                 if (index < inputs.length - 1) {
@@ -1919,10 +1875,20 @@
                 const internationalPhone = '+964' + phone.substring(1);
                 console.log('Resending SMS to:', internationalPhone);
                 
-                // Clear existing reCAPTCHA and create new one
+                // Clear existing reCAPTCHA completely
                 if (recaptchaVerifier) {
-                    recaptchaVerifier.clear();
+                    try {
+                        recaptchaVerifier.clear();
+                    } catch (e) {
+                        console.log('reCAPTCHA clear error (expected):', e);
+                    }
                     recaptchaVerifier = null;
+                }
+                
+                // Clear the reCAPTCHA container
+                const container = document.getElementById('recaptcha-container');
+                if (container) {
+                    container.innerHTML = '';
                 }
                 
                 // Initialize new reCAPTCHA verifier
@@ -1930,7 +1896,7 @@
                 
                 // Send new SMS verification
                 showNotification('جاري إرسال رمز جديد...', 'info');
-                confirmationResult = await window.firebaseModules.signInWithPhoneNumber(auth, internationalPhone, appVerifier);
+                confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
                 
                 console.log('SMS resent successfully');
                 showNotification('✅ تم إرسال رمز جديد إلى هاتفك', 'success');
@@ -1981,22 +1947,7 @@
         }
 
         function logout() {
-            // Clean up all data from localStorage (no sensitive passwords stored)
             localStorage.removeItem('medconnect_current_user');
-            localStorage.removeItem('medconnect_temp_user');
-            localStorage.removeItem('medconnect_temp_login');
-            localStorage.removeItem('medconnect_session_data');
-            
-            // Clear any cached medical data
-            sessionStorage.clear();
-            
-            // Sign out from Firebase Auth
-            window.firebaseModules.signOut(auth).then(() => {
-                console.log('User signed out');
-            }).catch((error) => {
-                console.error('Error signing out:', error);
-            });
-            
             location.reload();
         }
         
@@ -2013,15 +1964,12 @@
             
             try {
                 // Fetch user appointments from Firestore
-                const appointmentsRef = window.firebaseModules.collection(db, 'appointments');
-                const appointmentsQuery = window.firebaseModules.query(
-                    appointmentsRef,
-                    window.firebaseModules.where('userId', '==', user.uid)
-                );
-                const appointmentsSnapshot = await window.firebaseModules.getDocs(appointmentsQuery);
+                const appointmentsQuery = await db.collection('appointments')
+                    .where('userId', '==', user.uid)
+                    .get();
                 
                 const appointments = [];
-                appointmentsSnapshot.forEach(doc => {
+                appointmentsQuery.forEach(doc => {
                     const data = doc.data();
                     appointments.push({ id: doc.id, ...data });
                 });
@@ -2187,10 +2135,9 @@
             }
             
             try {
-                const appointmentDocRef = window.firebaseModules.doc(db, 'appointments', appointmentId);
-                await window.firebaseModules.updateDoc(appointmentDocRef, {
+                await db.collection('appointments').doc(appointmentId).update({
                     status: 'cancelled',
-                    cancelledAt: window.firebaseModules.serverTimestamp()
+                    cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
                 showNotification('تم إلغاء الموعد بنجاح', 'success');
@@ -2290,7 +2237,6 @@
             
             // Check if Firebase is properly configured
             if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_ACTUAL_API_KEY") {
-                statusElement.textContent = '🔥 متصل بـ Firebase - جاهز لإرسال الرسائل';
                 statusElement.className = 'connection-status connected';
                 
                 // Load doctors from Firebase
@@ -2325,32 +2271,11 @@
             }
             
             // Monitor Firebase Auth state
-            window.firebaseModules.onAuthStateChanged(auth, async (user) => {
+            auth.onAuthStateChanged((user) => {
                 if (user && user.phoneNumber) {
                     console.log('User is signed in with phone:', user.phoneNumber);
-                    
-                    // Verify user exists in our database
-                    try {
-                        const userDocRef = window.firebaseModules.doc(db, 'users', user.uid);
-                        const userDoc = await window.firebaseModules.getDoc(userDocRef);
-                        if (userDoc.exists) {
-                            const userData = userDoc.data();
-                            const currentUser = {
-                                uid: user.uid,
-                                name: userData.name,
-                                phone: userData.phone,
-                                phoneNumber: user.phoneNumber,
-                                verified: true
-                            };
-                            localStorage.setItem('medconnect_current_user', JSON.stringify(currentUser));
-                            updateUserInterface(currentUser);
-                        }
-                    } catch (error) {
-                        console.log('User data access blocked by security rules (this is expected)');
-                    }
                 } else {
                     console.log('User is signed out');
-                    localStorage.removeItem('medconnect_current_user');
                 }
             });
             
@@ -2373,90 +2298,5 @@
             });
         });
     </script>
-<script>
-// Role-based interface management
-async function checkUserRole() {
-    const user = auth.currentUser;
-    if (!user) return null;
-    
-    try {
-        const tokenResult = await user.getIdTokenResult();
-        const claims = tokenResult.claims;
-        
-        let role = "patient"; // default
-        if (claims.admin) role = "admin";
-        else if (claims.doctor) role = "doctor";
-        else if (claims.patient) role = "patient";
-        
-        return { role, claims, user };
-    } catch (error) {
-        console.error("Error checking role:", error);
-        return null;
-    }
-}
-
-async function updateInterfaceBasedOnRole() {
-    const roleInfo = await checkUserRole();
-    if (!roleInfo) return;
-    
-    const { role, claims, user } = roleInfo;
-    
-    // Update header based on role
-    let headerHtml = "";
-    switch(role) {
-        case "admin":
-            headerHtml = `
-                <div style="background: #dc3545; color: white; padding: 10px; text-align: center;">
-                    <h3>👑 Administrator Access</h3>
-                    <p>UID: ${user.uid} | Full System Access</p>
-                    <a href="admin.html" style="color: white; margin: 0 10px;">Admin Panel</a>
-                    <a href="custom-claims-manager.html" style="color: white; margin: 0 10px;">Manage Users</a>
-                </div>
-            `;
-            break;
-        case "doctor":
-            headerHtml = `
-                <div style="background: #28a745; color: white; padding: 10px; text-align: center;">
-                    <h3>👨‍⚕️ Doctor Access</h3>
-                    <p>UID: ${user.uid} | Medical Professional</p>
-                    <a href="doctor.html" style="color: white; margin: 0 10px;">Doctor Dashboard</a>
-                </div>
-            `;
-            break;
-        default:
-            headerHtml = `
-                <div style="background: #007bff; color: white; padding: 10px; text-align: center;">
-                    <h3>👤 Patient Access</h3>
-                    <p>UID: ${user.uid} | Patient Portal</p>
-                </div>
-            `;
-    }
-    
-    // Add or update role header
-    let roleHeader = document.getElementById("role-header");
-    if (!roleHeader) {
-        roleHeader = document.createElement("div");
-        roleHeader.id = "role-header";
-        document.body.insertBefore(roleHeader, document.body.firstChild);
-    }
-    roleHeader.innerHTML = headerHtml;
-    
-    // Add role info to console
-    console.log(`User Role: ${role}`, claims);
-}
-
-// Update existing auth state listener
-window.firebaseModules.onAuthStateChanged(auth, async function(user) {
-    // Add role-based interface updates
-    if (user) {
-        setTimeout(updateInterfaceBasedOnRole, 1000); // Delay to ensure token is ready
-    }
-});
-
-// Initialize role checking on page load
-window.addEventListener("load", function() {
-    setTimeout(updateInterfaceBasedOnRole, 2000);
-});
-</script></body>
+</body>
 </html>
-

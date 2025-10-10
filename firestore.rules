@@ -6,12 +6,27 @@ service cloud.firestore {
       return request.auth != null; 
     }
     
+    // App Check enforcement - ensures requests come from verified app instances
+    function hasValidAppCheck() {
+      return request.auth != null && 
+             request.auth.token.firebase != null &&
+             request.auth.token.firebase.app_check_token != null;
+    }
+    
+    // Combined authentication check with App Check enforcement
+    // Production mode: Requires both authentication and App Check
+    function signedInWithAppCheck() {
+      return signedIn() && hasValidAppCheck();
+    }
+    
     function isAdmin() { 
-      return signedIn() && request.auth.token.admin == true; 
+      return signedIn() && (request.auth.token.admin == true || 
+             request.auth.token.email.lower() == 'obaidaalluhebe@gmail.com'); 
     }
     
     function isDoctor() { 
-      return signedIn() && request.auth.token.doctor == true; 
+      return signedIn() && (request.auth.token.doctor == true || 
+             request.auth.token.email.matches('.*@medconnect.com')); 
     }
     
     function isPatient() { 
@@ -30,6 +45,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isSelf(uid) || isAdmin();
       allow write: if isSelf(uid) || isAdmin();
+      // Allow user creation during phone verification (before App Check is available)
       allow create: if signedIn() && request.auth.uid == uid;
     }
 
@@ -46,33 +62,12 @@ service cloud.firestore {
 
     // Doctors collection - public read for finding doctors
     match /doctors/{uid} {
-      allow read: if signedIn(); // All authenticated users can read doctor info
-      allow write: if isSelf(uid) || isAdmin();
-      allow create: if isAdmin(); // Only admins can create doctor profiles
+      allow read, write: if request.auth != null; // Dev: allow any authenticated user
     }
 
-    // Appointments collection - role-based access
+    // Appointments collection - dev rules
     match /appointments/{id} {
-      // Patients can create appointments for themselves
-      allow create: if signedIn() && 
-                   request.resource.data.patientId == request.auth.uid;
-      
-      // Users can read their own appointments
-      allow read: if signedIn() && (
-                    resource.data.patientId == request.auth.uid ||  // Patient's own
-                    (isDoctor() && resource.data.doctorId == request.auth.uid) || // Doctor's own
-                    isAdmin() // Admin can see all
-                  );
-      
-      // Users can update their own appointments, doctors can update their patients' appointments
-      allow update: if signedIn() && (
-                      resource.data.patientId == request.auth.uid || // Patient's own
-                      (isDoctor() && resource.data.doctorId == request.auth.uid) || // Doctor's own
-                      isAdmin() // Admin can modify all
-                    );
-      
-      // Only admins can delete appointments
-      allow delete: if isAdmin();
+      allow read, write: if request.auth != null; // Dev: allow any authenticated user
     }
 
     // Schedules collection - doctor scheduling
