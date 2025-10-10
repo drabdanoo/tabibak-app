@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐛 DEBUG: بوابة المرضى - MedConnect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="config.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .debug-panel {
+            position: fixed; top: 10px; right: 10px; 
+            background: rgba(0,0,0,0.9); color: white; 
+            padding: 15px; font-size: 12px; 
+            max-width: 400px; max-height: 350px; 
+            overflow-y: auto; z-index: 10000;
+            border-radius: 8px; font-family: monospace;
+            border: 2px solid #00ff00;
+        }
+        .debug-controls {
+            position: fixed; bottom: 10px; right: 10px; z-index: 10001;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-emerald-100 min-h-screen">
+
+    <!-- DEBUG WARNING BANNER -->
+    <div class="bg-red-600 text-white text-center py-2 font-bold">
+        🐛 DEBUG VERSION - Patient Portal - للمطورين فقط
+    </div>
+
+    <!-- Back Button -->
+    <div class="absolute top-20 left-4">
+        <button onclick="window.location.href='index.html'" class="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors bg-white rounded-lg shadow">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            العودة للصفحة الرئيسية
+        </button>
+        <button onclick="window.location.href='patient.html'" class="flex items-center gap-2 px-4 py-2 mt-2 text-green-600 hover:text-green-800 transition-colors bg-white rounded-lg shadow">
+            النسخة الإنتاجية
+        </button>
+    </div>
+
+    <!-- DEBUG CONTROLS -->
+    <div class="debug-controls">
+        <button onclick="DEBUG.clear()" class="bg-red-600 text-white px-3 py-1 rounded mr-2">Clear</button>
+        <button onclick="DEBUG.export()" class="bg-blue-600 text-white px-3 py-1 rounded mr-2">Export</button>
+        <button onclick="DEBUG.togglePanel()" class="bg-green-600 text-white px-3 py-1 rounded">Toggle</button>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 pt-24">
+        <div class="bg-white rounded-2xl shadow-xl p-8 max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">🐛 بوابة المرضى (DEBUG)</h1>
+                <p class="text-gray-600">نسخة التطوير مع أدوات التشخيص</p>
+            </div>
+
+            <!-- DEBUG TOOLS -->
+            <div class="space-y-6">
+                <h2 class="text-xl font-bold text-gray-800">أدوات التشخيص</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button onclick="testPatientAuth()" class="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600">
+                        اختبار مصادقة المريض
+                    </button>
+                    <button onclick="testDoctorsList()" class="bg-green-500 text-white p-4 rounded-lg hover:bg-green-600">
+                        اختبار قائمة الأطباء
+                    </button>
+                    <button onclick="testBookingSystem()" class="bg-purple-500 text-white p-4 rounded-lg hover:bg-purple-600">
+                        اختبار نظام الحجز
+                    </button>
+                    <button onclick="testPatientProfile()" class="bg-orange-500 text-white p-4 rounded-lg hover:bg-orange-600">
+                        اختبار ملف المريض
+                    </button>
+                    <button onclick="testFirebaseConnection()" class="bg-indigo-500 text-white p-4 rounded-lg hover:bg-indigo-600">
+                        اختبار الاتصال
+                    </button>
+                    <button onclick="DEBUG.showPatientSystemInfo()" class="bg-gray-500 text-white p-4 rounded-lg hover:bg-gray-600">
+                        معلومات النظام
+                    </button>
+                </div>
+
+                <!-- Sample Doctors Display -->
+                <div class="border-t pt-6">
+                    <h3 class="text-lg font-bold mb-4">الأطباء المتاحون (للاختبار)</h3>
+                    <div id="doctorsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Doctors will be loaded here -->
+                    </div>
+                    <button onclick="loadDoctorsDebug()" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                        تحميل الأطباء
+                    </button>
+                </div>
+
+                <!-- Mock Patient Registration -->
+                <div class="border-t pt-6">
+                    <h3 class="text-lg font-bold mb-4">تسجيل مريض (للاختبار)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2">اسم المريض</label>
+                            <input type="text" id="patientName" class="w-full p-3 border rounded-lg" placeholder="اسم المريض">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">رقم الهاتف</label>
+                            <input type="tel" id="patientPhone" class="w-full p-3 border rounded-lg" placeholder="07XXXXXXXX">
+                        </div>
+                        <div class="md:col-span-2">
+                            <button onclick="simulatePatientRegistration()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">
+                                محاكاة تسجيل المريض
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced Debug System for Patient Portal
+        const DEBUG = {
+            logs: [],
+            panelVisible: true,
+            
+            log: function(step, message, data = null) {
+                const timestamp = new Date().toISOString().slice(11, 23);
+                console.log(`🐛 PATIENT [${timestamp}] ${step}: ${message}`, data || '');
+                this.logs.push({timestamp, step, message, data, type: 'info'});
+                this.updateDebugDisplay();
+            },
+            
+            error: function(step, message, error) {
+                const timestamp = new Date().toISOString().slice(11, 23);
+                console.error(`🐛 PATIENT ERROR [${timestamp}] ${step}: ${message}`, error);
+                this.logs.push({timestamp, step, message: `❌ ${message}`, data: error, type: 'error'});
+                this.updateDebugDisplay();
+            },
+            
+            success: function(step, message, data = null) {
+                const timestamp = new Date().toISOString().slice(11, 23);
+                console.log(`🐛 PATIENT SUCCESS [${timestamp}] ${step}: ${message}`, data || '');
+                this.logs.push({timestamp, step, message: `✅ ${message}`, data, type: 'success'});
+                this.updateDebugDisplay();
+            },
+            
+            updateDebugDisplay: function() {
+                let debugDiv = document.getElementById('debug-panel');
+                if (!debugDiv) {
+                    debugDiv = document.createElement('div');
+                    debugDiv.id = 'debug-panel';
+                    debugDiv.className = 'debug-panel';
+                    document.body.appendChild(debugDiv);
+                }
+                
+                if (!this.panelVisible) {
+                    debugDiv.style.display = 'none';
+                    return;
+                } else {
+                    debugDiv.style.display = 'block';
+                }
+                
+                const recentLogs = this.logs.slice(-15);
+                debugDiv.innerHTML = `
+                    <h4 style="color: #00ff00; margin-bottom: 10px;">🐛 PATIENT DEBUG (${this.logs.length})</h4>
+                    ${recentLogs.map(log => {
+                        const color = log.type === 'error' ? '#ff6b6b' : 
+                                    log.type === 'success' ? '#51cf66' : '#74c0fc';
+                        return `<div style="color: ${color}; margin-bottom: 3px; font-size: 11px;">
+                            [${log.timestamp.slice(-8)}] ${log.step}: ${log.message}
+                        </div>`;
+                    }).join('')}
+                `;
+            },
+            
+            clear: function() {
+                this.logs = [];
+                this.updateDebugDisplay();
+                console.clear();
+            },
+            
+            export: function() {
+                const data = JSON.stringify(this.logs, null, 2);
+                const blob = new Blob([data], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `debug-patient-${new Date().toISOString().slice(0,19)}.json`;
+                a.click();
+            },
+            
+            togglePanel: function() {
+                this.panelVisible = !this.panelVisible;
+                this.updateDebugDisplay();
+            },
+            
+            showPatientSystemInfo: function() {
+                const info = {
+                    page: 'patient-debug',
+                    userAgent: navigator.userAgent,
+                    timestamp: new Date().toISOString(),
+                    firebaseLoaded: typeof firebase !== 'undefined',
+                    screenSize: `${window.innerWidth}x${window.innerHeight}`,
+                    localStorage: Object.keys(localStorage)
+                };
+                this.log('SYSTEM', 'Patient system info', info);
+            }
+        };
+
+        // Initialize Firebase
+        let db;
+        let doctors = [];
+        
+        function initializeFirebase() {
+            DEBUG.log('INIT', 'Initializing Firebase for patient portal...');
+            try {
+                firebase.initializeApp(window.__MC_ENV__.FIREBASE_CONFIG);
+                db = firebase.firestore();
+                DEBUG.success('INIT', 'Firebase initialized');
+            } catch (error) {
+                DEBUG.error('INIT', 'Firebase initialization failed', error);
+            }
+        }
+
+        // Debug test functions
+        function testPatientAuth() {
+            DEBUG.log('TEST_AUTH', 'Testing patient authentication system...');
+            
+            // Test phone number validation
+            const testPhones = ['07701234567', '964771234567', '1234567'];
+            testPhones.forEach(phone => {
+                const isValid = /^(964|0)?7[7-9]\d{8}$/.test(phone.replace(/\s+/g, ''));
+                DEBUG.log('TEST_AUTH', `Phone ${phone}: ${isValid ? 'valid' : 'invalid'}`);
+            });
+            
+            DEBUG.success('TEST_AUTH', 'Phone validation tests completed');
+        }
+
+        async function testDoctorsList() {
+            DEBUG.log('TEST_DOCTORS', 'Testing doctors list loading...');
+            try {
+                const snapshot = await db.collection('doctors').get();
+                const doctorsList = [];
+                snapshot.forEach(doc => {
+                    doctorsList.push({id: doc.id, ...doc.data()});
+                });
+                
+                DEBUG.success('TEST_DOCTORS', `Loaded ${doctorsList.length} doctors`, {
+                    doctors: doctorsList.map(d => ({name: d.name, specialty: d.specialty}))
+                });
+                
+                return doctorsList;
+            } catch (error) {
+                DEBUG.error('TEST_DOCTORS', 'Failed to load doctors', error);
+                return [];
+            }
+        }
+
+        function testBookingSystem() {
+            DEBUG.log('TEST_BOOKING', 'Testing appointment booking system...');
+            
+            // Test appointment slots generation
+            const today = new Date();
+            const slots = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                slots.push(date.toISOString().split('T')[0]);
+            }
+            
+            DEBUG.success('TEST_BOOKING', `Generated ${slots.length} time slots`, {slots});
+        }
+
+        async function testPatientProfile() {
+            DEBUG.log('TEST_PROFILE', 'Testing patient profile system...');
+            
+            try {
+                // Test profile creation structure
+                const mockProfile = {
+                    name: 'مريض تجريبي',
+                    phone: '07701234567',
+                    age: 30,
+                    gender: 'ذكر',
+                    address: 'بغداد',
+                    medicalHistory: 'لا يوجد',
+                    createdAt: new Date().toISOString()
+                };
+                
+                DEBUG.success('TEST_PROFILE', 'Mock patient profile created', mockProfile);
+            } catch (error) {
+                DEBUG.error('TEST_PROFILE', 'Profile test failed', error);
+            }
+        }
+
+        function testFirebaseConnection() {
+            DEBUG.log('TEST_CONNECTION', 'Testing Firebase connection...');
+            
+            try {
+                if (firebase && db) {
+                    DEBUG.success('TEST_CONNECTION', 'Firebase connection OK');
+                    
+                    // Test basic read operation
+                    db.collection('doctors').limit(1).get()
+                        .then(snapshot => {
+                            DEBUG.success('TEST_CONNECTION', 'Database read test successful');
+                        })
+                        .catch(error => {
+                            DEBUG.error('TEST_CONNECTION', 'Database read test failed', error);
+                        });
+                } else {
+                    DEBUG.error('TEST_CONNECTION', 'Firebase not properly initialized');
+                }
+            } catch (error) {
+                DEBUG.error('TEST_CONNECTION', 'Connection test failed', error);
+            }
+        }
+
+        async function loadDoctorsDebug() {
+            DEBUG.log('LOAD_DOCTORS', 'Loading doctors for display...');
+            
+            try {
+                const doctorsList = await testDoctorsList();
+                const container = document.getElementById('doctorsContainer');
+                
+                if (doctorsList.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500">لا يوجد أطباء متاحون</p>';
+                    return;
+                }
+                
+                container.innerHTML = doctorsList.slice(0, 4).map(doctor => `
+                    <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <h4 class="font-bold text-lg">${doctor.name || 'غير محدد'}</h4>
+                        <p class="text-gray-600">${doctor.specialty || 'غير محدد'}</p>
+                        <p class="text-sm text-gray-500">${doctor.experience || 'خبرة غير محددة'}</p>
+                        <p class="text-green-600 font-semibold">${doctor.fee || '0'} ألف دينار</p>
+                        <button onclick="simulateBooking('${doctor.id}')" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            حجز موعد (تجريبي)
+                        </button>
+                    </div>
+                `).join('');
+                
+                DEBUG.success('LOAD_DOCTORS', 'Doctors displayed successfully');
+            } catch (error) {
+                DEBUG.error('LOAD_DOCTORS', 'Failed to load doctors', error);
+            }
+        }
+
+        function simulateBooking(doctorId) {
+            DEBUG.log('SIMULATE_BOOKING', `Simulating booking for doctor ${doctorId}...`);
+            
+            const mockBooking = {
+                doctorId: doctorId,
+                patientName: 'مريض تجريبي',
+                phone: '07701234567',
+                date: new Date().toISOString().split('T')[0],
+                time: '10:00',
+                status: 'pending'
+            };
+            
+            DEBUG.success('SIMULATE_BOOKING', 'Mock booking created', mockBooking);
+            alert('تم حجز الموعد تجريبياً! تحقق من سجل التشخيص.');
+        }
+
+        function simulatePatientRegistration() {
+            const name = document.getElementById('patientName').value;
+            const phone = document.getElementById('patientPhone').value;
+            
+            DEBUG.log('SIMULATE_REG', 'Simulating patient registration...');
+            
+            if (!name || !phone) {
+                DEBUG.error('SIMULATE_REG', 'Missing required fields');
+                alert('يرجى إدخال الاسم ورقم الهاتف');
+                return;
+            }
+            
+            const mockRegistration = {
+                name: name,
+                phone: phone,
+                registeredAt: new Date().toISOString(),
+                status: 'active'
+            };
+            
+            DEBUG.success('SIMULATE_REG', 'Mock patient registered', mockRegistration);
+            alert(`تم تسجيل المريض ${name} تجريبياً!`);
+            
+            // Clear form
+            document.getElementById('patientName').value = '';
+            document.getElementById('patientPhone').value = '';
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            DEBUG.log('PAGE', 'Patient debug page loaded');
+            initializeFirebase();
+            
+            // Auto-load doctors for demonstration
+            setTimeout(loadDoctorsDebug, 1000);
+        };
+    </script>
+</body>
+</html>

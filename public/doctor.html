@@ -50,6 +50,13 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center py-6">
                 <div class="flex items-center space-x-4 space-x-reverse">
+                    <!-- Back Button -->
+                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-all duration-200 mr-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </button>
+                    
                     <div class="bg-green-500 p-3 rounded-full">
                         <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
@@ -103,6 +110,13 @@
             </button>
         </form>
         
+        <!-- Verification Email Section -->
+        <div class="mt-4 text-center">
+            <p class="text-sm text-gray-600 mb-2">لم تتلق بريد التحقق؟</p>
+            <button type="button" id="resendVerificationBtn" class="text-green-600 hover:text-green-700 text-sm font-medium underline">
+                إعادة إرسال بريد التحقق
+            </button>
+        </div>
         
     </div>
 
@@ -423,6 +437,7 @@
     let allAppointments = [];
     let revenueChart = null;
     let visitsChart = null;
+    let isInitialLoad = true;
     const isTestMode = new URLSearchParams(location.search).get('test') === '1';
 
         // Initialize page
@@ -432,6 +447,14 @@
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     try {
+                        // Check if user email is verified or if it's test mode
+                        if (!user.emailVerified && !isTestMode) {
+                            console.log('Email not verified, signing out');
+                            await auth.signOut();
+                            showNotification('يرجى تأكيد بريدك الإلكتروني قبل تسجيل الدخول. تحقق من صندوق الوارد الخاص بك.', 'error');
+                            return;
+                        }
+                        
                         await loadDoctorByEmail(user.email);
                         await loadDoctorAppointments();
                         loadDoctorProfile();
@@ -440,7 +463,10 @@
                         document.getElementById('logoutButton').classList.remove('hidden');
                     } catch (e) {
                         console.error('Error after auth:', e);
-                        showNotification('تعذر تحميل ملف الطبيب', 'error');
+                        // Only show notification if it's not the initial load and not a simple network issue
+                        if (!isInitialLoad && e.code !== 'unavailable' && e.code !== 'permission-denied') {
+                            showNotification('تعذر تحميل ملف الطبيب', 'error');
+                        }
                         await auth.signOut();
                     }
                 } else {
@@ -449,26 +475,13 @@
                     document.getElementById('logoutButton').classList.add('hidden');
                     if (isTestMode) initializeTestMode();
                 }
+                
+                // Mark that initial load is complete
+                isInitialLoad = false;
             });
         });
 
-        // Initialize test mode with sample doctor
-        function initializeTestMode() {
-            // Only if explicitly enabled by query param
-            if (!isTestMode) return;
-            currentDoctor = {
-                id: 'test-doctor-1',
-                name: 'أحمد محمد',
-                specialty: 'طب الأسرة',
-                email: 'ahmed@medconnect.com',
-                consultationFee: 25000
-            };
-            document.getElementById('doctorWelcome').textContent = `مرحباً د. ${currentDoctor.name}`;
-            document.getElementById('doctorLogin').classList.add('hidden');
-            document.getElementById('doctorDashboard').classList.remove('hidden');
-            loadDoctorAppointments();
-            loadDoctorProfile();
-        }
+        
 
         // Set current date
         function setCurrentDate() {
@@ -491,26 +504,22 @@
         // Load doctor profile by email from Firestore
         async function loadDoctorByEmail(email) {
             try {
+                console.log('Loading doctor profile for:', email);
                 const snapshot = await db.collection('doctors').where('email', '==', email).limit(1).get();
+                console.log('Firestore query result:', snapshot.size, 'documents found');
+                
                 if (!snapshot.empty) {
                     const doctorDoc = snapshot.docs[0];
                     currentDoctor = { id: doctorDoc.id, email, ...doctorDoc.data() };
                     document.getElementById('doctorWelcome').textContent = `مرحباً د. ${currentDoctor.name || ''}`;
+                    console.log('Doctor profile loaded successfully:', currentDoctor);
                 } else {
-                    // Create minimal profile if missing
-                    const nameFromEmail = email.split('@')[0];
-                    const newDoc = await db.collection('doctors').add({
-                        email,
-                        name: nameFromEmail,
-                        specialty: 'طب عام',
-                        consultationFee: 15000,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    currentDoctor = { id: newDoc.id, email, name: nameFromEmail, specialty: 'طب عام', consultationFee: 15000 };
-                    document.getElementById('doctorWelcome').textContent = `مرحباً د. ${currentDoctor.name}`;
+                    console.log('No doctor profile found for:', email);
+                    throw new Error('Doctor profile not found. Contact admin to add your profile.');
                 }
             } catch (error) {
                 console.error('Error loading doctor profile:', error);
+                console.error('Error details:', error.code, error.message);
                 throw error;
             }
         }
@@ -528,54 +537,80 @@
             loginButton.textContent = 'جاري تسجيل الدخول...';
 
             try {
-                // Try sign in first
-                await auth.signInWithEmailAndPassword(email, password);
+                console.log('Attempting login for:', email);
+                // Simple Firebase Auth login
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                console.log('Login successful!');
+                console.log('Email verified status:', userCredential.user.emailVerified);
             } catch (error) {
-                console.error('Login error:', error);
-                let errorMessage = 'خطأ في تسجيل الدخول';
+                console.error('Login error:', error.code, error.message);
+                console.error('Full error object:', error);
                 
+                // Simple error handling
                 switch (error.code) {
                     case 'auth/user-not-found':
-                        // First-time setup: Check doctors collection for a matching temp password
-                        try {
-                            const docSnap = await db.collection('doctors').where('email', '==', email).limit(1).get();
-                            if (!docSnap.empty) {
-                                const docRef = docSnap.docs[0].ref;
-                                const doctorData = docSnap.docs[0].data() || {};
-                                if (doctorData.tempPassword && String(doctorData.tempPassword) === String(password)) {
-                                    // Create auth account using temp password, then bind uid to doctor profile and clear tempPassword
-                                    const cred = await auth.createUserWithEmailAndPassword(email, password);
-                                    await docRef.update({ userId: cred.user.uid, tempPassword: firebase.firestore.FieldValue.delete() });
-                                    showNotification('تم تفعيل حساب الطبيب وتسجيل الدخول', 'success');
-                                } else {
-                                    showNotification('كلمة السر المؤقتة غير صحيحة أو غير مضبوطة', 'error');
-                                }
-                            } else {
-                                showNotification('هذا البريد غير موجود ضمن الأطباء', 'error');
-                            }
-                        } catch (createErr) {
-                            console.error('Provision user error:', createErr);
-                            showNotification('تعذر إنشاء الحساب. تحقق من بيانات الطبيب', 'error');
-                        }
+                        showNotification('هذا البريد غير موجود أو لم يتم تفعيله من قبل الإدارة', 'error');
                         break;
                     case 'auth/wrong-password':
-                        errorMessage = 'كلمة المرور غير صحيحة';
+                    case 'auth/invalid-login-credentials':
+                        showNotification('كلمة المرور غير صحيحة', 'error');
                         break;
                     case 'auth/invalid-email':
-                        errorMessage = 'البريد الإلكتروني غير صحيح';
+                        showNotification('البريد الإلكتروني غير صحيح', 'error');
                         break;
                     case 'auth/too-many-requests':
-                        errorMessage = 'محاولات كثيرة، حاول لاحقاً';
+                        showNotification('محاولات كثيرة، حاول لاحقاً', 'error');
                         break;
-                }
-                
-                if (error.code !== 'auth/user-not-found') {
-                    showNotification(errorMessage, 'error');
+                    default:
+                        showNotification('خطأ في تسجيل الدخول: ' + error.message, 'error');
+                        break;
                 }
             } finally {
                 // Re-enable button
                 loginButton.disabled = false;
                 loginButton.textContent = 'تسجيل الدخول';
+            }
+        });
+
+        // Resend verification email
+        document.getElementById('resendVerificationBtn').addEventListener('click', async () => {
+            const email = document.getElementById('doctorEmail').value;
+            const password = document.getElementById('doctorPassword').value;
+            
+            if (!email || !password) {
+                showNotification('يرجى إدخال البريد الإلكتروني وكلمة المرور أولاً', 'error');
+                return;
+            }
+            
+            const button = document.getElementById('resendVerificationBtn');
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = 'جاري الإرسال...';
+            
+            try {
+                // Sign in temporarily to send verification email
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                
+                if (userCredential.user.emailVerified) {
+                    showNotification('البريد الإلكتروني محقق بالفعل، يمكنك تسجيل الدخول', 'success');
+                } else {
+                    await userCredential.user.sendEmailVerification();
+                    showNotification('تم إرسال بريد التحقق، يرجى فحص صندوق الوارد', 'success');
+                }
+                
+                // Sign out immediately after sending email
+                await auth.signOut();
+                
+            } catch (error) {
+                console.error('Error sending verification email:', error);
+                if (error.code === 'auth/invalid-login-credentials') {
+                    showNotification('بيانات الدخول غير صحيحة', 'error');
+                } else {
+                    showNotification('خطأ في إرسال بريد التحقق: ' + error.message, 'error');
+                }
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
             }
         });
 

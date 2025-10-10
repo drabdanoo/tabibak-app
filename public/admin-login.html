@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل دخول الإدارة - MedConnect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="config.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Back Button -->
+    <div class="absolute top-4 left-4">
+        <button onclick="window.location.href='index.html'" class="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            العودة للصفحة الرئيسية
+        </button>
+    </div>
+
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">لوحة الإدارة</h1>
+                <p class="text-gray-600">تسجيل دخول المدير</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="adminLoginForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2">البريد الإلكتروني</label>
+                    <input type="email" id="adminEmail" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        placeholder="admin@medconnect.com">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-medium mb-2">كلمة المرور</label>
+                    <input type="password" id="adminPassword" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        placeholder="••••••••">
+                </div>
+                
+                <button type="submit" id="loginBtn"
+                    class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-[1.02]">
+                    تسجيل الدخول
+                </button>
+            </form>
+
+            <!-- Admin Credentials Display -->
+            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-600 mb-2">بيانات الدخول الافتراضية:</p>
+                <p class="text-xs text-blue-600 font-mono">البريد: <span id="displayEmail">obaidaalluhebe@gmail.com</span></p>
+                <p class="text-xs text-blue-600 font-mono">كلمة المرور: <span id="displayPassword">Admin123!</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50">
+        <span id="notificationText"></span>
+    </div>
+
+    <script>
+        // Initialize Firebase
+        firebase.initializeApp(window.__MC_ENV__.FIREBASE_CONFIG);
+        console.log('Firebase initialized successfully');
+
+        // Admin credentials
+        const ADMIN_CREDENTIALS = {
+            email: 'obaidaalluhebe@gmail.com',
+            password: 'Admin123!'
+        };
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            
+            notificationText.textContent = message;
+            
+            // Set colors based on type
+            notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            
+            // Show notification
+            notification.style.transform = 'translateX(0)';
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+            }, 3000);
+        }
+
+        // Handle login form submission
+        document.getElementById('adminLoginForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('adminEmail').value.trim();
+            const password = document.getElementById('adminPassword').value;
+            const loginBtn = document.getElementById('loginBtn');
+            
+            // Validate inputs
+            if (!email || !password) {
+                showNotification('يرجى إدخال البريد الإلكتروني وكلمة المرور', 'error');
+                return;
+            }
+            
+            // Show loading state
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'جاري التحقق...';
+            
+            try {
+                console.log('🔐 Attempting admin login:', email);
+                
+                // Firebase authentication
+                const auth = firebase.auth();
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                
+                console.log('✅ Authentication successful');
+                
+                // Verify admin email (case-insensitive)
+                if (user.email && user.email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase()) {
+                    console.log('✅ Admin email verified');
+                    
+                    // Store admin session
+                    localStorage.setItem('medconnect_admin_session', JSON.stringify({
+                        email: user.email,
+                        uid: user.uid,
+                        loginTime: Date.now()
+                    }));
+                    
+                    showNotification('مرحباً بك في لوحة الإدارة', 'success');
+                    
+                    // Redirect to admin dashboard after short delay
+                    setTimeout(() => {
+                        window.location.href = 'admin.html';
+                    }, 1500);
+                    
+                } else {
+                    console.log('❌ Email mismatch - User:', user.email, 'Expected:', ADMIN_CREDENTIALS.email);
+                    showNotification('هذا الحساب ليس له صلاحيات إدارية', 'error');
+                    await auth.signOut();
+                }
+                
+            } catch (error) {
+                console.error('❌ Login error:', error);
+                
+                // Handle specific error codes
+                let errorMessage = 'حدث خطأ أثناء تسجيل الدخول';
+                
+                if (error.code === 'auth/wrong-password') {
+                    errorMessage = 'كلمة المرور غير صحيحة';
+                } else if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'لم يتم العثور على هذا المستخدم';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'البريد الإلكتروني غير صحيح';
+                } else if (error.code === 'auth/invalid-credential') {
+                    errorMessage = 'بيانات الدخول غير صحيحة';
+                } else if (error.code === 'auth/network-request-failed') {
+                    errorMessage = 'خطأ في الاتصال بالشبكة';
+                }
+                
+                showNotification(errorMessage, 'error');
+            } finally {
+                // Reset button
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'تسجيل الدخول';
+            }
+        });
+
+        // Auto-fill credentials when clicking on them
+        document.getElementById('displayEmail').addEventListener('click', function() {
+            document.getElementById('adminEmail').value = this.textContent;
+            showNotification('تم نسخ البريد الإلكتروني', 'success');
+        });
+
+        document.getElementById('displayPassword').addEventListener('click', function() {
+            document.getElementById('adminPassword').value = this.textContent;
+            showNotification('تم نسخ كلمة المرور', 'success');
+        });
+
+    </script>
+</body>
+</html>
