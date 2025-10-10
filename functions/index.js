@@ -3,10 +3,27 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 const db = admin.firestore();
 
+// ==== APP CHECK VERIFICATION ====
+
+// Helper function to verify App Check tokens
+function verifyAppCheck(context) {
+  // Check if App Check token is present
+  if (!context.app) {
+    throw new functions.https.HttpsError(
+      "failed-precondition", 
+      "The function must be called from an App Check verified app."
+    );
+  }
+  return true;
+}
+
 // ==== ROLE MANAGEMENT FUNCTIONS ====
 
 // Set user role (admin only)
 exports.setUserRole = functions.https.onCall(async (data, context) => {
+  // Verify App Check token first
+  verifyAppCheck(context);
+  
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Must be authenticated");
   }
@@ -71,6 +88,9 @@ exports.onUserCreate = functions.auth.user().onCreate(async (user) => {
 
 // Get user roles (authenticated users only)
 exports.getUserRole = functions.https.onCall(async (data, context) => {
+  // Verify App Check token first
+  verifyAppCheck(context);
+  
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Must be authenticated");
   }
@@ -97,6 +117,9 @@ exports.getUserRole = functions.https.onCall(async (data, context) => {
 
 // Promote user to doctor (admin only)
 exports.promoteToDoctor = functions.https.onCall(async (data, context) => {
+  // Verify App Check token first
+  verifyAppCheck(context);
+  
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Must be authenticated");
   }
@@ -148,6 +171,9 @@ exports.promoteToDoctor = functions.https.onCall(async (data, context) => {
 // ==== EXISTING APPOINTMENT FUNCTIONS ====
 
 exports.reserveSlot = functions.https.onCall(async (data, context) => {
+  // Verify App Check token first
+  verifyAppCheck(context);
+  
   if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Login required");
   
   const { doctorId, date, slotId, payload } = data || {};
