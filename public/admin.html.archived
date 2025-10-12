@@ -416,6 +416,16 @@
                 // Initialize Firebase Functions
                 const functions = firebase.functions();
                 
+                // Initialize App Check for Cloud Functions security
+                try {
+                    const appCheck = firebase.appCheck();
+                    appCheck.activate(window.__MC_ENV__.APP_CHECK_KEY, true); // true = enable auto-refresh
+                    DEBUG.log('INIT', '✅ App Check activated successfully');
+                } catch (appCheckError) {
+                    DEBUG.error('INIT', 'App Check activation failed', appCheckError);
+                    // Continue without App Check - some functions may fail
+                }
+                
                 DEBUG.log('INIT', '✅ Firebase initialized successfully (including Functions)');
                 
                 // Small delay to ensure everything is ready

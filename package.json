@@ -1,5 +1,20 @@
 {
+  "name": "medconnect-doctor-management",
+  "version": "1.0.0",
+  "description": "Secure command-line tool for managing MedConnect doctors",
+  "main": "manage-doctors.js",
+  "scripts": {
+    "add-doctor": "node manage-doctors.js add",
+    "list-doctors": "node manage-doctors.js list",
+    "delete-doctor": "node manage-doctors.js delete"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0"
+  },
   "devDependencies": {
     "firebase-admin": "^13.5.0"
-  }
+  },
+  "keywords": ["firebase", "medical", "doctor", "management"],
+  "author": "MedConnect Team",
+  "license": "ISC"
 }

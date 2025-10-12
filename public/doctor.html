@@ -3,44 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة الطبيب - MedConnect</title>
+    <title>MedConnect - لوحة الطبيب</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="config.js"></script>
     <style>
         body {
-            box-sizing: border-box;
-        }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .hover-scale {
-            transition: transform 0.2s ease;
-        }
-        .hover-scale:hover {
-            transform: scale(1.02);
-        }
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-confirmed { background: #d1fae5; color: #065f46; }
-        .status-completed { background: #dbeafe; color: #1e40af; }
-        .status-cancelled { background: #fee2e2; color: #991b1b; }
-        .appointment-card {
-            transition: all 0.3s ease;
-            border-left: 4px solid transparent;
-        }
-        .appointment-card.pending { border-left-color: #f59e0b; }
-        .appointment-card.confirmed { border-left-color: #10b981; }
-        .appointment-card.completed { border-left-color: #3b82f6; }
-        .appointment-card.cancelled { border-left-color: #ef4444; }
-        .tab-active {
-            color: #059669 !important;
-            border-bottom-color: #059669 !important;
+            font-family: 'Cairo', sans-serif;
         }
     </style>
 </head>
@@ -109,14 +84,6 @@
                 تسجيل الدخول
             </button>
         </form>
-        
-        <!-- Verification Email Section -->
-        <div class="mt-4 text-center">
-            <p class="text-sm text-gray-600 mb-2">لم تتلق بريد التحقق؟</p>
-            <button type="button" id="resendVerificationBtn" class="text-green-600 hover:text-green-700 text-sm font-medium underline">
-                إعادة إرسال بريد التحقق
-            </button>
-        </div>
         
     </div>
 
@@ -417,8 +384,8 @@
     </div>
 
     <script>
-        // Firebase Configuration
-        const firebaseConfig = {
+    // Firebase Configuration
+        const firebaseConfig = window.__MC_ENV__?.FIREBASE_CONFIG || {
             apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
             authDomain: "medconnect-2.firebaseapp.com",
             projectId: "medconnect-2",
@@ -430,8 +397,23 @@
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
+        // Initialize App Check (optional dev token refresh true)
+        try {
+            const appCheck = firebase.appCheck();
+            const siteKey = window.__MC_ENV__?.APP_CHECK_KEY;
+            if (appCheck && siteKey) {
+                appCheck.activate(siteKey, true);
+                // Log token changes for debugging (no token printed)
+                appCheck.onTokenChanged(() => {
+                    console.log('App Check token acquired/refreshed');
+                });
+            }
+        } catch (e) {
+            console.warn('App Check not initialized:', e?.message || e);
+        }
+
+        const db = firebase.firestore();
+        const auth = firebase.auth();
 
     let currentDoctor = null;
     let allAppointments = [];
@@ -447,13 +429,8 @@
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     try {
-                        // Check if user email is verified or if it's test mode
-                        if (!user.emailVerified && !isTestMode) {
-                            console.log('Email not verified, signing out');
-                            await auth.signOut();
-                            showNotification('يرجى تأكيد بريدك الإلكتروني قبل تسجيل الدخول. تحقق من صندوق الوارد الخاص بك.', 'error');
-                            return;
-                        }
+                        // Force token refresh to get latest custom claims
+                        await user.getIdToken(true);
                         
                         await loadDoctorByEmail(user.email);
                         await loadDoctorAppointments();
@@ -501,10 +478,29 @@
             document.getElementById('doctorDashboard').classList.add('hidden');
         }
 
+        // Ensure App Check token before Firestore access
+        async function ensureAppCheckToken() {
+            try {
+                if (firebase.appCheck) {
+                    const ac = firebase.appCheck();
+                    if (ac && typeof ac.getToken === 'function') {
+                        await ac.getToken(false);
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.error('App Check token error:', err?.code || '', err?.message || err);
+                showNotification('فشل حماية التطبيق (App Check). يرجى تحديث الصفحة أو المحاولة لاحقاً.', 'error');
+            }
+            return false;
+        }
+
         // Load doctor profile by email from Firestore
         async function loadDoctorByEmail(email) {
             try {
                 console.log('Loading doctor profile for:', email);
+                // Wait for App Check token if enforced
+                await ensureAppCheckToken();
                 const snapshot = await db.collection('doctors').where('email', '==', email).limit(1).get();
                 console.log('Firestore query result:', snapshot.size, 'documents found');
                 
@@ -515,11 +511,30 @@
                     console.log('Doctor profile loaded successfully:', currentDoctor);
                 } else {
                     console.log('No doctor profile found for:', email);
-                    throw new Error('Doctor profile not found. Contact admin to add your profile.');
+                    throw new Error('Doctor profile not found. Please contact system administrator for account setup.');
                 }
             } catch (error) {
                 console.error('Error loading doctor profile:', error);
                 console.error('Error details:', error.code, error.message);
+                if (error.code === 'permission-denied') {
+                    console.warn('Access denied reading doctors. Checking App Check...');
+                    // Retry once after a brief delay to allow token propagation
+                    await new Promise(r => setTimeout(r, 500));
+                    try {
+                        await ensureAppCheckToken();
+                        const retrySnap = await db.collection('doctors').where('email', '==', email).limit(1).get();
+                        if (!retrySnap.empty) {
+                            const doctorDoc = retrySnap.docs[0];
+                            currentDoctor = { id: doctorDoc.id, email, ...doctorDoc.data() };
+                            document.getElementById('doctorWelcome').textContent = `مرحباً د. ${currentDoctor.name || ''}`;
+                            console.log('Doctor profile loaded on retry');
+                            return;
+                        }
+                    } catch (retryErr) {
+                        console.error('Retry also failed:', retryErr?.code, retryErr?.message);
+                    }
+                    showNotification('لا يمكن تحميل ملف الطبيب بسبب قيود الأمان. تحقق من اتصالك أو حاول لاحقاً.', 'error');
+                }
                 throw error;
             }
         }
@@ -541,7 +556,6 @@
                 // Simple Firebase Auth login
                 const userCredential = await auth.signInWithEmailAndPassword(email, password);
                 console.log('Login successful!');
-                console.log('Email verified status:', userCredential.user.emailVerified);
             } catch (error) {
                 console.error('Login error:', error.code, error.message);
                 console.error('Full error object:', error);
@@ -571,49 +585,6 @@
                 loginButton.textContent = 'تسجيل الدخول';
             }
         });
-
-        // Resend verification email
-        document.getElementById('resendVerificationBtn').addEventListener('click', async () => {
-            const email = document.getElementById('doctorEmail').value;
-            const password = document.getElementById('doctorPassword').value;
-            
-            if (!email || !password) {
-                showNotification('يرجى إدخال البريد الإلكتروني وكلمة المرور أولاً', 'error');
-                return;
-            }
-            
-            const button = document.getElementById('resendVerificationBtn');
-            const originalText = button.textContent;
-            button.disabled = true;
-            button.textContent = 'جاري الإرسال...';
-            
-            try {
-                // Sign in temporarily to send verification email
-                const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                
-                if (userCredential.user.emailVerified) {
-                    showNotification('البريد الإلكتروني محقق بالفعل، يمكنك تسجيل الدخول', 'success');
-                } else {
-                    await userCredential.user.sendEmailVerification();
-                    showNotification('تم إرسال بريد التحقق، يرجى فحص صندوق الوارد', 'success');
-                }
-                
-                // Sign out immediately after sending email
-                await auth.signOut();
-                
-            } catch (error) {
-                console.error('Error sending verification email:', error);
-                if (error.code === 'auth/invalid-login-credentials') {
-                    showNotification('بيانات الدخول غير صحيحة', 'error');
-                } else {
-                    showNotification('خطأ في إرسال بريد التحقق: ' + error.message, 'error');
-                }
-            } finally {
-                button.disabled = false;
-                button.textContent = originalText;
-            }
-        });
-
         // Tab navigation
         function showTab(tabName) {
             // Hide all tabs
@@ -1599,53 +1570,14 @@
             }
         }
 
-        // Show notification
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-                type === 'success' ? 'bg-green-500 text-white' : 
-                type === 'error' ? 'bg-red-500 text-white' : 
-                'bg-blue-500 text-white'
-            } fade-in`;
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-
-        // Logout
-        async function logout() {
-            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                try {
-                    await auth.signOut();
-                    currentDoctor = null;
-                    document.getElementById('doctorLogin').classList.remove('hidden');
-                    document.getElementById('doctorDashboard').classList.add('hidden');
-                    showNotification('تم تسجيل الخروج بنجاح', 'success');
-                } catch (e) {
-                    showNotification('تعذر تسجيل الخروج', 'error');
+        function formatDate(dateInput) {
+            try {
+                const d = new Date(dateInput);
+                if (Number.isNaN(d.getTime())) {
+                    throw new Error('Invalid date');
                 }
-            }
-        }
-
-        // Helpers: formatting
-        function formatIQD(amount) {
-            try {
-                return new Intl.NumberFormat('ar-IQ', { style: 'currency', currency: 'IQD', maximumFractionDigits: 0 }).format(amount || 0);
-            } catch {
-                return `${(amount || 0).toLocaleString()} د.ع`;
-            }
-        }
-
-        function formatGregorianDate(dateInput) {
-            try {
-                const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-                if (Number.isNaN(d?.getTime?.())) return dateInput || '';
                 return d.toLocaleDateString('ar-IQ-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' });
-            } catch {
+            } catch (error) {
                 return dateInput || '';
             }
         }
