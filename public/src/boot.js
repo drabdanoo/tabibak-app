@@ -7,8 +7,7 @@ export function checkAuthAndRedirect() {
     
     // Protected routes
     const protectedRoutes = {
-        '/doctor.html': 'doctor',
-        '/admin.html': 'admin'
+        '/doctor.html': 'doctor'
     };
     
     auth.onAuthStateChanged(user => {

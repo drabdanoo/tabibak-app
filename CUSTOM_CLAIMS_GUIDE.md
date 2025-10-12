@@ -38,7 +38,7 @@ Once you have admin access, you can:
 
 ## Step 5: Update Your App Files
 
-Your patient.html, doctor.html, and admin.html files should check roles:
+Your patient.html and doctor.html files should check roles (admin functionality moved to CLI):
 
 ```javascript
 // Example role checking

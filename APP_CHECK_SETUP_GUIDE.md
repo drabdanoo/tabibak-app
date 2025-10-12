@@ -41,7 +41,7 @@
 
 In these files:
 - `patient.html` (line ~981)
-- `admin.html` (line ~278)
+- (admin.html archived - now using CLI tool manage-doctors.js)
 - `doctor.html` (line ~443)
 - `test-app-check.html` (line ~127)
 

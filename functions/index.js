@@ -62,18 +62,30 @@ exports.setUserRole = functions.https.onCall(async (data, context) => {
   }
 });
 
-// Auto-assign patient role on user creation
+// Auto-assign patient role on user creation (only if no role already set)
 exports.onUserCreate = functions.auth.user().onCreate(async (user) => {
   try {
-    const defaultRole = "patient";
+    // Check if user already has custom claims (e.g., set by CLI for doctors)
+    const userRecord = await admin.auth().getUser(user.uid);
+    const existingClaims = userRecord.customClaims || {};
     
-    await admin.auth().setCustomUserClaims(user.uid, {
-      patient: true
-    });
+    // Only set patient role if no role is already assigned
+    if (!existingClaims.doctor && !existingClaims.admin && !existingClaims.patient) {
+      const defaultRole = "patient";
+      
+      await admin.auth().setCustomUserClaims(user.uid, {
+        patient: true
+      });
+      
+      functions.logger.info(`Auto-assigned patient role to user ${user.uid}`);
+    } else {
+      functions.logger.info(`User ${user.uid} already has role assigned, skipping auto-assignment`);
+    }
     
+    // Always create/update the user document
     await db.collection("users").doc(user.uid).set({
       uid: user.uid,
-      role: defaultRole,
+      role: existingClaims.doctor ? "doctor" : (existingClaims.admin ? "admin" : "patient"),
       email: user.email || null,
       phoneNumber: user.phoneNumber || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

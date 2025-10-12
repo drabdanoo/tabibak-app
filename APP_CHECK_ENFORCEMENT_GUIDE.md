@@ -10,7 +10,7 @@ App Check protects your Firebase resources by verifying that incoming requests a
 
 ### **1. Client-Side App Check (✅ Already Configured)**
 - **patient.html**: ReCAPTCHA v3 provider initialized
-- **admin.html**: App Check activated with site key
+- **admin functionality**: Moved to CLI tool manage-doctors.js (more secure)
 - **test-app-check.html**: Testing interface available
 
 ### **2. Firestore Rules Enforcement (✅ JUST ADDED)**
