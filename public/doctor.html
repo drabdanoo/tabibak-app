@@ -19,7 +19,9 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-green-50 to-blue-100 min-h-screen">
+ <body class="bg-gradient-to-br from-green-50 to-blue-100 min-h-screen">
+     <!-- Notifications container -->
+     <div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-3"></div>
     <!-- Header -->
     <header class="bg-white shadow-lg border-b-4 border-green-500">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,7 +49,7 @@
                         <p class="text-sm text-gray-600">اليوم</p>
                         <p class="font-semibold text-gray-900" id="currentDate"></p>
                     </div>
-                    <button id="logoutButton" onclick="logout()" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    <button id="logoutButton" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
                         تسجيل الخروج
                     </button>
                 </div>
@@ -384,6 +386,16 @@
     </div>
 
     <script>
+        // Optional: Enable App Check debug token with ?appcheck_debug=1
+        try {
+            const params = new URLSearchParams(location.search);
+            if (params.get('appcheck_debug') === '1') {
+                // Must be set BEFORE appCheck.activate
+                self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+                console.warn('App Check debug mode enabled. Register the debug token shown in console in Firebase App Check.');
+            }
+        } catch (e) {}
+
     // Firebase Configuration
         const firebaseConfig = window.__MC_ENV__?.FIREBASE_CONFIG || {
             apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
@@ -397,13 +409,21 @@
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        // Initialize App Check (optional dev token refresh true)
+        // Initialize App Check with debug mode for development
         try {
             const appCheck = firebase.appCheck();
+            
+            // Enable debug mode for localhost development
+            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+                console.log('App Check debug mode enabled for localhost');
+            }
+            
             const siteKey = window.__MC_ENV__?.APP_CHECK_KEY;
             if (appCheck && siteKey) {
                 appCheck.activate(siteKey, true);
-                // Log token changes for debugging (no token printed)
+                console.log('App Check initialized successfully');
+                // Log token changes for debugging
                 appCheck.onTokenChanged(() => {
                     console.log('App Check token acquired/refreshed');
                 });
@@ -415,6 +435,49 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
 
+        // === Utilities shim (doctor.html) ===
+        window.formatIQD = window.formatIQD || function (value) {
+            const n = Number(value);
+            if (!isFinite(n)) return '0 د.ع';
+            try {
+                return new Intl.NumberFormat('ar-IQ', {
+                    style: 'currency',
+                    currency: 'IQD',
+                    maximumFractionDigits: 0
+                }).format(Math.round(n));
+            } catch (e) {
+                return `${Math.round(n).toLocaleString('ar-IQ')} د.ع`;
+            }
+        };
+
+        window.showNotification = window.showNotification || function (message, type = 'info') {
+            const id = 'toast-container';
+            let c = document.getElementById(id);
+            if (!c) {
+                c = document.createElement('div');
+                c.id = id;
+                c.style.position = 'fixed';
+                c.style.top = '20px';
+                c.style.left = '50%';
+                c.style.transform = 'translateX(-50%)';
+                c.style.zIndex = 9999;
+                c.style.pointerEvents = 'none';
+                document.body.appendChild(c);
+            }
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.className = `px-4 py-3 mb-2 rounded-lg shadow-lg text-white inline-block ${
+                type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-yellow-600' : 'bg-gray-800'
+            }`;
+            toast.style.pointerEvents = 'auto';
+            c.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity .3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
+
     let currentDoctor = null;
     let allAppointments = [];
     let revenueChart = null;
@@ -425,35 +488,45 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', () => {
             setCurrentDate();
+            // Prefer persistent login across sessions unless user logs out
+            try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
+
+            // Wire logout button explicitly
+            const logoutBtn = document.getElementById('logoutButton');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => window.logout && window.logout());
+            }
             // Auth state listener
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
+                    // Force token refresh to get latest custom claims
+                    await user.getIdToken(true);
                     try {
-                        // Force token refresh to get latest custom claims
-                        await user.getIdToken(true);
-                        
-                        await loadDoctorByEmail(user.email);
-                        await loadDoctorAppointments();
-                        loadDoctorProfile();
-                        document.getElementById('doctorLogin').classList.add('hidden');
-                        document.getElementById('doctorDashboard').classList.remove('hidden');
-                        document.getElementById('logoutButton').classList.remove('hidden');
+                        await loadDoctorProfileByUID(user.uid, user.email);
                     } catch (e) {
-                        console.error('Error after auth:', e);
-                        // Only show notification if it's not the initial load and not a simple network issue
-                        if (!isInitialLoad && e.code !== 'unavailable' && e.code !== 'permission-denied') {
-                            showNotification('تعذر تحميل ملف الطبيب', 'error');
+                        console.error('Error loading doctor profile:', e);
+                        if (!isInitialLoad) {
+                            showNotification('تعذر تحميل ملف الطبيب. سيتم تسجيل الخروج.', 'error');
                         }
                         await auth.signOut();
+                        isInitialLoad = false;
+                        return;
                     }
+                    try {
+                        await loadDoctorAppointments();
+                    } catch (e) {
+                        console.error('Error loading appointments:', e);
+                        showNotification('تعذر تحميل المواعيد. يرجى المحاولة لاحقاً.', 'error');
+                    }
+                    document.getElementById('doctorLogin').classList.add('hidden');
+                    document.getElementById('doctorDashboard').classList.remove('hidden');
+                    document.getElementById('logoutButton').classList.remove('hidden');
                 } else {
                     document.getElementById('doctorLogin').classList.remove('hidden');
                     document.getElementById('doctorDashboard').classList.add('hidden');
                     document.getElementById('logoutButton').classList.add('hidden');
                     if (isTestMode) initializeTestMode();
                 }
-                
-                // Mark that initial load is complete
                 isInitialLoad = false;
             });
         });
@@ -495,46 +568,24 @@
             return false;
         }
 
-        // Load doctor profile by email from Firestore
-        async function loadDoctorByEmail(email) {
+        // Load doctor profile by UID from Firestore
+        async function loadDoctorProfileByUID(uid, email) {
             try {
-                console.log('Loading doctor profile for:', email);
-                // Wait for App Check token if enforced
+                console.log('Loading doctor profile for UID:', uid);
                 await ensureAppCheckToken();
-                const snapshot = await db.collection('doctors').where('email', '==', email).limit(1).get();
-                console.log('Firestore query result:', snapshot.size, 'documents found');
-                
-                if (!snapshot.empty) {
-                    const doctorDoc = snapshot.docs[0];
+                const doctorDoc = await db.collection('doctors').doc(uid).get();
+                if (doctorDoc.exists) {
                     currentDoctor = { id: doctorDoc.id, email, ...doctorDoc.data() };
                     document.getElementById('doctorWelcome').textContent = `مرحباً د. ${currentDoctor.name || ''}`;
+                    loadDoctorProfile(); // Consolidated UI population
                     console.log('Doctor profile loaded successfully:', currentDoctor);
                 } else {
-                    console.log('No doctor profile found for:', email);
+                    console.log('No doctor profile found for UID:', uid);
                     throw new Error('Doctor profile not found. Please contact system administrator for account setup.');
                 }
             } catch (error) {
                 console.error('Error loading doctor profile:', error);
-                console.error('Error details:', error.code, error.message);
-                if (error.code === 'permission-denied') {
-                    console.warn('Access denied reading doctors. Checking App Check...');
-                    // Retry once after a brief delay to allow token propagation
-                    await new Promise(r => setTimeout(r, 500));
-                    try {
-                        await ensureAppCheckToken();
-                        const retrySnap = await db.collection('doctors').where('email', '==', email).limit(1).get();
-                        if (!retrySnap.empty) {
-                            const doctorDoc = retrySnap.docs[0];
-                            currentDoctor = { id: doctorDoc.id, email, ...doctorDoc.data() };
-                            document.getElementById('doctorWelcome').textContent = `مرحباً د. ${currentDoctor.name || ''}`;
-                            console.log('Doctor profile loaded on retry');
-                            return;
-                        }
-                    } catch (retryErr) {
-                        console.error('Retry also failed:', retryErr?.code, retryErr?.message);
-                    }
-                    showNotification('لا يمكن تحميل ملف الطبيب بسبب قيود الأمان. تحقق من اتصالك أو حاول لاحقاً.', 'error');
-                }
+                showNotification('لا يمكن تحميل ملف الطبيب بسبب قيود الأمان أو عدم وجود الملف. تحقق من اتصالك أو حاول لاحقاً.', 'error');
                 throw error;
             }
         }
@@ -553,9 +604,30 @@
 
             try {
                 console.log('Attempting login for:', email);
-                // Simple Firebase Auth login
-                const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                console.log('Login successful!');
+                
+                // Retry mechanism for network issues
+                let attempts = 0;
+                const maxAttempts = 3;
+                let userCredential;
+                
+                while (attempts < maxAttempts) {
+                    try {
+                        userCredential = await auth.signInWithEmailAndPassword(email, password);
+                        console.log('Login successful!');
+                        break;
+                    } catch (authError) {
+                        attempts++;
+                        console.log(`Login attempt ${attempts} failed:`, authError.code);
+                        
+                        if (authError.code === 'auth/network-request-failed' && attempts < maxAttempts) {
+                            console.log(`Retrying login in 2 seconds... (attempt ${attempts + 1}/${maxAttempts})`);
+                            loginButton.textContent = `جاري المحاولة ${attempts + 1}/${maxAttempts}...`;
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                        } else {
+                            throw authError;
+                        }
+                    }
+                }
             } catch (error) {
                 console.error('Login error:', error.code, error.message);
                 console.error('Full error object:', error);
@@ -787,7 +859,7 @@
                 ` : ''}
 
                 <div class="flex justify-between items-center">
-                    <button onclick="event.stopPropagation(); showPatientDetails(${JSON.stringify(appointment).replace(/"/g, '&quot;')})" 
+                    <button onclick="event.stopPropagation(); showPatientDetailsById('${appointment.id}')" 
                             class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                         عرض التفاصيل
                     </button>
@@ -848,7 +920,7 @@
                 ` : ''}
 
                 <div class="flex justify-between items-center">
-                    <button onclick="event.stopPropagation(); showPatientDetails(${JSON.stringify(appointment).replace(/"/g, '&quot;')})" 
+                    <button onclick="event.stopPropagation(); showPatientDetailsById('${appointment.id}')" 
                             class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                         عرض التفاصيل
                     </button>
@@ -860,6 +932,17 @@
             `;
 
             return card;
+        }
+
+        // Show patient details by ID (secure - no XSS vulnerability)
+        function showPatientDetailsById(appointmentId) {
+            const appointment = allAppointments.find(a => a.id === appointmentId);
+            if (!appointment) {
+                console.error('Appointment not found:', appointmentId);
+                showNotification('لم يتم العثور على بيانات الموعد', 'error');
+                return;
+            }
+            showPatientDetails(appointment);
         }
 
         // Show patient details
@@ -1032,18 +1115,32 @@
 
         // Calculate revenue
         function calculateRevenue() {
-            const consultationFee = currentDoctor.consultationFee || 15000; // Default fee (IQD)
-            const completedAppointments = allAppointments.filter(apt => apt.status === 'completed');
-            
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
-            
-            const monthlyRevenue = completedAppointments.filter(apt => {
-                const aptDate = new Date(apt.appointmentDate);
-                return aptDate.getMonth() === currentMonth && aptDate.getFullYear() === currentYear;
-            }).length * consultationFee;
+            try {
+                // Use current month YYYY-MM
+                const now = new Date();
+                const ym = now.toISOString().slice(0, 7);
 
-            document.getElementById('monthlyRevenue').textContent = formatIQD(monthlyRevenue);
+                // appointments considered revenue this month
+                const monthly = (Array.isArray(allAppointments) ? allAppointments : []).filter(a => {
+                    if (!a || !a.appointmentDate) return false;
+                    const dateStr = typeof a.appointmentDate === 'string' ? a.appointmentDate : (a.appointmentDate?.toDate ? a.appointmentDate.toDate().toISOString().split('T')[0] : '');
+                    const inMonth = dateStr.startsWith(ym);
+                    // count confirmed and completed for a simple clinic model
+                    return inMonth && (a.status === 'confirmed' || a.status === 'completed');
+                });
+
+                const fee = Number(currentDoctor?.consultationFee) || 15000;
+                const total = monthly.length * fee;
+
+                const el = document.getElementById('monthlyRevenue');
+                if (el) el.textContent = formatIQD(total);
+
+                const thisMonthEl = document.getElementById('thisMonthRevenue');
+                if (thisMonthEl) thisMonthEl.textContent = formatIQD(total);
+            } catch (e) {
+                console.error('calculateRevenue failed', e);
+                try { showNotification('خطأ في حساب الإيرادات', 'error'); } catch (_) {}
+            }
         }
 
         // Load doctor profile
@@ -1129,6 +1226,87 @@
             } catch (error) {
                 console.error('Error changing password:', error);
                 showNotification('خطأ في تغيير كلمة المرور', 'error');
+            }
+        }
+
+        // Logout and reset UI/state (exposed globally for inline onclick)
+        window.logout = async function logout() {
+            const btn = document.getElementById('logoutButton');
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    btn.textContent = 'جارٍ تسجيل الخروج...';
+                }
+
+                // Sign out from Firebase if user exists
+                try {
+                    if (auth?.currentUser) {
+                        await auth.signOut();
+                    }
+                } catch (e) {
+                    console.error('Logout signOut error:', e);
+                }
+
+                // Clear local state
+                currentDoctor = null;
+                allAppointments = [];
+
+                // Destroy charts if present
+                try { if (revenueChart) { revenueChart.destroy(); } } catch (_) {}
+                try { if (visitsChart) { visitsChart.destroy(); } } catch (_) {}
+                revenueChart = null;
+                visitsChart = null;
+
+                // Reset UI to login view
+                const loginEl = document.getElementById('doctorLogin');
+                const dashEl = document.getElementById('doctorDashboard');
+                if (dashEl) dashEl.classList.add('hidden');
+                if (loginEl) loginEl.classList.remove('hidden');
+                if (btn) btn.classList.add('hidden');
+
+                // Close any open modals
+                const patientModal = document.getElementById('patientModal');
+                const followupModal = document.getElementById('followupModal');
+                if (patientModal) { patientModal.classList.add('hidden'); patientModal.classList.remove('flex'); }
+                if (followupModal) { followupModal.classList.add('hidden'); followupModal.classList.remove('flex'); }
+
+                // Reset tabs to dashboard
+                try {
+                    document.querySelectorAll('[id$="Tab"]').forEach(tab => {
+                        tab.classList.remove('tab-active', 'text-green-600', 'border-green-600');
+                        tab.classList.add('text-gray-500');
+                    });
+                    const dashTab = document.getElementById('dashboardTab');
+                    if (dashTab) {
+                        dashTab.classList.add('tab-active', 'text-green-600', 'border-green-600');
+                        dashTab.classList.remove('text-gray-500');
+                    }
+                    const sections = ['dashboardContent','profileContent','analyticsContent','patientsContent'];
+                    sections.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (!el) return;
+                        if (id === 'dashboardContent') el.classList.remove('hidden');
+                        else el.classList.add('hidden');
+                    });
+                } catch (e) {
+                    console.warn('Tab/UI reset warning:', e);
+                }
+
+                // Reset counters and grids
+                ['todayAppointments','pendingAppointments','confirmedAppointments','totalPatients','monthlyRevenue','thisMonthRevenue','lastMonthRevenue','thisYearRevenue','averageMonthlyRevenue']
+                  .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '0'; });
+                ['pendingRequestsGrid','todayAppointmentsGrid','regularPatientsGrid']
+                  .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+
+                // Feedback
+                try { showNotification('تم تسجيل الخروج', 'success'); } catch (_) {}
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btn.textContent = 'تسجيل الخروج';
+                }
             }
         }
 
@@ -1579,6 +1757,26 @@
                 return d.toLocaleDateString('ar-IQ-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' });
             } catch (error) {
                 return dateInput || '';
+            }
+        }
+
+        // Format date in Gregorian calendar (Arabic locale)
+        function formatGregorianDate(dateInput) {
+            try {
+                if (!dateInput) return 'غير محدد';
+                const d = new Date(dateInput);
+                if (Number.isNaN(d.getTime())) {
+                    return dateInput;
+                }
+                return d.toLocaleDateString('ar-IQ-u-ca-gregory', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    weekday: 'long'
+                });
+            } catch (error) {
+                console.error('Error formatting date:', error);
+                return dateInput || 'غير محدد';
             }
         }
 

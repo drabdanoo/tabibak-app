@@ -74,84 +74,83 @@ async function createDoctor(name, email, specialty, options = {}) {
             admin: false
         });
         
-            // Step 3: Create Firestore profile
+            // Step 3: Create Firestore profile with UID as document ID
+            console.log('📄 Creating doctor profile...');
+            const doctorData = {
+                name: name,
+                initials: generateInitials(name),
+                specialty: specialty,
+                phone: options.phone || '',
+                email: email,
+                fee: options.fee || '20',
+                consultationFee: parseInt(options.fee || '20') * 1000,
+                experience: options.experience || '5+ سنوات خبرة',
+                rating: options.rating || '4.5',
+                reviews: options.reviews || '25',
+                location: options.location || 'العيادة الطبية',
+                hours: options.hours || '9:00 ص - 5:00 م',
+                education: options.education || 'بكالوريوس طب وجراحة',
+                languages: options.languages || ['العربية'],
+                specializations: options.specializations || [specialty],
+                about: options.about || `طبيب متخصص في ${specialty} مع خبرة واسعة في المجال الطبي.`,
+                userId: userRecord.uid,
+                accountStatus: 'pending_first_login',
+                tempPasswordSet: true,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
 
-        // Step 4: Create Firestore profile
-        console.log('📄 Creating doctor profile...');
-        const doctorData = {
-            name: name,
-            initials: generateInitials(name),
-            specialty: specialty,
-            phone: options.phone || '',
-            email: email,
-            fee: options.fee || '20',
-            consultationFee: parseInt(options.fee || '20') * 1000,
-            experience: options.experience || '5+ سنوات خبرة',
-            rating: options.rating || '4.5',
-            reviews: options.reviews || '25',
-            location: options.location || 'العيادة الطبية',
-            hours: options.hours || '9:00 ص - 5:00 م',
-            education: options.education || 'بكالوريوس طب وجراحة',
-            languages: options.languages || ['العربية'],
-            specializations: options.specializations || [specialty],
-            about: options.about || `طبيب متخصص في ${specialty} مع خبرة واسعة في المجال الطبي.`,
-            userId: userRecord.uid,
-            accountStatus: 'pending_first_login',
-            tempPasswordSet: true,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        };
-        
-        const doctorRef = await db.collection('doctors').add(doctorData);
-        
-        // Step 4: Add to users collection
-        await db.collection('users').doc(userRecord.uid).set({
-            uid: userRecord.uid,
-            role: 'doctor',
-            email: email,
-            name: name,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-        
-        console.log(`✅ Doctor profile created with ID: ${doctorRef.id}`);
-        
-        // Step 5: Display credentials and instructions
-        console.log('\n' + '='.repeat(60));
-        console.log('🎉 DOCTOR ACCOUNT CREATED SUCCESSFULLY!');
-        console.log('='.repeat(60));
-        console.log(`👨‍⚕️ Doctor: ${name}`);
-        console.log(`📧 Email: ${email}`);
-        console.log(`🔑 Temporary Password: ${tempPassword}`);
-        console.log(`🆔 User ID: ${userRecord.uid}`);
-        console.log(`� Profile ID: ${doctorRef.id}`);
-        console.log('='.repeat(60));
-        
-        console.log('\n📝 NEXT STEPS:');
-        console.log('1. Send the following message to the doctor:');
-        console.log('\n' + '-'.repeat(50));
-        console.log('مرحباً بك في نظام MedConnect الطبي');
-        console.log('');
-        console.log('تم إنشاء حسابك بنجاح:');
-        console.log(`البريد الإلكتروني: ${email}`);
-        console.log(`كلمة المرور المؤقتة: ${tempPassword}`);
-        console.log('');
-        console.log('الرجاء:');
-        console.log('1. تسجيل الدخول: https://medconnect-2.web.app/doctor.html');
-        console.log('2. تغيير كلمة المرور عند أول دخول');
-        console.log('');
-        console.log('مع تحيات فريق MedConnect');
-        console.log('-'.repeat(50));
-        
-        console.log('\n2. Doctor must login and change password immediately');
-        console.log('3. Account will be fully activated after first login\n');
-        
-        return {
-            success: true,
-            uid: userRecord.uid,
-            doctorId: doctorRef.id,
-            tempPassword: tempPassword
-        };
+            // Use UID as document ID for Firestore profile
+            await db.collection('doctors').doc(userRecord.uid).set(doctorData);
+
+            // Add to users collection
+            await db.collection('users').doc(userRecord.uid).set({
+                uid: userRecord.uid,
+                role: 'doctor',
+                email: email,
+                name: name,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            console.log(`✅ Doctor profile created with ID (matches UID): ${userRecord.uid}`);
+
+            // Step 5: Display credentials and instructions
+            console.log('\n' + '='.repeat(60));
+            console.log('🎉 DOCTOR ACCOUNT CREATED SUCCESSFULLY!');
+            console.log('='.repeat(60));
+            console.log(`👨‍⚕️ Doctor: ${name}`);
+            console.log(`📧 Email: ${email}`);
+            console.log(`🔑 Temporary Password: ${tempPassword}`);
+            console.log(`🆔 User ID: ${userRecord.uid}`);
+            console.log(`� Profile ID: ${userRecord.uid}`);
+            console.log('='.repeat(60));
+
+            console.log('\n📝 NEXT STEPS:');
+            console.log('1. Send the following message to the doctor:');
+            console.log('\n' + '-'.repeat(50));
+            console.log('مرحباً بك في نظام MedConnect الطبي');
+            console.log('');
+            console.log('تم إنشاء حسابك بنجاح:');
+            console.log(`البريد الإلكتروني: ${email}`);
+            console.log(`كلمة المرور المؤقتة: ${tempPassword}`);
+            console.log('');
+            console.log('الرجاء:');
+            console.log('1. تسجيل الدخول: https://medconnect-2.web.app/doctor.html');
+            console.log('2. تغيير كلمة المرور عند أول دخول');
+            console.log('');
+            console.log('مع تحيات فريق MedConnect');
+            console.log('-'.repeat(50));
+
+            console.log('\n2. Doctor must login and change password immediately');
+            console.log('3. Account will be fully activated after first login\n');
+
+            return {
+                success: true,
+                uid: userRecord.uid,
+                doctorId: userRecord.uid,
+                tempPassword: tempPassword
+            };
         
     } catch (error) {
         console.error('\n❌ Error creating doctor:', error.message);

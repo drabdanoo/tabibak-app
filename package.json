@@ -9,12 +9,17 @@
     "delete-doctor": "node manage-doctors.js delete"
   },
   "dependencies": {
-    "firebase-admin": "^13.5.0"
+    "firebase-functions": "^6.5.0"
   },
   "devDependencies": {
     "firebase-admin": "^13.5.0"
   },
-  "keywords": ["firebase", "medical", "doctor", "management"],
+  "keywords": [
+    "firebase",
+    "medical",
+    "doctor",
+    "management"
+  ],
   "author": "MedConnect Team",
   "license": "ISC"
 }
