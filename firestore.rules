@@ -25,8 +25,12 @@ service cloud.firestore {
     }
     
     function isDoctor() { 
-      return signedIn() && (request.auth.token.doctor == true || 
-             request.auth.token.email.matches('.*@medconnect.com')); 
+      return signedIn() && request.auth.token.doctor == true; 
+    }
+
+    // Checks if the user is a doctor AND this is their own document
+    function isDoctorForDocument(uid) {
+      return isDoctor() && request.auth.uid == uid;
     }
     
     function isPatient() { 
@@ -60,9 +64,20 @@ service cloud.firestore {
       allow read: if isDoctor(); // Doctors can read patient info
     }
 
-    // Doctors collection - public read for finding doctors
+    // Doctors collection
+    // Publicly readable for published doctors only (listed == true)
+    // Writes restricted to doctors themselves or admins only
     match /doctors/{uid} {
-      allow read, write: if request.auth != null; // Dev: allow any authenticated user
+      // Public can read if listed. Doctor can read their own profile. Admin can read any.
+      // Use signedInWithAppCheck for all authenticated reads.
+      allow read: if resource.data.listed == true || 
+                    (signedInWithAppCheck() && (isDoctorForDocument(uid) || isAdmin()));
+
+      // Only the doctor or an admin can write. App Check is required.
+      allow write: if signedInWithAppCheck() && (isDoctorForDocument(uid) || isAdmin());
+
+      // Only an admin can create.
+      allow create: if signedInWithAppCheck() && isAdmin();
     }
 
     // Appointments collection - dev rules

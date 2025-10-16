@@ -29,12 +29,14 @@ node manage-doctors.js list
 
 ### Delete a Doctor
 ```bash
-# Step 1: Get deletion confirmation command
+# Step 1: Get deletion confirmation and user ID
 node manage-doctors.js delete "ahmed@hospital.com"
 
-# Step 2: Confirm deletion (use the command from step 1)
-node manage-doctors.js delete-confirm "ahmed@hospital.com" "user-id-here"
+# Step 2: Confirm deletion (copy the user ID from step 1)
+node manage-doctors.js delete-confirm "ahmed@hospital.com" "firebase-auth-uid-here"
 ```
+
+> **Note:** For permissions to work correctly, the Firestore document ID for each doctor must match their Firebase Auth UID. The management tool ensures this automatically when creating or deleting accounts.
 
 ## 🔐 Security Features
 

@@ -13,6 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
+    <script src="config.js"></script>
     
     <style>
         body {
@@ -262,207 +263,11 @@
 
             <!-- Doctors Grid -->
             <div id="doctorsGrid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Doctor 1 -->
-                <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
-                    <div class="p-6">
-                        <div class="flex items-center mb-4">
-                            <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
-                                <span class="text-white font-bold text-lg">د.خ</span>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="text-xl font-bold text-gray-900 mb-1">د. خالد هاشم</h3>
-                                <p class="text-blue-600 font-medium">طب الأطفال</p>
-                                <p class="text-sm text-gray-500">12 سنة خبرة</p>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center">
-                                    <span class="text-yellow-500 ml-1">⭐⭐⭐⭐⭐</span>
-                                    <span class="text-sm text-gray-600">4.8 (89 تقييم)</span>
-                                </div>
-                                <span class="text-lg font-bold text-green-600">15 ألف د.ع</span>
-                            </div>
-                            
-                            <div class="text-sm text-gray-600 mb-2">
-                                <div class="flex items-center mb-1">
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    </svg>
-                                    منطقة المثنى - قرب صيدلية الرملة
-                                </div>
-                                <div class="flex items-center">
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    9:00 ص - 5:00 م
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex space-x-2 space-x-reverse">
-                            <button onclick="showDoctorProfile('1')" class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
-                                عرض الملف
-                            </button>
-                            <button onclick="showBookingModal('1')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
-                                احجز موعد
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Doctor 2 -->
-                <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
-                    <div class="p-6">
-                        <div class="flex items-center mb-4">
-                            <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
-                                <span class="text-white font-bold text-lg">د.ص</span>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="text-xl font-bold text-gray-900 mb-1">د. صفوان الهاشمي</h3>
-                                <p class="text-blue-600 font-medium">طب الأطفال</p>
-                                <p class="text-sm text-gray-500">10 سنوات خبرة</p>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center">
-                                    <span class="text-yellow-500 ml-1">⭐⭐⭐⭐⭐</span>
-                                    <span class="text-sm text-gray-600">4.7 (76 تقييم)</span>
-                                </div>
-                                <span class="text-lg font-bold text-green-600">15 ألف د.ع</span>
-                            </div>
-                            
-                            <div class="text-sm text-gray-600 mb-2">
-                                <div class="flex items-center mb-1">
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    </svg>
-                                    منطقة البريد - قرب صيدلية الدانة
-                                </div>
-                                <div class="flex items-center">
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    8:00 ص - 4:00 م
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex space-x-2 space-x-reverse">
-                            <button onclick="showDoctorProfile('2')" class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
-                                عرض الملف
-                            </button>
-                            <button onclick="showBookingModal('2')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
-                                احجز موعد
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Doctor 3 -->
-                <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
-                    <div class="p-6">
-                        <div class="flex items-center mb-4">
-                            <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
-                                <span class="text-white font-bold text-lg">د.و</span>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="text-xl font-bold text-gray-900 mb-1">د. وعد ادريس</h3>
-                                <p class="text-blue-600 font-medium">جراحة الأطفال</p>
-                                <p class="text-sm text-gray-500">15 سنة خبرة</p>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center">
-                                    <span class="text-yellow-500 ml-1">⭐⭐⭐⭐⭐</span>
-                                    <span class="text-sm text-gray-600">4.9 (124 تقييم)</span>
-                                </div>
-                                <span class="text-lg font-bold text-green-600">15 ألف د.ع</span>
-                            </div>
-                            
-                            <div class="text-sm text-gray-600 mb-2">
-                                <div class="flex items-center mb-1">
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    </svg>
-                                    منطقة المصارف - قرب صيدلية لين
-                                </div>
-                                <div class="flex items-center">
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    10:00 ص - 6:00 م
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex space-x-2 space-x-reverse">
-                            <button onclick="showDoctorProfile('3')" class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
-                                عرض الملف
-                            </button>
-                            <button onclick="showBookingModal('3')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
-                                احجز موعد
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Doctor 4 -->
-                <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
-                    <div class="p-6">
-                        <div class="flex items-center mb-4">
-                            <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
-                                <span class="text-white font-bold text-lg">د.ا</span>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="text-xl font-bold text-gray-900 mb-1">د. ايسر المدلج</h3>
-                                <p class="text-blue-600 font-medium">طب الأطفال</p>
-                                <p class="text-sm text-gray-500">8 سنوات خبرة</p>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center">
-                                    <span class="text-yellow-500 ml-1">⭐⭐⭐⭐⭐</span>
-                                    <span class="text-sm text-gray-600">4.6 (63 تقييم)</span>
-                                </div>
-                                <span class="text-lg font-bold text-green-600">15 ألف د.ع</span>
-                            </div>
-                            
-                            <div class="text-sm text-gray-600 mb-2">
-                                <div class="flex items-center mb-1">
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    </svg>
-                                    منطقة المحروق - قرب صيدلية ذهب
-                                </div>
-                                <div class="flex items-center">
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    9:00 ص - 5:00 م
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex space-x-2 space-x-reverse">
-                            <button onclick="showDoctorProfile('4')" class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
-                                عرض الملف
-                            </button>
-                            <button onclick="showBookingModal('4')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
-                                احجز موعد
-                            </button>
-                        </div>
+                <!-- Doctors will be loaded dynamically from Firebase -->
+                <div class="col-span-full flex justify-center items-center py-12">
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p class="text-gray-600">جاري تحميل قائمة الأطباء...</p>
                     </div>
                 </div>
             </div>
@@ -566,7 +371,7 @@
                     <div class="space-y-4">
                         <div class="flex justify-between items-center">
                             <span>الأطباء المسجلين</span>
-                            <span class="font-bold text-2xl">4+</span>
+                            <span class="font-bold text-2xl" id="doctorCount">1</span>
                         </div>
                         <div class="flex justify-between items-center">
                             <span>المرضى الراضين</span>
@@ -602,69 +407,7 @@
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-3">اختر الطبيب</label>
                 <div id="doctorSelection" class="space-y-3">
-                    <div class="doctor-option p-4 border border-blue-500 bg-blue-50 rounded-lg cursor-pointer" onclick="selectDoctor('1')">
-                        <div class="flex items-center">
-                            <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
-                                <span class="text-white font-bold">د.خ</span>
-                            </div>
-                            <div class="flex-1">
-                                <h4 class="font-bold text-gray-900">د. خالد هاشم</h4>
-                                <p class="text-sm text-gray-600">طب الأطفال</p>
-                            </div>
-                            <div class="text-left">
-                                <p class="font-bold text-blue-600">15 ألف د.ع</p>
-                                <p class="text-xs text-gray-500">⭐ 4.8</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="doctor-option p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors" onclick="selectDoctor('2')">
-                        <div class="flex items-center">
-                            <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
-                                <span class="text-white font-bold">د.ص</span>
-                            </div>
-                            <div class="flex-1">
-                                <h4 class="font-bold text-gray-900">د. صفوان الهاشمي</h4>
-                                <p class="text-sm text-gray-600">طب الأطفال</p>
-                            </div>
-                            <div class="text-left">
-                                <p class="font-bold text-blue-600">15 ألف د.ع</p>
-                                <p class="text-xs text-gray-500">⭐ 4.7</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="doctor-option p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors" onclick="selectDoctor('3')">
-                        <div class="flex items-center">
-                            <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
-                                <span class="text-white font-bold">د.و</span>
-                            </div>
-                            <div class="flex-1">
-                                <h4 class="font-bold text-gray-900">د. وعد ادريس</h4>
-                                <p class="text-sm text-gray-600">جراحة الأطفال</p>
-                            </div>
-                            <div class="text-left">
-                                <p class="font-bold text-blue-600">15 ألف د.ع</p>
-                                <p class="text-xs text-gray-500">⭐ 4.9</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="doctor-option p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors" onclick="selectDoctor('4')">
-                        <div class="flex items-center">
-                            <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
-                                <span class="text-white font-bold">د.ا</span>
-                            </div>
-                            <div class="flex-1">
-                                <h4 class="font-bold text-gray-900">د. ايسر المدلج</h4>
-                                <p class="text-sm text-gray-600">طب الأطفال</p>
-                            </div>
-                            <div class="text-left">
-                                <p class="font-bold text-blue-600">15 ألف د.ع</p>
-                                <p class="text-xs text-gray-500">⭐ 4.6</p>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Doctor options will be loaded dynamically -->
                 </div>
             </div>
 
@@ -672,14 +415,14 @@
             <div id="selectedDoctorInfo" class="bg-blue-50 rounded-lg p-4 mb-6">
                 <div class="flex items-center">
                     <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3">
-                        <span class="text-white font-bold" id="selectedDoctorInitials">د.خ</span>
+                        <span class="text-white font-bold" id="selectedDoctorInitials">د.م</span>
                     </div>
                     <div class="flex-1">
-                        <h4 class="font-bold text-gray-900" id="selectedDoctorName">د. خالد هاشم</h4>
-                        <p class="text-sm text-gray-600" id="selectedDoctorSpecialty">طب الأطفال</p>
+                        <h4 class="font-bold text-gray-900" id="selectedDoctorName">يرجى اختيار طبيب</h4>
+                        <p class="text-sm text-gray-600" id="selectedDoctorSpecialty">التخصص</p>
                     </div>
                     <div class="text-left">
-                        <p class="text-lg font-bold text-blue-600"><span id="selectedDoctorFee">15</span> ألف د.ع</p>
+                        <p class="text-lg font-bold text-blue-600"><span id="selectedDoctorFee">0</span> ألف د.ع</p>
                         <p class="text-xs text-gray-500">رسوم الاستشارة</p>
                     </div>
                 </div>
@@ -958,15 +701,7 @@
 
     <script>
         // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
-            authDomain: "medconnect-2.firebaseapp.com",
-            projectId: "medconnect-2",
-            storageBucket: "medconnect-2.firebasestorage.app",
-            messagingSenderId: "464755135042",
-            appId: "1:464755135042:web:ac00e07a1aa0721683d3db",
-            measurementId: "G-1Q7MTPV8XE"
-        };
+        const firebaseConfig = window.__MC_ENV__?.FIREBASE_CONFIG;
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -975,26 +710,84 @@
         
         // Initialize App Check
         const appCheck = firebase.appCheck();
-        appCheck.activate('6Ld-uuErAAAAANeZkP_dGaRzkY4et60EQQ940o0T', true);
+        try {
+            const siteKey = window.__MC_ENV__?.APP_CHECK_KEY;
+            if (siteKey) {
+                // Enable debug only on localhost
+                if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+                }
+                appCheck.activate(siteKey, true);
+            }
+        } catch (e) { console.warn('App Check init skipped:', e?.message || e); }
 
         // Global reCAPTCHA verifier
         let recaptchaVerifier = null;
-
-        // Initialize reCAPTCHA
-        function initializeRecaptcha() {
-            if (!recaptchaVerifier) {
-                recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                    'size': 'invisible',
-                    'callback': function(response) {
-                        console.log('reCAPTCHA solved, can proceed with SMS');
-                    },
-                    'expired-callback': function() {
-                        console.log('reCAPTCHA expired');
-                        recaptchaVerifier = null;
-                    }
-                });
+        let recaptchaInitPromise = null;
+        
+        // OTP Rate Limiting - using sessionStorage for better security
+        const OTP_RATE_LIMIT = {
+            maxAttempts: 3,
+            windowMs: 15 * 60 * 1000, // 15 minutes
+            attempts: JSON.parse(sessionStorage.getItem('medconnect_otp_attempts') || '[]'),
+            
+            canSend() {
+                const now = Date.now();
+                // Filter out attempts older than the window
+                this.attempts = this.attempts.filter(time => now - time < this.windowMs);
+                return this.attempts.length < this.maxAttempts;
+            },
+            
+            recordAttempt() {
+                this.attempts.push(Date.now());
+                // Save to sessionStorage
+                sessionStorage.setItem('medconnect_otp_attempts', JSON.stringify(this.attempts));
+            },
+            
+            getTimeUntilReset() {
+                if (this.attempts.length === 0) return 0;
+                const oldestAttempt = Math.min(...this.attempts);
+                const timeUntilReset = this.windowMs - (Date.now() - oldestAttempt);
+                return Math.max(0, timeUntilReset);
+            },
+            
+            getRemainingAttempts() {
+                const now = Date.now();
+                this.attempts = this.attempts.filter(time => now - time < this.windowMs);
+                return Math.max(0, this.maxAttempts - this.attempts.length);
             }
-            return recaptchaVerifier;
+        };
+
+        // Initialize reCAPTCHA with race condition prevention
+        async function initializeRecaptcha() {
+            if (recaptchaVerifier) return recaptchaVerifier;
+            
+            if (recaptchaInitPromise) return recaptchaInitPromise;
+            
+            recaptchaInitPromise = (async () => {
+                try {
+                    recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                        'size': 'invisible',
+                        'callback': function(response) {
+                            console.log('reCAPTCHA solved, can proceed with SMS');
+                        },
+                        'expired-callback': function() {
+                            console.log('reCAPTCHA expired');
+                            recaptchaVerifier = null;
+                            recaptchaInitPromise = null;
+                        }
+                    });
+                    await recaptchaVerifier.render();
+                    return recaptchaVerifier;
+                } catch (error) {
+                    console.error('reCAPTCHA initialization failed:', error);
+                    recaptchaVerifier = null;
+                    recaptchaInitPromise = null;
+                    throw error;
+                }
+            })();
+            
+            return recaptchaInitPromise;
         }
 
         // Global Variables
@@ -1004,28 +797,77 @@
         let doctors = {};
         let doctorsLoaded = false;
         
-        // Default doctor data (fallback if Firebase fails)
-        const defaultDoctors = {
-            '1': { id: '1', name: 'د. خالد هاشم', specialty: 'طب الأطفال', fee: '15', initials: 'د.خ', phone: '07701234567', email: 'khalid@medconnect.com' },
-            '2': { id: '2', name: 'د. صفوان الهاشمي', specialty: 'طب الأطفال', fee: '15', initials: 'د.ص', phone: '07701234568', email: 'safwan@medconnect.com' },
-            '3': { id: '3', name: 'د. وعد ادريس', specialty: 'جراحة الأطفال', fee: '15', initials: 'د.و', phone: '07701234569', email: 'waad@medconnect.com' },
-            '4': { id: '4', name: 'د. ايسر المدلج', specialty: 'طب الأطفال', fee: '15', initials: 'د.ا', phone: '07701234570', email: 'aysar@medconnect.com' }
-        };
+        // HTML Sanitization function to prevent XSS
+        function sanitizeHtml(text) {
+            const temp = document.createElement('div');
+            temp.textContent = text;
+            return temp.innerHTML;
+        }
+        
+        // Update statistics based on actual data
+        function updateStatistics() {
+            const doctorCount = Object.keys(doctors).length;
+            const doctorCountEl = document.getElementById('doctorCount');
+            if (doctorCountEl) {
+                doctorCountEl.textContent = doctorCount;
+            }
+        }
+        
+      
         
         // Load doctors from Firebase
         async function loadDoctors() {
             try {
-                console.log('Loading doctors from Firebase...');
-                const snapshot = await db.collection('doctors').get();
+                // Loading doctors from Firebase
+                
+                // Show loading state
+                const doctorsGrid = document.getElementById('doctorsGrid');
+                if (doctorsGrid) {
+                    doctorsGrid.innerHTML = `
+                        <div class="col-span-full flex justify-center items-center py-12">
+                            <div class="text-center">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                <p class="text-gray-600">جاري تحميل قائمة الأطباء...</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                const allowEmails = window.__MC_ENV__?.ALLOWED_DOCTOR_EMAILS || [];
+                const allowIds = window.__MC_ENV__?.ALLOWED_DOCTOR_IDS || [];
+                let snapshot;
+                if (Array.isArray(allowIds) && allowIds.length > 0) {
+                    // Fetch by IDs (rules allow only listed==true, so non-listed will be denied)
+                    const promises = allowIds.map(id => db.collection('doctors').doc(id).get());
+                    const docs = (await Promise.all(promises)).filter(d => d.exists && (d.data()?.listed === true));
+                    snapshot = { empty: docs.length === 0, docs };
+                } else {
+                    // Base query: only published doctors
+                    const baseSnap = await db.collection('doctors').where('listed', '==', true).get();
+                    let docs = baseSnap.docs;
+                    // Optional allowlist email filter (client-side to avoid composite index needs)
+                    if (Array.isArray(allowEmails) && allowEmails.length > 0) {
+                        const allowedSet = new Set(allowEmails.map(e => String(e).toLowerCase()));
+                        docs = docs.filter(d => allowedSet.has(String(d.data()?.email || '').toLowerCase()));
+                    }
+                    snapshot = { empty: docs.length === 0, docs };
+                }
                 
                 if (snapshot.empty) {
-                    console.log('No doctors found in Firebase, using defaults');
-                    doctors = { ...defaultDoctors };
+                    // No allowed doctors found in Firebase
+                    doctors = {};
                 } else {
                     doctors = {};
-                    snapshot.forEach(doc => {
+                    snapshot.docs.forEach(doc => {
                         const data = doc.data();
-                        console.log('Processing doctor:', data.name, 'Email:', data.email, 'Fee:', data.fee);
+                        
+                        // Validate required doctor data
+                        if (!data || !data.name || !data.email || !data.specialty) {
+                            console.warn('Invalid doctor data, skipping:', doc.id);
+                            return;
+                        }
+                        
+                        // Processing doctor data
                         // Generate initials if not provided
                         const initials = data.initials || generateInitials(data.name);
                         // Set default fee if not provided
@@ -1044,38 +886,41 @@
                             reviews: data.reviews || '50',
                             location: data.location || 'العيادة الطبية',
                             hours: data.hours || '9:00 ص - 5:00 م',
-                            education: data.education || 'بكالوريوس طب وجراحة',
+                            education: data.education || 'بكالوريوस طب وجراحة',
                             specializations: data.specializations || [data.specialty],
                             languages: data.languages || ['العربية'],
                             about: data.about || `طبيب متخصص في ${data.specialty} مع خبرة واسعة في المجال الطبي.`
                         };
                     });
-                    console.log(`Loaded ${Object.keys(doctors).length} doctors from Firebase`);
+                    // Loaded doctors from Firebase
                 }
                 
                 doctorsLoaded = true;
                 
-                // Set default selected doctor to first available
+                // Set default selected doctor if available
                 if (!selectedDoctorId && Object.keys(doctors).length > 0) {
                     selectedDoctorId = Object.keys(doctors)[0];
+                } else if (Object.keys(doctors).length === 0) {
+                    selectedDoctorId = null;
                 }
                 
                 // Update UI
                 updateDoctorGrid();
                 updateDoctorSelection();
+                updateStatistics();
                 
             } catch (error) {
                 console.error('Error loading doctors from Firebase:', error);
-                console.log('Falling back to default doctors');
-                doctors = { ...defaultDoctors };
+                console.log('No doctors displayed due to load error (allowlist enforced)');
                 doctorsLoaded = true;
-                selectedDoctorId = '1';
+                selectedDoctorId = null;
                 
                 // Update UI with fallback data
                 updateDoctorGrid();
                 updateDoctorSelection();
+                updateStatistics();
                 
-                showNotification('تم تحميل قائمة الأطباء الافتراضية', 'info');
+                showNotification('لا تتوفر قائمة أطباء حالياً', 'info');
             }
         }
         
@@ -1182,6 +1027,20 @@
             
             doctorsGrid.innerHTML = '';
             
+            // Check if there are no doctors to display
+            if (Object.keys(doctors).length === 0) {
+                doctorsGrid.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">لا يوجد أطباء متاحين حالياً</h3>
+                        <p class="text-gray-600">يرجى المحاولة مرة أخرى لاحقاً</p>
+                    </div>
+                `;
+                return;
+            }
+            
             Object.values(doctors).forEach(doctor => {
                 const doctorCard = document.createElement('div');
                 doctorCard.className = 'bg-white rounded-xl shadow-sm border card-hover fade-in';
@@ -1192,8 +1051,8 @@
                                 <span class="text-white font-bold text-lg">${doctor.initials}</span>
                             </div>
                             <div class="flex-1">
-                                <h3 class="text-xl font-bold text-gray-900 mb-1">${doctor.name}</h3>
-                                <p class="text-blue-600 font-medium">${doctor.specialty}</p>
+                                <h3 class="text-xl font-bold text-gray-900 mb-1">${sanitizeHtml(doctor.name)}</h3>
+                                <p class="text-blue-600 font-medium">${sanitizeHtml(doctor.specialty)}</p>
                             </div>
                         </div>
                         
@@ -1203,19 +1062,19 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                 </svg>
-                                <span class="text-sm">${doctor.location || 'العيادة الطبية'}</span>
+                                <span class="text-sm">${sanitizeHtml(doctor.location || 'العيادة الطبية')}</span>
                             </div>
                             <div class="flex items-center text-gray-600">
                                 <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
-                                <span class="text-sm">${doctor.hours || '9:00 ص - 5:00 م'}</span>
+                                <span class="text-sm">${sanitizeHtml(doctor.hours || '9:00 ص - 5:00 م')}</span>
                             </div>
                             <div class="flex items-center text-gray-600">
                                 <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
                                 </svg>
-                                <span class="text-sm font-medium">${doctor.fee} ألف د.ع</span>
+                                <span class="text-sm font-medium">${sanitizeHtml(doctor.fee)} ألف د.ع</span>
                             </div>
                         </div>
                         
@@ -1264,9 +1123,9 @@
                             <span class="text-white font-bold">${doctor.initials}</span>
                         </div>
                         <div class="flex-1">
-                            <h4 class="font-bold text-gray-900">${doctor.name}</h4>
-                            <p class="text-blue-600 text-sm">${doctor.specialty}</p>
-                            <p class="text-gray-500 text-xs">${doctor.fee} ألف د.ع</p>
+                            <h4 class="font-bold text-gray-900">${sanitizeHtml(doctor.name)}</h4>
+                            <p class="text-blue-600 text-sm">${sanitizeHtml(doctor.specialty)}</p>
+                            <p class="text-gray-500 text-xs">${sanitizeHtml(doctor.fee)} ألف د.ع</p>
                         </div>
                     </div>
                 `;
@@ -1294,7 +1153,7 @@
             }
             
             // Check if user is logged in
-            const currentUser = localStorage.getItem('medconnect_current_user');
+            const currentUser = sessionStorage.getItem('medconnect_current_user');
             if (!currentUser) {
                 showNotification('يرجى تسجيل الدخول أولاً لحجز موعد', 'error');
                 closeBookingModal();
@@ -1313,6 +1172,18 @@
             
             const otherConditions = document.getElementById('otherConditions').value;
             if (otherConditions) chronicConditions.push(otherConditions);
+            
+            // Validate appointment date is not in the past
+            const appointmentDate = document.getElementById('appointmentDate').value;
+            const selectedDate = new Date(appointmentDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Reset time to start of day
+            selectedDate.setHours(0, 0, 0, 0); // Reset time to start of day
+            
+            if (selectedDate < today) {
+                showNotification('لا يمكن حجز موعد في الماضي. يرجى اختيار تاريخ اليوم أو تاريخ مستقبلي', 'error');
+                return;
+            }
             
             const appointmentData = {
                 doctorId: selectedDoctorId,
@@ -1343,51 +1214,82 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'جاري إرسال الطلب...';
             
-            try {
-                // Check for conflicting appointments (only confirmed ones)
-                const conflictQuery = await db.collection('appointments')
-                    .where('doctorId', '==', selectedDoctorId)
-                    .where('appointmentDate', '==', appointmentData.appointmentDate)
-                    .where('appointmentTime', '==', selectedTimeSlot)
-                    .where('status', 'in', ['confirmed', 'awaiting_confirmation'])
-                    .get();
-                
-                if (!conflictQuery.empty) {
-                    showNotification('هذا الموعد محجوز بالفعل أو في انتظار التأكيد. يرجى اختيار وقت آخر', 'error');
-                    return;
-                }
-                
-                // Save appointment to Firestore
-                const docRef = await db.collection('appointments').add(appointmentData);
-                
-                // Update appointment with document ID
-                await docRef.update({
-                    firestoreId: docRef.id
-                });
-                
-                const doctor = doctors[selectedDoctorId];
-                showNotification(`✅ تم إرسال طلب الحجز بنجاح!\n\nسيتم التواصل معك لتأكيد الموعد مع ${doctor.name}\nرقم الطلب: ${appointmentData.appointmentId}`, 'success');
-                
-                closeBookingModal();
-                
-            } catch (error) {
-                console.error('Error booking appointment:', error);
-                let errorMessage = 'حدث خطأ أثناء إرسال طلب الحجز. يرجى المحاولة مرة أخرى';
-                
-                // Handle specific Firebase errors
-                if (error.code === 'permission-denied') {
-                    errorMessage = 'ليس لديك صلاحية لحجز المواعيد. يرجى تسجيل الدخول مرة أخرى';
-                } else if (error.code === 'unavailable') {
-                    errorMessage = 'الخدمة غير متاحة حالياً. يرجى المحاولة لاحقاً';
-                } else if (error.message && error.message.includes('network')) {
-                    errorMessage = 'مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى';
-                }
-                
-                showNotification(errorMessage, 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'إرسال طلب الحجز';
+            // Implement retry logic with exponential backoff
+            let retries = 3;
+            let attempt = 0;
+            
+            while (retries > 0) {
+                attempt++;
+                try {
+                    // Update button text to show attempt
+                    if (attempt > 1) {
+                        submitBtn.textContent = `جاري المحاولة ${attempt}/3...`;
+                    }
+                    
+                    // Check for conflicting appointments (only confirmed ones)
+                    const conflictQuery = await db.collection('appointments')
+                        .where('doctorId', '==', selectedDoctorId)
+                        .where('appointmentDate', '==', appointmentData.appointmentDate)
+                        .where('appointmentTime', '==', selectedTimeSlot)
+                        .where('status', 'in', ['confirmed', 'awaiting_confirmation'])
+                        .get();
+                    
+                    if (!conflictQuery.empty) {
+                        showNotification('هذا الموعد محجوز بالفعل أو في انتظار التأكيد. يرجى اختيار وقت آخر', 'error');
+                        return;
+                    }
+                    
+                    // Save appointment to Firestore
+                    const docRef = await db.collection('appointments').add(appointmentData);
+                    
+                    // Update appointment with document ID
+                    await docRef.update({
+                        firestoreId: docRef.id
+                    });
+                    
+                    const doctor = doctors[selectedDoctorId];
+                    showNotification(`✅ تم إرسال طلب الحجز بنجاح!\n\nسيتم التواصل معك لتأكيد الموعد مع ${doctor.name}\nرقم الطلب: ${appointmentData.appointmentId}`, 'success');
+                    
+                    closeBookingModal();
+                    return; // Success - exit retry loop
+                    
+                } catch (error) {
+                    retries--;
+                    console.error(`Booking attempt ${attempt} failed:`, error);
+                    
+                    // Check if we should retry
+                    const isRetryableError = error.code === 'unavailable' || 
+                                           error.code === 'deadline-exceeded' ||
+                                           (error.message && error.message.includes('network'));
+                    
+                    if (isRetryableError && retries > 0) {
+                        // Exponential backoff: wait 1s, 2s, 4s
+                        const delay = Math.pow(2, attempt - 1) * 1000;
+                        showNotification(`فشل في الإرسال، جاري المحاولة مرة أخرى خلال ${delay/1000} ثانية...`, 'info');
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    
+                    // If not retryable or no more retries, handle the error
+                    let errorMessage = 'حدث خطأ أثناء إرسال طلب الحجز. يرجى المحاولة مرة أخرى';
+                    
+                    // Handle specific Firebase errors
+                    if (error.code === 'permission-denied') {
+                        errorMessage = 'ليس لديك صلاحية لحجز المواعيد. يرجى تسجيل الدخول مرة أخرى';
+                    } else if (error.code === 'unavailable') {
+                        errorMessage = 'الخدمة غير متاحة حالياً. يرجى المحاولة لاحقاً';
+                    } else if (error.message && error.message.includes('network')) {
+                        errorMessage = 'مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى';
+                    }
+                    
+                    showNotification(errorMessage, 'error');
+                    break;
+                } 
             }
+            
+            // Reset button state
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'إرسال طلب الحجز';
         }
         
         function generateAppointmentId() {
@@ -1429,9 +1331,9 @@
                     <div class="w-24 h-24 doctor-avatar rounded-full flex items-center justify-center mx-auto mb-4">
                         <span class="text-white font-bold text-2xl">${doctor.initials}</span>
                     </div>
-                    <h2 class="text-3xl font-bold text-gray-900 mb-2">${doctor.name}</h2>
-                    <p class="text-xl text-blue-600 font-medium mb-2">${doctor.specialty}</p>
-                    <p class="text-gray-600 mb-4">${doctor.experience}</p>
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">${sanitizeHtml(doctor.name)}</h2>
+                    <p class="text-xl text-blue-600 font-medium mb-2">${sanitizeHtml(doctor.specialty)}</p>
+                    <p class="text-gray-600 mb-4">${sanitizeHtml(doctor.experience)}</p>
                     
                     <div class="flex items-center justify-center mb-4">
                         <span class="text-yellow-500 ml-2">⭐⭐⭐⭐⭐</span>
@@ -1439,7 +1341,7 @@
                     </div>
                     
                     <div class="bg-green-50 rounded-lg p-4 inline-block">
-                        <p class="text-2xl font-bold text-green-600">${doctor.fee}</p>
+                        <p class="text-2xl font-bold text-green-600">${sanitizeHtml(doctor.fee)}</p>
                         <p class="text-sm text-gray-600">رسوم الاستشارة</p>
                     </div>
                 </div>
@@ -1456,13 +1358,13 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                     </svg>
-                                    <span class="text-gray-700">${doctor.location}</span>
+                                    <span class="text-gray-700">${sanitizeHtml(doctor.location)}</span>
                                 </div>
                                 <div class="flex items-start">
                                     <svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
-                                    <span class="text-gray-700">${doctor.hours}</span>
+                                    <span class="text-gray-700">${sanitizeHtml(doctor.hours)}</span>
                                 </div>
                                 <div class="flex items-start">
                                     <svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1537,6 +1439,14 @@
                 return;
             }
             
+            // Check rate limiting
+            if (!OTP_RATE_LIMIT.canSend()) {
+                const timeUntilReset = OTP_RATE_LIMIT.getTimeUntilReset();
+                const minutesLeft = Math.ceil(timeUntilReset / (60 * 1000));
+                showNotification(`تم تجاوز حد إرسال الرسائل. يرجى المحاولة مرة أخرى خلال ${minutesLeft} دقيقة`, 'error');
+                return;
+            }
+            
             const loginBtn = event.target.querySelector('button[type="submit"]');
             loginBtn.disabled = true;
             loginBtn.textContent = 'جاري إرسال رمز التحقق...';
@@ -1550,11 +1460,14 @@
                 localStorage.setItem('medconnect_login_phone', phone);
                 
                 // Initialize and get reCAPTCHA verifier
-                const appVerifier = initializeRecaptcha();
+                const appVerifier = await initializeRecaptcha();
                 
                 // Send SMS verification for login
                 showNotification('جاري إرسال رمز التحقق...', 'info');
                 confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
+                
+                // Record successful OTP attempt
+                OTP_RATE_LIMIT.recordAttempt();
                 
                 console.log('Login SMS sent successfully');
                 closeLoginModal();
@@ -1596,6 +1509,14 @@
                 return;
             }
             
+            // Check rate limiting
+            if (!OTP_RATE_LIMIT.canSend()) {
+                const timeUntilReset = OTP_RATE_LIMIT.getTimeUntilReset();
+                const minutesLeft = Math.ceil(timeUntilReset / (60 * 1000));
+                showNotification(`تم تجاوز حد إرسال الرسائل. يرجى المحاولة مرة أخرى خلال ${minutesLeft} دقيقة`, 'error');
+                return;
+            }
+            
             const registerBtn = document.getElementById('registerBtn');
             registerBtn.disabled = true;
             registerBtn.textContent = 'جاري إنشاء الحساب...';
@@ -1612,11 +1533,14 @@
                 console.log('Attempting to send SMS to:', internationalPhone);
                 
                 // Initialize and get reCAPTCHA verifier
-                const appVerifier = initializeRecaptcha();
+                const appVerifier = await initializeRecaptcha();
                 
                 // Send SMS verification
                 showNotification('جاري إرسال رمز التحقق...', 'info');
                 confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
+                
+                // Record successful OTP attempt
+                OTP_RATE_LIMIT.recordAttempt();
                 
                 console.log('SMS sent successfully');
                 closeRegisterModal();
@@ -1734,7 +1658,7 @@
                                 verified: true
                             };
                             
-                            localStorage.setItem('medconnect_current_user', JSON.stringify(existingUser));
+                            sessionStorage.setItem('medconnect_current_user', JSON.stringify(existingUser));
                             localStorage.removeItem('medconnect_login_phone');
                             localStorage.removeItem('medconnect_is_login');
                             
@@ -1773,8 +1697,8 @@
                         verified: true
                     };
                     
-                    // Store user data locally
-                    localStorage.setItem('medconnect_current_user', JSON.stringify(newUser));
+                    // Store user data in session storage (more secure)
+                    sessionStorage.setItem('medconnect_current_user', JSON.stringify(newUser));
                     
                     // Clean up temporary data
                     localStorage.removeItem('medconnect_temp_user');
@@ -1872,6 +1796,15 @@
         }
 
         async function resendVerificationCode() {
+            // Check rate limiting
+            if (!OTP_RATE_LIMIT.canSend()) {
+                const timeUntilReset = OTP_RATE_LIMIT.getTimeUntilReset();
+                const minutesLeft = Math.ceil(timeUntilReset / (60 * 1000));
+                const remainingAttempts = OTP_RATE_LIMIT.getRemainingAttempts();
+                showNotification(`تم تجاوز حد إرسال الرسائل (${remainingAttempts} محاولة متبقية). يرجى المحاولة مرة أخرى خلال ${minutesLeft} دقيقة`, 'error');
+                return;
+            }
+            
             const phone = document.getElementById('verificationPhoneNumber').textContent;
             const resendBtn = document.getElementById('resendBtn');
             
@@ -1900,11 +1833,14 @@
                 }
                 
                 // Initialize new reCAPTCHA verifier
-                const appVerifier = initializeRecaptcha();
+                const appVerifier = await initializeRecaptcha();
                 
                 // Send new SMS verification
                 showNotification('جاري إرسال رمز جديد...', 'info');
                 confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
+                
+                // Record successful OTP attempt
+                OTP_RATE_LIMIT.recordAttempt();
                 
                 console.log('SMS resent successfully');
                 showNotification('✅ تم إرسال رمز جديد إلى هاتفك', 'success');
@@ -1955,12 +1891,12 @@
         }
 
         function logout() {
-            localStorage.removeItem('medconnect_current_user');
+            sessionStorage.removeItem('medconnect_current_user');
             location.reload();
         }
         
         async function showUserAppointments() {
-            const currentUser = localStorage.getItem('medconnect_current_user');
+            const currentUser = sessionStorage.getItem('medconnect_current_user');
             if (!currentUser) {
                 showNotification('يرجى تسجيل الدخول أولاً', 'error');
                 return;
@@ -2157,10 +2093,86 @@
             }
         }
         
-        function showAppointmentDetails(appointmentId) {
-            // This could open a detailed view modal
-            console.log('Show details for appointment:', appointmentId);
-            showNotification('تفاصيل الموعد ستكون متاحة قريباً', 'info');
+        async function showAppointmentDetails(appointmentId) {
+            try {
+                const appointmentDoc = await db.collection('appointments').doc(appointmentId).get();
+                
+                if (!appointmentDoc.exists) {
+                    showNotification('لم يتم العثور على تفاصيل الموعد', 'error');
+                    return;
+                }
+                
+                const appointment = appointmentDoc.data();
+                const doctor = doctors[appointment.doctorId];
+                
+                const statusTexts = {
+                    'awaiting_confirmation': 'في انتظار تأكيد الطبيب',
+                    'confirmed': 'مؤكد',
+                    'cancelled': 'ملغي',
+                    'completed': 'مكتمل',
+                    'pending': 'في الانتظار'
+                };
+                
+                const detailsHTML = `
+                    <div class="bg-white p-6 rounded-lg">
+                        <h3 class="text-xl font-bold mb-4">تفاصيل الموعد</h3>
+                        
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <div><strong>رقم الحجز:</strong> ${sanitizeHtml(appointment.appointmentId)}</div>
+                            <div><strong>الحالة:</strong> ${statusTexts[appointment.status] || 'غير محدد'}</div>
+                            <div><strong>اسم الطبيب:</strong> ${sanitizeHtml(appointment.doctorName)}</div>
+                            <div><strong>التخصص:</strong> ${sanitizeHtml(appointment.doctorSpecialty)}</div>
+                            <div><strong>التاريخ:</strong> ${appointment.appointmentDate}</div>
+                            <div><strong>الوقت:</strong> ${appointment.appointmentTime}</div>
+                            <div><strong>اسم المريض:</strong> ${sanitizeHtml(appointment.patientName)}</div>
+                            <div><strong>العمر:</strong> ${appointment.patientAge} سنة</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <strong>سبب الزيارة:</strong>
+                            <p class="bg-gray-50 p-3 rounded mt-2">${sanitizeHtml(appointment.reason)}</p>
+                        </div>
+                        
+                        ${appointment.allergies ? `
+                            <div class="mb-4">
+                                <strong>الحساسية:</strong>
+                                <p class="bg-red-50 p-3 rounded mt-2">${sanitizeHtml(appointment.allergies)}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${appointment.currentMedications ? `
+                            <div class="mb-4">
+                                <strong>الأدوية الحالية:</strong>
+                                <p class="bg-blue-50 p-3 rounded mt-2">${sanitizeHtml(appointment.currentMedications)}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                // Create and show modal
+                const modal = document.createElement('div');
+                modal.className = 'modal show';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-2xl font-bold text-gray-900">تفاصيل الموعد</h3>
+                            <button onclick="this.closest('.modal').remove(); document.body.style.overflow='auto'" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        ${detailsHTML}
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                document.body.style.overflow = 'hidden';
+                
+            } catch (error) {
+                console.error('Error loading appointment details:', error);
+                showNotification('حدث خطأ في تحميل تفاصيل الموعد', 'error');
+            }
         }
 
         // Tab Management
@@ -2205,11 +2217,21 @@
             });
         }
         
-        // Add real-time search functionality
+        // Add real-time search functionality with debouncing
+        let searchTimeout;
+        
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('searchInput');
             if (searchInput) {
-                searchInput.addEventListener('input', filterDoctors);
+                searchInput.addEventListener('input', function() {
+                    // Clear existing timeout
+                    clearTimeout(searchTimeout);
+                    
+                    // Set new timeout for debounced search
+                    searchTimeout = setTimeout(function() {
+                        filterDoctors();
+                    }, 300); // Wait 300ms after user stops typing
+                });
             }
             
             const specialtyFilter = document.getElementById('specialtyFilter');
@@ -2250,29 +2272,12 @@
                 // Load doctors from Firebase
                 loadDoctors();
                 
-                // Show ready notification
-                setTimeout(() => {
-                    showNotification('✅ Firebase مُكوّن بنجاح! يمكنك الآن التسجيل وستصلك رسائل SMS حقيقية', 'success');
-                }, 1000);
-            } else {
-                statusElement.textContent = '⚠️ يجب تكوين Firebase';
-                statusElement.className = 'connection-status disconnected';
                 
-                // Load default doctors as fallback
-                doctors = { ...defaultDoctors };
-                doctorsLoaded = true;
-                selectedDoctorId = '1';
-                updateDoctorGrid();
-                updateDoctorSelection();
                 
-                // Show setup instructions
-                setTimeout(() => {
-                    showNotification('يرجى إضافة بيانات مشروع Firebase الخاص بك في الكود لتفعيل إرسال الرسائل النصية', 'error');
-                }, 1000);
             }
             
             // Check if user is already logged in
-            const currentUser = localStorage.getItem('medconnect_current_user');
+            const currentUser = sessionStorage.getItem('medconnect_current_user');
             if (currentUser) {
                 const user = JSON.parse(currentUser);
                 updateUserInterface(user);

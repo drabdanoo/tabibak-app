@@ -14,14 +14,27 @@
       messagingSenderId: "464755135042",
       appId: "1:464755135042:web:ac00e07a1aa0721683d3db",
       measurementId: "G-1Q7MTPV8XE"
-    }
+    },
+    // Allowed public doctors on patient page (by email). Keep this list small (<=10) for Firestore 'in' queries.
+    // Update this to your real doctor(s). Example prefilled with the doctor used in testing.
+    ALLOWED_DOCTOR_EMAILS: [
+      "vipsnapchat69@gmail.com",
+      "obaidaalluhebe@gmail.com",
+      "dr.abdanoo@gmail.com"
+    ],
+    // Alternatively, allow by Firestore document IDs (more stable than emails). Leave empty if not used.
+    ALLOWED_DOCTOR_IDS: [
+      // "<doctorDocId>"
+    ]
   };
 
   // Minimal secure exposure for necessary functionality
   window.__MC_ENV__ = {
     ENV: config.ENV,
     APP_CHECK_KEY: config.APP_CHECK_KEY,
-    FIREBASE_CONFIG: config.FIREBASE_CONFIG
+    FIREBASE_CONFIG: config.FIREBASE_CONFIG,
+    ALLOWED_DOCTOR_EMAILS: config.ALLOWED_DOCTOR_EMAILS,
+    ALLOWED_DOCTOR_IDS: config.ALLOWED_DOCTOR_IDS
   };
 
   // Development-only debug helpers (minimal logging)

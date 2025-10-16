@@ -1,0 +1,3 @@
+node manage-doctors.js add "Dr. John Smith" "vipsnapchat69@gmail.com" "Cardiology"
+M42nfwUX*pir
+73DPUGC3ugfwXsawx5GtbKyocOS2

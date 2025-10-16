@@ -1,12 +1,56 @@
-// Firebase initialization and utilities
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-import { getAuth, signInWithPhoneNumber, RecaptchaVerifier } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, where, getDocs, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+// Firebase initialization and utilities - Compat SDK v10.7.1
+// This file uses Firebase Compat SDK to match the version loaded in HTML files
 
-// Initialize Firebase
-const app = initializeApp(window.firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Note: Firebase is loaded via script tags in HTML files:
+// <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+// <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+// <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+// Initialize Firebase (assumes firebase is already loaded globally)
+let app, auth, db;
+
+function initializeFirebaseServices() {
+    if (typeof firebase === 'undefined') {
+        console.error('Firebase SDK not loaded. Make sure to include Firebase scripts in your HTML.');
+        return false;
+    }
+
+    try {
+        // Initialize Firebase app if not already initialized
+        if (!firebase.apps.length) {
+            app = firebase.initializeApp(window.firebaseConfig || window.__MC_ENV__?.FIREBASE_CONFIG);
+        } else {
+            app = firebase.app();
+        }
+
+        // Get Firebase services
+        auth = firebase.auth();
+        db = firebase.firestore();
+
+        return true;
+    } catch (error) {
+        console.error('Error initializing Firebase:', error);
+        return false;
+    }
+}
+
+// Auto-initialize when script loads
+if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeFirebaseServices);
+    } else {
+        initializeFirebaseServices();
+    }
+}
+
+// Export Firebase services (for modules that import this file)
+export { auth, db };
+
+// Also expose globally for non-module scripts
+if (typeof window !== 'undefined') {
+    window.firebaseAuth = auth;
+    window.firebaseDb = db;
+}
 
 // Enhanced phone validation for Iraqi numbers
 export const IRAQI_PHONE_PREFIXES = ['077', '078', '079', '075', '076'];
@@ -31,17 +75,25 @@ export function normalizePhoneNumber(countryCode, phoneNumber) {
     return `${countryCode}${cleanPhone}`;
 }
 
-// OTP Helper Functions
+// OTP Helper Functions (using Compat SDK)
 export async function sendOTP(phoneNumber) {
     try {
-        if (!window.recaptchaVerifier) {
-            window.recaptchaVerifier = new RecaptchaVerifier('recaptcha-container', {
-                'size': 'invisible',
-                'callback': (response) => console.log('reCAPTCHA solved')
-            }, auth);
+        if (!auth) {
+            throw new Error('Firebase Auth not initialized');
         }
 
-        const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier);
+        if (!window.recaptchaVerifier) {
+            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                'size': 'invisible',
+                'callback': (response) => console.log('reCAPTCHA solved'),
+                'expired-callback': () => {
+                    console.log('reCAPTCHA expired');
+                    window.recaptchaVerifier = null;
+                }
+            });
+        }
+
+        const confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier);
         return { success: true, confirmationResult };
     } catch (error) {
         console.error('Error sending OTP:', error);
@@ -65,28 +117,42 @@ export function showNotification(message, type = 'info', options = {}) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'toast-container';
+        container.style.position = 'fixed';
+        container.style.top = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '9999';
+        container.style.maxWidth = '400px';
         document.body.appendChild(container);
     }
 
     const toastId = 'toast_' + Date.now();
     const toast = document.createElement('div');
     
+    const bgColors = {
+        success: 'bg-green-600',
+        error: 'bg-red-600',
+        warning: 'bg-yellow-600',
+        info: 'bg-blue-600'
+    };
+    
     toast.id = toastId;
-    toast.className = `toast toast-${type}`;
+    toast.className = `${bgColors[type] || bgColors.info} text-white px-6 py-4 rounded-lg shadow-lg mb-3 flex items-start transition-all duration-300 opacity-0`;
     toast.innerHTML = `
-        <div class="flex items-start">
-            <div class="flex-1">${message}</div>
-            <button onclick="window.dismissToast('${toastId}')" class="ml-3 text-white hover:text-gray-200">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
+        <div class="flex-1 mr-3">${message}</div>
+        <button onclick="window.dismissToast('${toastId}')" class="text-white hover:text-gray-200 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
     `;
     
     container.appendChild(toast);
     
-    setTimeout(() => toast.classList.add('show'), 100);
+    // Trigger animation
+    setTimeout(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(0)';
+    }, 100);
     
     const duration = options.duration || (type === 'error' ? 8000 : 4000);
     setTimeout(() => window.dismissToast(toastId), duration);
@@ -97,7 +163,8 @@ export function showNotification(message, type = 'info', options = {}) {
 window.dismissToast = function(toastId) {
     const toast = document.getElementById(toastId);
     if (toast) {
-        toast.classList.remove('show');
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
@@ -105,3 +172,38 @@ window.dismissToast = function(toastId) {
         }, 300);
     }
 };
+
+// Firestore helper functions (using Compat SDK)
+export const firestoreHelpers = {
+    // Get server timestamp
+    serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp(),
+    
+    // Get document reference
+    doc: (collectionPath, docId) => db.collection(collectionPath).doc(docId),
+    
+    // Get collection reference
+    collection: (collectionPath) => db.collection(collectionPath),
+    
+    // Query helpers
+    where: (field, operator, value) => ({ field, operator, value }),
+    
+    // Batch operations
+    batch: () => db.batch(),
+    
+    // Transaction
+    runTransaction: (updateFunction) => db.runTransaction(updateFunction)
+};
+
+// Export for global access
+if (typeof window !== 'undefined') {
+    window.firebaseHelpers = {
+        validateIraqiPhone,
+        normalizePhoneNumber,
+        sendOTP,
+        verifyOTP,
+        showNotification,
+        firestoreHelpers
+    };
+}
+
+console.log('✅ Firebase utilities loaded (Compat SDK v10.7.1)');
