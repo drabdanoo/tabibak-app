@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedConnect - لوحة الاستقبال</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
+    <script src="config.js"></script>
+    <script src="utils.js" defer></script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Notifications container -->
+    <div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-3"></div>
+
+    <!-- Header -->
+    <header class="bg-white shadow-lg border-b-4 border-blue-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <!-- Back Button -->
+                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-all duration-200 mr-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </button>
+                    
+                    <div class="bg-blue-500 p-3 rounded-full">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900">لوحة الاستقبال</h1>
+                        <p class="text-gray-600" id="receptionistWelcome">مرحباً بك</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <div class="relative">
+                        <button onclick="toggleNotificationPanel()" class="relative bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <span id="notificationBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">0</span>
+                            الحجوزات الجديدة
+                        </button>
+                    </div>
+                    <button id="logoutButton" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        تسجيل الخروج
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Receptionist Login -->
+    <div id="receptionistLogin" class="max-w-md mx-auto mt-20 bg-white rounded-lg shadow-lg p-8">
+        <div class="text-center mb-6">
+            <div class="bg-blue-500 p-4 rounded-full w-16 h-16 mx-auto mb-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">تسجيل دخول الاستقبال</h2>
+            <p class="text-gray-600">أدخل بيانات الدخول للوصول إلى لوحة الاستقبال</p>
+        </div>
+        
+        <form id="receptionistLoginForm">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+                <input type="email" id="receptionistEmail" required 
+                    placeholder="أدخل بريدك الإلكتروني"
+                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                <input type="password" id="receptionistPassword" required 
+                    placeholder="أدخل كلمة المرور"
+                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <button type="submit" id="loginButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition-colors">
+                تسجيل الدخول
+            </button>
+        </form>
+    </div>
+
+    <!-- Main Dashboard (hidden initially) -->
+    <div id="receptionistDashboard" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pb-8">
+        
+        <!-- Navigation Tabs -->
+        <div class="bg-white rounded-lg shadow-md mb-6">
+            <div class="flex border-b border-gray-200">
+                <button onclick="showTab('queue')" id="queueTab" class="px-6 py-3 text-sm font-medium text-blue-600 border-b-2 border-blue-600 tab-active">قائمة الانتظار</button>
+                <button onclick="showTab('appointments')" id="appointmentsTab" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">جميع الحجوزات</button>
+                <button onclick="showTab('chat')" id="chatTab" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">المحادثات</button>
+            </div>
+        </div>
+
+        <!-- Queue Tab -->
+        <div id="queueContent">
+            <!-- Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-md p-6 hover-scale">
+                    <div class="flex items-center">
+                        <div class="bg-yellow-500 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="mr-4">
+                            <p class="text-sm font-medium text-gray-600">في الانتظار</p>
+                            <p class="text-2xl font-bold text-gray-900" id="pendingCount">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-md p-6 hover-scale">
+                    <div class="flex items-center">
+                        <div class="bg-green-500 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="mr-4">
+                            <p class="text-sm font-medium text-gray-600">مؤكدة</p>
+                            <p class="text-2xl font-bold text-gray-900" id="confirmedCount">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-md p-6 hover-scale">
+                    <div class="flex items-center">
+                        <div class="bg-red-500 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </div>
+                        <div class="mr-4">
+                            <p class="text-sm font-medium text-gray-600">ملغاة</p>
+                            <p class="text-2xl font-bold text-gray-900" id="cancelledCount">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-md p-6 hover-scale">
+                    <div class="flex items-center">
+                        <div class="bg-blue-500 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="mr-4">
+                            <p class="text-sm font-medium text-gray-600">إجمالي اليوم</p>
+                            <p class="text-2xl font-bold text-gray-900" id="totalCount">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kanban Board -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Confirmed Column -->
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900">مؤكد</h3>
+                        <span id="confirmedColumnBadge" class="bg-gray-200 text-gray-700 px-2 py-1 text-xs font-bold rounded-full">0</span>
+                    </div>
+                    <div id="confirmedColumn" class="p-4 space-y-4 min-h-[300px] bg-gray-50">
+                        <!-- Patient cards will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Checked-in Column -->
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900">في الانتظار</h3>
+                        <span id="checkedInColumnBadge" class="bg-blue-200 text-blue-800 px-2 py-1 text-xs font-bold rounded-full">0</span>
+                    </div>
+                    <div id="checkedInColumn" class="p-4 space-y-4 min-h-[300px] bg-blue-50">
+                        <!-- Patient cards will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- In Consultation Column -->
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900">في العيادة</h3>
+                        <span id="inConsultationColumnBadge" class="bg-green-200 text-green-800 px-2 py-1 text-xs font-bold rounded-full">0</span>
+                    </div>
+                    <div id="inConsultationColumn" class="p-4 space-y-4 min-h-[300px] bg-green-50">
+                        <!-- Patient cards will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Finished Column -->
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900">انتهت الزيارة</h3>
+                        <span id="completedColumnBadge" class="bg-purple-200 text-purple-800 px-2 py-1 text-xs font-bold rounded-full">0</span>
+                    </div>
+                    <div id="completedColumn" class="p-4 space-y-4 min-h-[300px] bg-purple-50">
+                        <!-- Patient cards will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Appointments Tab -->
+        <div id="appointmentsContent" class="hidden">
+            <!-- All Appointments Table -->
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-900">جميع الحجوزات</h2>
+                        <div class="flex items-center space-x-4 space-x-reverse">
+                            <input type="text" id="appointmentSearch" placeholder="ابحث باسم المريض أو الهاتف..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 w-64">
+                            <button onclick="exportAppointmentsToCSV()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">تصدير إلى CSV</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 text-right text-sm font-medium text-gray-700">اسم المريض</th>
+                                <th class="px-6 py-3 text-right text-sm font-medium text-gray-700">الهاتف</th>
+                                <th class="px-6 py-3 text-right text-sm font-medium text-gray-700">الطبيب</th>
+                                <th class="px-6 py-3 text-right text-sm font-medium text-gray-700">التاريخ والوقت</th>
+                                <th class="px-6 py-3 text-right text-sm font-medium text-gray-700">الحالة</th>
+                                <th class="px-6 py-3 text-right text-sm font-medium text-gray-700">الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appointmentsTableBody">
+                            <!-- Appointments will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Tab -->
+        <div id="chatContent" class="hidden">
+            <div class="bg-white rounded-lg shadow-md h-[75vh] flex">
+                <!-- Chat List Sidebar -->
+                <div class="w-1/3 border-l border-gray-200">
+                    <div class="p-4 border-b">
+                        <h3 class="text-lg font-bold text-gray-900">المحادثات</h3>
+                    </div>
+                    <div id="chatListContainer" class="overflow-y-auto h-full">
+                        <!-- Chat list items will be loaded here -->
+                    </div>
+                </div>
+                <!-- Chat Window -->
+                <div class="w-2/3 flex flex-col">
+                    <div id="chatWindow" class="flex-1 flex flex-col">
+                        <div class="p-4 border-b flex items-center">
+                            <h3 id="chatWindowTitle" class="text-lg font-bold text-gray-900">اختر محادثة</h3>
+                        </div>
+                        <div id="chatMessages" class="flex-1 p-4 overflow-y-auto bg-gray-50"></div>
+                        <div class="p-4 border-t">
+                            <form id="chatForm" class="flex items-center gap-3">
+                                <input type="text" id="chatMessageInput" placeholder="اكتب رسالتك..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
+                                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700" disabled>إرسال</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="receptionist.js" defer></script>
+    <script src="receptionist-notifications.js" defer></script>
+</body>
+</html>

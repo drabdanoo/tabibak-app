@@ -2,8 +2,43 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null; }
+    function isDoctor() { return request.auth.token.doctor == true; }
+    function isPatient() { return request.auth.token.patient == true; }
+    function isValidFileType() {
+      return request.resource.contentType.matches('image/.*') 
+        || request.resource.contentType == 'application/pdf';
+    }
+    function isValidFileSize() {
+      return request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+    
     match /patientFiles/{uid}/{file=**} {
       allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+    
+    match /doctorPhotos/{uid}/profile.jpg {
+      allow read: if true; // Allow public read for doctor profile pictures
+      allow write: if signedIn() && request.auth.uid == uid && isDoctor();
+      allow delete: if signedIn() && request.auth.uid == uid && isDoctor();
+    }
+    
+    // Medical Documents (Prescriptions, Lab Results, Reports)
+    match /medicalDocuments/{patientId}/{documentId} {
+      // Patients can read their own documents
+      // Doctors can read/write documents for their patients
+      allow read: if signedIn() && (request.auth.uid == patientId || isDoctor());
+      allow write: if (isDoctor() || (isPatient() && request.auth.uid == patientId))
+        && isValidFileType() 
+        && isValidFileSize();
+      allow delete: if isDoctor();
+    }
+    
+    // Expense Receipts
+    match /expenseReceipts/{doctorId}/{receiptId} {
+      allow read, write: if signedIn() && request.auth.uid == doctorId && isDoctor()
+        && isValidFileType() 
+        && isValidFileSize();
+      allow delete: if signedIn() && request.auth.uid == doctorId && isDoctor();
     }
   }
 }

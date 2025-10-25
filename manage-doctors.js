@@ -96,6 +96,12 @@ async function createDoctor(name, email, specialty, options = {}) {
                 userId: userRecord.uid,
                 accountStatus: 'pending_first_login',
                 tempPasswordSet: true,
+                // Automatically set listed to true so doctors appear in patient listings
+                listed: true,
+                // Default working hours (8:00 AM - 3:00 PM)
+                openingTime: '08:00',
+                closingTime: '15:00',
+                clinicClosed: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
@@ -173,33 +179,100 @@ async function createDoctor(name, email, specialty, options = {}) {
 // List all doctors
 async function listDoctors() {
     try {
-        console.log('📋 Loading all doctors...\n');
+        console.log('👨‍⚕️ Loading doctors from Firestore...\n');
         
         const snapshot = await db.collection('doctors').orderBy('name').get();
         
         if (snapshot.empty) {
-            console.log('No doctors found in the system.');
+            console.log('No doctors found in Firestore.');
             return;
         }
         
-        console.log('👨‍⚕️ DOCTORS IN SYSTEM:');
+        console.log('👨‍⚕️ DOCTORS IN FIRESTORE:');
         console.log('='.repeat(80));
         
         snapshot.forEach((doc, index) => {
             const data = doc.data();
-            console.log(`${index + 1}. ${data.name || 'Unknown'}`);
-            console.log(`   Email: ${data.email}`);
-            console.log(`   Specialty: ${data.specialty}`);
-            console.log(`   Status: ${data.accountStatus || 'active'}`);
-            console.log(`   Fee: ${data.fee} IQD`);
-            console.log(`   ID: ${doc.id}`);
+            console.log(`${index + 1}. ${data.name || 'No name set'}`);
+            console.log(`   Email: ${data.email || 'No email'}`);
+            console.log(`   Specialty: ${data.specialty || 'No specialty'}`);
+            console.log(`   Listed: ${data.listed ? 'Yes' : 'No'}`);
+            console.log(`   Document ID: ${doc.id}`);
             console.log('   ' + '-'.repeat(40));
         });
         
-        console.log(`\nTotal doctors: ${snapshot.size}`);
+        console.log(`\nTotal doctors in Firestore: ${snapshot.size}`);
         
     } catch (error) {
         console.error('❌ Error listing doctors:', error.message);
+    }
+}
+
+// List all doctors
+async function listAllDoctors() {
+    try {
+        console.log('👨‍⚕️ Loading doctors from Firestore...\n');
+        
+        const snapshot = await db.collection('doctors').orderBy('name').get();
+        
+        if (snapshot.empty) {
+            console.log('No doctors found in Firestore.');
+            return;
+        }
+        
+        console.log('👨‍⚕️ DOCTORS IN FIRESTORE:');
+        console.log('='.repeat(80));
+        
+        snapshot.forEach((doc, index) => {
+            const data = doc.data();
+            console.log(`${index + 1}. ${data.name || 'No name set'}`);
+            console.log(`   Email: ${data.email || 'No email'}`);
+            console.log(`   Specialty: ${data.specialty || 'No specialty'}`);
+            console.log(`   Listed: ${data.listed ? 'Yes' : 'No'}`);
+            console.log(`   Document ID: ${doc.id}`);
+            console.log('   ' + '-'.repeat(40));
+        });
+        
+        console.log(`\nTotal doctors in Firestore: ${snapshot.size}`);
+        
+    } catch (error) {
+        console.error('❌ Error listing doctors:', error.message);
+    }
+}
+
+// Update all doctors to be listed
+async function updateAllDoctorsToListed() {
+    try {
+        console.log('🔄 Updating all doctors to be listed...\n');
+        
+        const snapshot = await db.collection('doctors').get();
+        
+        if (snapshot.empty) {
+            console.log('No doctors found in Firestore.');
+            return;
+        }
+        
+        let updatedCount = 0;
+        
+        for (const doc of snapshot.docs) {
+            const data = doc.data();
+            
+            // Only update if listed field is missing or false
+            if (!data.listed) {
+                await db.collection('doctors').doc(doc.id).update({
+                    listed: true,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`✅ Updated doctor: ${data.name || doc.id}`);
+                updatedCount++;
+            }
+        }
+        
+        console.log(`\n🎉 Successfully updated ${updatedCount} doctors to be listed.`);
+        console.log('All doctors will now appear in the patient listing.');
+        
+    } catch (error) {
+        console.error('❌ Error updating doctors:', error.message);
     }
 }
 
@@ -574,6 +647,7 @@ async function main() {
         console.log('  node manage-doctors.js add "Dr. Name" "email@example.com" "Specialty"');
         console.log('  node manage-doctors.js list');
         console.log('  node manage-doctors.js list-auth');
+        console.log('  node manage-doctors.js update-all-doctors');
         console.log('  node manage-doctors.js delete "email@example.com"');
         console.log('  node manage-doctors.js delete-auth "email@example.com"');
         console.log('  node manage-doctors.js delete-confirm "email@example.com" "userId"');
@@ -582,6 +656,7 @@ async function main() {
         console.log('\nExamples:');
         console.log('  node manage-doctors.js add "د. أحمد حسن" "ahmed@hospital.com" "طب الأطفال"');
         console.log('  node manage-doctors.js list');
+        console.log('  node manage-doctors.js update-all-doctors');
         console.log('  node manage-doctors.js delete "ahmed@hospital.com"');
         return;
     }
@@ -600,11 +675,15 @@ async function main() {
                 break;
                 
             case 'list':
-                await listDoctors();
+                await listAllDoctors();
                 break;
                 
             case 'list-auth':
                 await listAuthUsers();
+                break;
+                
+            case 'update-all-doctors':
+                await updateAllDoctorsToListed();
                 break;
                 
             case 'delete':
