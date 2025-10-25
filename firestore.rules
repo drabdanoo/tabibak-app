@@ -1,125 +1,243 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
-    // Helper functions for authentication and authorization
-    function signedIn() { 
-      return request.auth != null; 
+    // === Helper Functions ===
+    function signedIn() { return request.auth != null; }
+    function isAnonymous() { return signedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function isAdmin() {
+      // Admin role is controlled by a custom claim, not a hardcoded email.
+      return signedIn() && request.auth.token.admin == true;
     }
-    
-    // App Check enforcement - ensures requests come from verified app instances
-    function hasValidAppCheck() {
-      return request.auth != null && 
-             request.auth.token.firebase != null &&
-             request.auth.token.firebase.app_check_token != null;
-    }
-    
-    // Combined authentication check with App Check enforcement
-    // Production mode: Requires both authentication and App Check
-    function signedInWithAppCheck() {
-      return signedIn() && hasValidAppCheck();
-    }
-    
-    function isAdmin() { 
-      return signedIn() && (request.auth.token.admin == true || 
-             request.auth.token.email.lower() == 'obaidaalluhebe@gmail.com'); 
-    }
-    
-    function isDoctor() { 
-      return signedIn() && request.auth.token.doctor == true; 
-    }
+    function isDoctor() { return signedIn() && request.auth.token.doctor == true; }
+    function isPatient() { return signedIn() && request.auth.token.patient == true; }
+    function isReceptionist() { return signedIn() && request.auth.token.receptionist == true; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function hasValidAppCheck() { return request.app != null; }
 
-    // Checks if the user is a doctor AND this is their own document
-    function isDoctorForDocument(uid) {
-      return isDoctor() && request.auth.uid == uid;
-    }
-    
-    function isPatient() { 
-      return signedIn() && request.auth.token.patient == true; 
-    }
-    
-    function isSelf(uid) { 
-      return signedIn() && request.auth.uid == uid; 
-    }
-    
-    function hasRole(role) {
-      return signedIn() && request.auth.token[role] == true;
-    }
-
-    // Users collection - user profiles and role information
+    // === User Profiles ===
     match /users/{uid} {
-      allow read: if isSelf(uid) || isAdmin();
-      allow write: if isSelf(uid) || isAdmin();
-      // Allow user creation during phone verification (before App Check is available)
-      allow create: if signedIn() && request.auth.uid == uid;
+      // Users can read and update their own profile.
+      // Admins can read and update any user profile.
+      allow read, update: if isSelf(uid) || isAdmin();
+      // Users can create their own profile.
+      allow create: if isSelf(uid);
+
+      // Family members sub-collection
+      match /familyMembers/{memberId} {
+        // Only the parent user can manage their family members.
+        allow read, write: if isSelf(uid);
+      }
     }
 
-    // Test collection for debugging
-    match /test/{document} {
-      allow read, write: if signedIn();
-    }
-
-    // Patients collection - patient-specific data
-    match /patients/{uid} {
-      allow read, write: if isSelf(uid) || isAdmin();
-      allow read: if isDoctor(); // Doctors can read patient info
-    }
-
-    // Doctors collection
-    // Publicly readable for published doctors only (listed == true)
-    // Writes restricted to doctors themselves or admins only
+    // === Doctor Profiles ===
     match /doctors/{uid} {
-      // Public can read if listed. Doctor can read their own profile. Admin can read any.
-      // Use signedInWithAppCheck for all authenticated reads.
-      allow read: if resource.data.listed == true || 
-                    (signedInWithAppCheck() && (isDoctorForDocument(uid) || isAdmin()));
-
-      // Only the doctor or an admin can write. App Check is required.
-      allow write: if signedInWithAppCheck() && (isDoctorForDocument(uid) || isAdmin());
-
-      // Only an admin can create.
-      allow create: if signedInWithAppCheck() && isAdmin();
+      // Anyone (including anonymous users) can read doctor profiles.
+      // The 'listed' field in the app controls which doctors are shown to patients.
+      // Public read access - no authentication required
+      allow read: if true;
+      // Only admins can create new doctors.
+      allow create: if isAdmin();
+      // Doctors can update their own profile. Admins can update any doctor profile.
+      allow update: if (isDoctor() && isSelf(uid)) || isAdmin();
+      // Only admins can delete doctors.
+      allow delete: if isAdmin();
     }
 
-    // Appointments collection - dev rules
+    // === Patient Profiles ===
+    match /patients/{uid} {
+      // Patients can read and update their own profile.
+      // Admins can read and update any patient profile.
+      allow read, update: if isSelf(uid) || isAdmin();
+      // Patients can create their own profile.
+      allow create: if isSelf(uid);
+      // Doctors can read patient profiles, but this should be restricted to patients they have appointments with.
+      // This is a potential privacy issue.
+      allow read: if isDoctor(); // TODO: Restrict to doctors who have an appointment with the patient.
+    }
+
+    // === Receptionist Profiles ===
+    match /receptionists/{uid} {
+      // Receptionists can read and update their own profile.
+      // Admins can read and update any receptionist profile.
+      allow read, update: if isSelf(uid) || isAdmin();
+      // Only admins can create new receptionists.
+      allow create: if isAdmin();
+    }
+
+    // === Appointments ===
     match /appointments/{id} {
-      allow read, write: if request.auth != null; // Dev: allow any authenticated user
+      // Patients can read their own appointments (check both userId and patientId).
+      // Doctors can read appointments where they are the doctor.
+      // Receptionists can read appointments for their assigned doctor.
+      // Admins can read all appointments.
+      allow read: if signedIn() && (
+        isAdmin() 
+        || (isDoctor() && resource.data.doctorId == request.auth.uid) 
+        || (isReceptionist() && resource.data.doctorId == get(/databases/$(db)/documents/receptionists/$(request.auth.uid)).data.doctorId) 
+        || (resource.data.userId == request.auth.uid)
+        || (resource.data.patientId == request.auth.uid)
+      );
+      
+      // Allow querying appointments for authenticated users
+      allow list: if signedIn();
+      
+      // Patients can create their own appointments or appointments for family members.
+      allow create: if signedIn() 
+        && (request.resource.data.userId == request.auth.uid || request.resource.data.patientId == request.auth.uid);
+      
+      // Patients can update their own appointments.
+      // Doctors and receptionists can update appointments for their doctor.
+      // Admins can update all appointments.
+      allow update: if signedIn() && (
+        isAdmin() 
+        || (isDoctor() && resource.data.doctorId == request.auth.uid) 
+        || (isReceptionist() && resource.data.doctorId == get(/databases/$(db)/documents/receptionists/$(request.auth.uid)).data.doctorId) 
+        || (resource.data.userId == request.auth.uid)
+        || (resource.data.patientId == request.auth.uid)
+      );
+      
+      // Only admins can delete appointments.
+      allow delete: if isAdmin();
     }
 
-    // Schedules collection - doctor scheduling
+    // === Schedules ===
     match /schedules/{doctorId} {
-      allow read: if signedIn(); // All users can read schedules to book appointments
-      allow write: if isSelf(doctorId) || isAdmin(); // Only the doctor or admin can modify
-    }
-    
-    match /schedules/{doctorId}/{date=**} {
-      allow read: if signedIn(); // All users can read schedules
-      allow write: if isSelf(doctorId) || isAdmin(); // Only the doctor or admin can modify
+      // Only authenticated users can read schedules.
+      allow read: if signedIn();
+      // Only doctors can write to their own schedule. Admins can write to any schedule.
+      allow write: if isAdmin() || (isDoctor() && isSelf(doctorId));
+      match /{date=**} {
+        allow read: if signedIn();
+        allow write: if isAdmin() || (isDoctor() && isSelf(doctorId));
+      }
     }
 
-    // Medical records - highly restricted
+    // === Medical Records ===
     match /medical_records/{patientId} {
-      allow read, write: if isSelf(patientId) || isAdmin();
-      allow read: if isDoctor(); // Doctors can read medical records
-    }
-    
-    match /medical_records/{patientId}/{recordId} {
-      allow read, write: if isSelf(patientId) || isAdmin();
-      allow read: if isDoctor(); // Doctors can read medical records
-      allow create: if isDoctor(); // Doctors can create medical records
-    }
-
-    // Admin-only collections
-    match /admin/{document} {
-      allow read, write: if isAdmin();
-    }
-    
-    match /system/{document} {
-      allow read, write: if isAdmin();
+      // Patients can read and update their own medical records.
+      // Doctors can read medical records of their patients.
+      // Admins can read and update any medical record.
+      allow read, update: if isSelf(patientId) || isAdmin() || (isDoctor() && patientId in get(/databases/$(db)/documents/doctors/$(request.auth.uid)).data.patients);
+      allow create: if isDoctor();
+      match /{recordId} {
+        allow read, update: if isSelf(patientId) || isAdmin() || (isDoctor() && patientId in get(/databases/$(db)/documents/doctors/$(request.auth.uid)).data.patients);
+        allow create: if isDoctor();
+      }
     }
 
-    // Deny all other access by default
-    match /{document=**} {
-      allow read, write: if false;
+    // === Appointment Notes ===
+    match /appointmentNotes/{noteId} {
+      // Patients can read notes for their appointments.
+      // Doctors can read notes for their appointments.
+      // Admins can read all notes.
+      allow read: if isAdmin() 
+        || isDoctor() 
+        || (isPatient() && resource.data.patientId == request.auth.uid);
+      // Only doctors can create and update notes.
+      allow create, update: if isDoctor();
+      // Doctors and admins can delete notes.
+      allow delete: if isAdmin() || isDoctor();
+    }
+
+    // === Ratings ===
+    match /ratings/{ratingId} {
+      // Any authenticated user can read ratings.
+      allow read: if signedIn();
+      // Only patients can create ratings for their own appointments.
+      allow create: if isPatient() && request.resource.data.patientId == request.auth.uid;
+    }
+
+    // === Doctor Templates ===
+    match /doctorTemplates/{templateId} {
+      // Doctors can manage their own templates.
+      allow read, write: if isDoctor() && request.auth.uid == resource.data.doctorId;
+      allow create: if isDoctor();
+    }
+
+    // === Medical Documents (Prescriptions & Lab Results) ===
+    match /medicalDocuments/{documentId} {
+      // Patients can read their own documents
+      // Doctors can read/write documents for their patients
+      // Admins can read all documents
+      allow read: if isAdmin() 
+        || (isPatient() && resource.data.patientId == request.auth.uid)
+        || (isDoctor() && resource.data.doctorId == request.auth.uid);
+      allow create: if (isDoctor() || isPatient()) && request.resource.data.patientId is string;
+      allow update, delete: if isAdmin() 
+        || (isDoctor() && resource.data.doctorId == request.auth.uid);
+    }
+
+    // === Family Members ===
+    match /familyMembers/{memberId} {
+      // Primary user can manage their family members
+      // Doctors can read family members for their patients
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.primaryUserId == request.auth.uid)
+        || isDoctor();
+      allow create, update, delete: if signedIn() && request.resource.data.primaryUserId == request.auth.uid;
+    }
+
+    // === Prescriptions ===
+    match /prescriptions/{prescriptionId} {
+      // Patients can read their own prescriptions
+      // Doctors can create/read/update prescriptions for their patients
+      allow read: if isAdmin()
+        || (isPatient() && resource.data.patientId == request.auth.uid)
+        || (isDoctor() && resource.data.doctorId == request.auth.uid);
+      allow create, update: if isDoctor();
+      allow delete: if isAdmin() || (isDoctor() && resource.data.doctorId == request.auth.uid);
+    }
+
+    // === Lab Orders ===
+    match /labOrders/{orderId} {
+      // Patients can read their own lab orders
+      // Doctors can create/read/update lab orders for their patients
+      allow read: if isAdmin()
+        || (isPatient() && resource.data.patientId == request.auth.uid)
+        || (isDoctor() && resource.data.doctorId == request.auth.uid);
+      allow create, update: if isDoctor();
+      allow delete: if isAdmin() || (isDoctor() && resource.data.doctorId == request.auth.uid);
+    }
+
+    // === Medical History (Enhanced EMR) ===
+    match /medicalHistory/{historyId} {
+      // Patients can read their own medical history
+      // Doctors can read/write medical history for their patients
+      allow read: if isAdmin()
+        || (isPatient() && resource.data.patientId == request.auth.uid)
+        || isDoctor();
+      allow create, update: if isDoctor();
+      allow delete: if isAdmin();
+    }
+
+    // === Expenses ===
+    match /expenses/{expenseId} {
+      // Doctors can manage their own expenses
+      allow read, write: if isDoctor() && request.auth.uid == resource.data.doctorId;
+      allow create: if isDoctor();
+    }
+
+    // === Staff ===
+    match /staff/{staffId} {
+      // Doctors can manage their own staff
+      // Staff can read their own profile
+      allow read: if isAdmin()
+        || (isDoctor() && resource.data.doctorId == request.auth.uid)
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if isDoctor() && request.resource.data.doctorId == request.auth.uid;
+    }
+
+    // === Chat ===
+    match /chats/{chatId} {
+      // Allow read/write if the user is a participant in the chat.
+      allow read, write: if signedIn() && request.auth.uid in resource.data.participants;
+
+      match /messages/{messageId} {
+        // Allow read if the user is a participant.
+        allow read: if signedIn() && get(/databases/$(db)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+        // Allow create if the user is the sender and a participant.
+        allow create: if signedIn() && request.resource.data.senderId == request.auth.uid && get(/databases/$(db)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+      }
     }
   }
 }

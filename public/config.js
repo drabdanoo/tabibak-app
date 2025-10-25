@@ -16,11 +16,12 @@
       measurementId: "G-1Q7MTPV8XE"
     },
     // Allowed public doctors on patient page (by email). Keep this list small (<=10) for Firestore 'in' queries.
-    // Update this to your real doctor(s). Example prefilled with the doctor used in testing.
     ALLOWED_DOCTOR_EMAILS: [
       "vipsnapchat69@gmail.com",
       "obaidaalluhebe@gmail.com",
-      "dr.abdanoo@gmail.com"
+      "dr.abdanoo@gmail.com",
+      "18bayan.abdullah@gmail.com",
+      "zfawzi15@gmail.com"
     ],
     // Alternatively, allow by Firestore document IDs (more stable than emails). Leave empty if not used.
     ALLOWED_DOCTOR_IDS: [

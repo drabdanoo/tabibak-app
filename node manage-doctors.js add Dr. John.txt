@@ -1,3 +1,21 @@
-node manage-doctors.js add "Dr. John Smith" "vipsnapchat69@gmail.com" "Cardiology"
+node manage-doctors.js add "Dr. Bayan Abdullah" "18bayan.abdullah@gmail.com" "Cardiology"
+node functions/set-receptionist.js <another-user-uid>
+
+
 M42nfwUX*pir
-73DPUGC3ugfwXsawx5GtbKyocOS2
+
+ig^Z*3bsJN&&
+
+5^fSis5Q2BJ4
+
+البريد الإلكتروني: zfawzi15@gmail.com
+كلمة المرور المؤقتة: @KSEB4*8kB2n
+
+1BTJPHM3B4HHALCRT17DDS2Z
+
+firebase functions:config:set twilio.sid="ACfc3572eb0d70cb3993acd90479dcaf33"
+firebase functions:config:set twilio.token="d60fc2f5b8bdd289c27a5b39374cfb39"
+firebase functions:config:set twilio.phone_number="+14066922645" 
+
+
+admin.auth().setCustomUserClaims('QSUtpGJV4tPTSm1yNqF4VwZNa6G3', {receptionist: true})

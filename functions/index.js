@@ -46,80 +46,10 @@ function generateInitials(fullName) {
 }
 
 // -----------------------------------------------------------------------------
-// USER CREATION TRIGGER (1st gen)
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
-// USER CREATION TRIGGER – assigns "patient" only for phone sign-ups
-// -----------------------------------------------------------------------------
-
-exports.onUserCreate = functionsV1.auth.user().onCreate(async (user) => {
-  try {
-    // Detect if the account was created by phone authentication
-    const providerIds = (user.providerData || []).map((p) => p.providerId);
-    const isPhoneSignup =
-      !!user.phoneNumber || providerIds.includes("phone");
-
-    // Check existing claims on the new user
-    const userRecord = await admin.auth().getUser(user.uid);
-    const existing = userRecord.customClaims || {};
-
-    // Auto-assign patient only for phone sign-ups with no role yet
-    if (
-      isPhoneSignup &&
-      !existing.admin &&
-      !existing.doctor &&
-      !existing.patient
-    ) {
-      await admin.auth().setCustomUserClaims(user.uid, {
-        admin: false,
-        doctor: false,
-        patient: true,
-      });
-      logger.info(`Auto-assigned patient role (phone signup) to ${user.uid}`);
-    } else {
-      logger.info(
-        `Skipping auto-patient for ${user.uid} (providers=${providerIds.join(
-          ","
-        )}, email=${user.email || "none"})`
-      );
-    }
-
-    // Determine final role and record it in Firestore
-    const finalRecord = await admin.auth().getUser(user.uid);
-    const claims = finalRecord.customClaims || {};
-    const role =
-      claims.admin
-        ? "admin"
-        : claims.doctor
-        ? "doctor"
-        : claims.patient
-        ? "patient"
-        : "patient";
-
-    await db.collection("users").doc(user.uid).set(
-      {
-        uid: user.uid,
-        role,
-        email: user.email || null,
-        phoneNumber: user.phoneNumber || null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-  } catch (error) {
-    logger.error("Error in onUserCreate:", error);
-  }
-});
-
-
-// -----------------------------------------------------------------------------
 // ROLE MANAGEMENT (Callables)
 // -----------------------------------------------------------------------------
 
 exports.setDoctorClaim = functionsV1.https.onCall(async (data, context) => {
-  verifyAppCheck(context);
   if (!context.auth) throw new functionsV1.https.HttpsError("unauthenticated", "Must be authenticated");
   if (context.auth.token.admin !== true)
     throw new functionsV1.https.HttpsError("permission-denied", "Must be admin to set doctor claim");
@@ -143,7 +73,6 @@ exports.setDoctorClaim = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.setUserRole = functionsV1.https.onCall(async (data, context) => {
-  verifyAppCheck(context);
   if (!context.auth) throw new functionsV1.https.HttpsError("unauthenticated", "Must be authenticated");
   if (context.auth.token.admin !== true)
     throw new functionsV1.https.HttpsError("permission-denied", "Must be admin");
@@ -169,7 +98,6 @@ exports.setUserRole = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.getUserRole = functionsV1.https.onCall(async (data, context) => {
-  verifyAppCheck(context);
   if (!context.auth) throw new functionsV1.https.HttpsError("unauthenticated", "Must be authenticated");
 
   try {
@@ -180,6 +108,41 @@ exports.getUserRole = functionsV1.https.onCall(async (data, context) => {
   } catch (error) {
     logger.error("Error getting user role:", error);
     throw new functionsV1.https.HttpsError("internal", "Failed to get user role");
+  }
+});
+
+exports.ensurePatientClaim = functionsV1.https.onCall(async (data, context) => {
+  // App Check is optional for this function since it's called during phone verification
+  // when App Check token might not be fully initialized yet
+  if (!context.auth) throw new functionsV1.https.HttpsError("unauthenticated", "Must be authenticated");
+
+  try {
+    const user = await admin.auth().getUser(context.auth.uid);
+    const customClaims = user.customClaims || {};
+    
+    // If user already has a role claim, don't override it
+    if (customClaims.admin || customClaims.doctor || customClaims.patient) {
+      logger.info(`User ${context.auth.uid} already has role claims:`, customClaims);
+      return { success: true, claims: customClaims, message: "User already has role claims" };
+    }
+    
+    // Set patient claim for phone-authenticated users without a role
+    await admin.auth().setCustomUserClaims(context.auth.uid, { patient: true });
+    logger.info(`Set patient claim for user ${context.auth.uid}`);
+    
+    // Ensure user document exists in Firestore
+    await db.collection("users").doc(context.auth.uid).set({
+      uid: context.auth.uid,
+      role: "patient",
+      phoneNumber: user.phoneNumber || null,
+      email: user.email || null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    
+    return { success: true, claims: { patient: true }, message: "Patient claim set successfully" };
+  } catch (error) {
+    logger.error("Error ensuring patient claim:", error);
+    throw new functionsV1.https.HttpsError("internal", "Failed to ensure patient claim: " + error.message);
   }
 });
 
@@ -294,7 +257,7 @@ exports.createDoctor = functionsV1.https.onCall(async (data, context) => {
     await db.collection("doctors").doc(userRecord.uid).set(doctorData);
     await db.collection("users").doc(userRecord.uid).set(
       {
-        uid: userRecord.uid,
+        uid: user.uid,
         role: "doctor",
         email,
         name,
@@ -418,4 +381,231 @@ exports.cleanupHolds = functionsV1.pubsub.schedule("every 5 minutes").onRun(asyn
 
   await Promise.all(writes);
   logger.info(`cleanupHolds done. Updated ${writes.length} docs.`);
+});
+
+// -----------------------------------------------------------------------------
+// NOTIFICATION TRIGGERS
+// -----------------------------------------------------------------------------
+
+/**
+ * Sends an SMS notification to the patient when their appointment is confirmed.
+ */
+exports.onAppointmentConfirmed = functionsV1.firestore
+  .document("appointments/{appointmentId}")
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    // Check if the status changed to 'confirmed'
+    if (beforeData.status !== "confirmed" && afterData.status === "confirmed") {
+      logger.info(`Appointment ${context.params.appointmentId} confirmed. Sending SMS.`);
+
+      const patientPhone = afterData.patientPhone;
+      const doctorName = afterData.doctorName;
+      const appointmentDate = afterData.appointmentDate;
+      const appointmentTime = afterData.appointmentTime;
+
+      if (!patientPhone) {
+        logger.error("No patient phone number found for this appointment.");
+        return null;
+      }
+
+      // Initialize Twilio client from secure environment config
+      const twilioConfig = functionsV1.config().twilio;
+      const twilio = require("twilio");
+      const client = new twilio(twilioConfig.sid, twilio.token);
+
+      const message = `تم تأكيد موعدك مع ${doctorName} في تاريخ ${appointmentDate} الساعة ${appointmentTime}. - MedConnect`;
+
+      return client.messages.create({
+        body: message,
+        to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
+        from: twilioConfig.phone_number,
+      });
+    }
+
+    return null; // No action needed if status did not change to 'confirmed'
+  });
+
+/**
+ * Sends an SMS to the patient when a doctor cancels their appointment.
+ */
+exports.onAppointmentCancelledByDoctor = functionsV1.firestore
+  .document("appointments/{appointmentId}")
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    // Check if status changed to 'cancelled' AND it was done by a 'doctor'
+    if (beforeData.status !== "cancelled" && afterData.status === "cancelled" && afterData.cancelledBy === "doctor") {
+      logger.info(`Appointment ${context.params.appointmentId} cancelled by doctor. Sending SMS.`);
+
+      const { patientPhone, doctorName, appointmentDate, appointmentTime, cancellationReason } = afterData;
+
+      if (!patientPhone) {
+        logger.error("No patient phone number found for this appointment.");
+        return null;
+      }
+
+      const twilioConfig = functionsV1.config().twilio;
+      const twilio = require("twilio");
+      const client = new twilio(twilioConfig.sid, twilio.token);
+
+      const message = `تم إلغاء موعدك مع ${doctorName} في تاريخ ${appointmentDate} الساعة ${appointmentTime}. السبب: "${cancellationReason}". نعتذر عن هذا الإزعاج. - MedConnect`;
+
+      return client.messages.create({
+        body: message,
+        to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
+        from: twilioConfig.phone_number,
+      });
+    }
+    return null;
+  });
+
+/**
+ * Sends an SMS to the patient when their reschedule request is approved or denied.
+ */
+exports.onRescheduleResolved = functionsV1.firestore
+  .document("appointments/{appointmentId}")
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    // Check if a reschedule request was just resolved (from 'reschedule_requested' to 'confirmed')
+    if (beforeData.status === "reschedule_requested" && afterData.status === "confirmed") {
+      const { patientPhone, doctorName } = afterData;
+
+      if (!patientPhone) {
+        logger.error(`No patient phone number for appointment ${context.params.appointmentId}, cannot send reschedule SMS.`);
+        return null;
+      }
+
+      const twilioConfig = functionsV1.config().twilio;
+      const twilio = require("twilio");
+      const client = new twilio(twilioConfig.sid, twilio.token);
+      let message;
+
+      // Check if it was an approval (date or time changed)
+      if (beforeData.appointmentDate !== afterData.appointmentDate || beforeData.appointmentTime !== afterData.appointmentTime) {
+        logger.info(`Reschedule approved for ${context.params.appointmentId}. Sending approval SMS.`);
+        message = `تمت الموافقة على طلب إعادة جدولة موعدك. موعدك الجديد مع ${doctorName} هو في تاريخ ${afterData.appointmentDate} الساعة ${afterData.appointmentTime}. - MedConnect`;
+      } else {
+        logger.info(`Reschedule denied for ${context.params.appointmentId}. Sending denial SMS.`);
+        message = `تم رفض طلب إعادة جدولة موعدك مع ${doctorName}. يبقى موعدك الأصلي في تاريخ ${afterData.appointmentDate} الساعة ${afterData.appointmentTime}. - MedConnect`;
+      }
+
+      return client.messages.create({
+        body: message,
+        to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
+        from: twilioConfig.phone_number,
+      });
+    }
+    return null;
+  });
+
+/**
+ * Updates a doctor's average rating when a new rating is submitted.
+ */
+exports.onRatingCreate = functionsV1.firestore
+  .document("ratings/{ratingId}")
+  .onCreate(async (snap, context) => {
+    const ratingData = snap.data();
+    const doctorId = ratingData.doctorId;
+
+    if (!doctorId) {
+      logger.error("New rating is missing a doctorId.", { ratingId: context.params.ratingId });
+      return null;
+    }
+
+    const doctorRef = db.collection("doctors").doc(doctorId);
+
+    return db.runTransaction(async (transaction) => {
+      const doctorDoc = await transaction.get(doctorRef);
+      if (!doctorDoc.exists) {
+        logger.error(`Doctor profile ${doctorId} not found for new rating.`);
+        return null;
+      }
+
+      const doctorData = doctorDoc.data();
+      const oldRating = parseFloat(doctorData.rating) || 0;
+      const oldReviewsCount = parseInt(doctorData.reviews) || 0;
+
+      // Calculate new average rating
+      const newReviewsCount = oldReviewsCount + 1;
+      const newRating = ((oldRating * oldReviewsCount) + ratingData.rating) / newReviewsCount;
+
+      return transaction.update(doctorRef, {
+        rating: newRating.toFixed(2), // Store with 2 decimal places
+        reviews: newReviewsCount,
+      });
+    });
+  });
+
+// === SET RECEPTIONIST CLAIM ===
+exports.setReceptionistClaim = functionsV1.https.onCall(async (data, context) => {
+  const uid = data && data.uid;
+  if (!uid) {
+    throw new functionsV1.https.HttpsError('invalid-argument', 'User UID is required');
+  }
+  
+  try {
+    await admin.auth().setCustomUserClaims(uid, { receptionist: true });
+    logger.info(`Set receptionist claim for user ${uid}`);
+    return { success: true, message: `User ${uid} is now a receptionist` };
+  } catch (error) {
+    logger.error('Error setting receptionist claim:', error);
+    throw new functionsV1.https.HttpsError('internal', error.message);
+  }
+});
+
+// === SEND SMS CONFIRMATION ===
+exports.sendAppointmentConfirmationSMS = functionsV1.https.onCall(async (data, context) => {
+  const { patientPhone, patientName, doctorName, appointmentDate, appointmentTime } = data;
+  
+  logger.info('SMS request received:', { patientPhone, patientName, doctorName, appointmentDate, appointmentTime });
+  
+  if (!patientPhone || !patientName || !doctorName || !appointmentDate || !appointmentTime) {
+    logger.error('Missing required fields');
+    throw new functionsV1.https.HttpsError('invalid-argument', 'Missing required fields');
+  }
+  
+  try {
+    const twilio = require('twilio');
+    const functions = require('firebase-functions');
+    
+    const accountSid = functions.config().twilio?.sid;
+    const authToken = functions.config().twilio?.token;
+    const phoneNumber = functions.config().twilio?.phone_number;
+    
+    logger.info('Twilio config check:', { hasSid: !!accountSid, hasToken: !!authToken, hasPhone: !!phoneNumber });
+    
+    if (!accountSid || !authToken || !phoneNumber) {
+      logger.error('Twilio config not set', { accountSid: !!accountSid, authToken: !!authToken, phoneNumber: !!phoneNumber });
+      throw new Error('Twilio credentials not configured');
+    }
+    
+    // Validate patient phone number
+    if (!patientPhone.startsWith('+')) {
+      logger.error('Invalid phone number format:', patientPhone);
+      throw new Error(`Phone number must start with +. Received: ${patientPhone}`);
+    }
+    
+    const client = twilio(accountSid, authToken);
+    
+    const message = `مرحباً ${patientName}\n\nتم تأكيد موعدك مع د. ${doctorName}\nالتاريخ: ${appointmentDate}\nالوقت: ${appointmentTime}\n\nشكراً لاختيارك لنا - MedConnect`;
+    
+    logger.info('Sending SMS', { to: patientPhone, from: phoneNumber, messageLength: message.length });
+    
+    const result = await client.messages.create({
+      body: message,
+      from: phoneNumber,
+      to: patientPhone
+    });
+    
+    logger.info(`SMS sent successfully to ${patientPhone}`, { messageSid: result.sid });
+    return { success: true, message: 'SMS sent successfully', messageSid: result.sid };
+  } catch (error) {
+    logger.error('Error sending SMS:', error.message, error);
+    throw new functionsV1.https.HttpsError('internal', `SMS Error: ${error.message}`);
+  }
 });

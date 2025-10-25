@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "464755135042",
+    "project_id": "medconnect-2",
+    "storage_bucket": "medconnect-2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464755135042:android:9ee3ee076872215f83d3db",
+        "android_client_info": {
+          "package_name": "com.abdullah.medbook"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "464755135042-tuml1lmjvb7sqc05m2546kl4oqm2nnjb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8F4FEvB9cq-bN_ue0pSh5V-ERADhdSRA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "464755135042-tuml1lmjvb7sqc05m2546kl4oqm2nnjb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
