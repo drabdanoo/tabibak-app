@@ -14,8 +14,9 @@ class AppTheme {
   static const Color backgroundGray = Color(0xFFF9FAFB);
   static const Color cardBackground = Color(0xFFFFFFFF);
   
-  // Legacy green color (for backwards compatibility)
+  // Legacy colors (for backwards compatibility)
   static const Color primaryGreen = primaryPurple;
+  static const Color secondaryBlue = accentBlue;
   
   static ThemeData get lightTheme {
     return ThemeData(
