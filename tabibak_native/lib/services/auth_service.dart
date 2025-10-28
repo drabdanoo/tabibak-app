@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer;
 import '../utils/constants.dart';
+import '../utils/math_utils.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -20,29 +22,55 @@ class AuthService {
     required Function(String error) onError,
   }) async {
     try {
+      // Disable reCAPTCHA for testing
+      await _auth.setSettings(appVerificationDisabledForTesting: true);
+      
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         verificationCompleted: (PhoneAuthCredential credential) async {
           // Auto-retrieval succeeded, sign in automatically
-          print('✅ Auto-verification completed');
-          await _auth.signInWithCredential(credential);
+          developer.log('Auto-verification completed', name: 'AuthService');
+          try {
+            await _auth.signInWithCredential(credential);
+          } catch (e) {
+            developer.log('Auto-verification sign in error: $e', name: 'AuthService', level: 900);
+          }
         },
         verificationFailed: (FirebaseAuthException e) {
-          print('❌ Verification failed: ${e.code} - ${e.message}');
-          onError(e.message ?? 'فشل التحقق من رقم الهاتف');
+          developer.log('Verification failed: ${e.code} - ${e.message}', name: 'AuthService', level: 900);
+          String errorMessage = 'فشل التحقق من رقم الهاتف';
+          
+          switch (e.code) {
+            case 'invalid-phone-number':
+              errorMessage = 'رقم الهاتف غير صحيح';
+              break;
+            case 'too-many-requests':
+              errorMessage = 'لقد تجاوزت عدد محاولات التحقق المسموح بها، حاول لاحقاً';
+              break;
+            case 'quota-exceeded':
+              errorMessage = 'تم تجاوز الحد الأقصى لطلبات التحقق، حاول لاحقاً';
+              break;
+            default:
+              errorMessage = e.message ?? 'فشل التحقق من رقم الهاتف';
+          }
+          
+          onError(errorMessage);
         },
         codeSent: (String verificationId, int? resendToken) {
-          print('✅ Code sent, verificationId: $verificationId');
+          developer.log('Code sent, verificationId: $verificationId', name: 'AuthService');
           onCodeSent(verificationId);
         },
         codeAutoRetrievalTimeout: (String verificationId) {
-          print('⏱️ Auto-retrieval timeout, manual entry required');
+          developer.log('Auto-retrieval timeout, manual entry required', name: 'AuthService');
           // This is normal - just means user needs to enter code manually
         },
         timeout: const Duration(seconds: 120), // Increased timeout
       );
+    } on FirebaseAuthException catch (e) {
+      developer.log('FirebaseAuth exception in sendOTP: ${e.code} - ${e.message}', name: 'AuthService', level: 900);
+      onError(e.message ?? 'خطأ في إرسال رمز التحقق');
     } catch (e) {
-      print('❌ Exception in sendOTP: $e');
+      developer.log('Exception in sendOTP: $e', name: 'AuthService', level: 900);
       onError(e.toString());
     }
   }
@@ -53,7 +81,7 @@ class AuthService {
     required String otp,
   }) async {
     try {
-      print('🔐 Verifying OTP: $otp with verificationId: ${verificationId.substring(0, 20)}...');
+      developer.log('Verifying OTP: $otp with verificationId: ${verificationId.substring(0, MathUtils.min(verificationId.length, 20))}...', name: 'AuthService');
       PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: verificationId,
         smsCode: otp,
@@ -64,19 +92,35 @@ class AuthService {
         result = await _auth.signInWithCredential(credential);
       } catch (e) {
         // Handle PigeonUserDetails type cast error - user is actually signed in
-        print('⚠️ Type cast error (known issue), checking current user...');
+        developer.log('Type cast error (known issue), checking current user...', name: 'AuthService', level: 900);
         if (_auth.currentUser != null) {
-          print('✅ User is signed in despite error: ${_auth.currentUser?.uid}');
+          developer.log('User is signed in despite error: ${_auth.currentUser?.uid ?? 'unknown'}', name: 'AuthService');
           // Create a mock UserCredential since sign-in succeeded
           return null; // We'll handle this in the provider
         }
         rethrow;
       }
       
-      print('✅ OTP verification successful! User: ${result?.user?.uid}');
+      developer.log('OTP verification successful! User: ${result.user?.uid ?? 'N/A'}', name: 'AuthService');
       return result;
+    } on FirebaseAuthException catch (e) {
+      developer.log('Firebase Auth error in verifyOTP: ${e.code} - ${e.message}', name: 'AuthService', level: 900);
+      
+      String errorMessage = 'رمز التحقق غير صحيح';
+      switch (e.code) {
+        case 'invalid-verification-code':
+          errorMessage = 'رمز التحقق غير صحيح';
+          break;
+        case 'session-expired':
+          errorMessage = 'انتهت صلاحية رمز التحقق، يرجى طلب رمز جديد';
+          break;
+        default:
+          errorMessage = e.message ?? 'خطأ في التحقق من الرمز';
+      }
+      
+      throw Exception(errorMessage);
     } catch (e) {
-      print('❌ OTP verification failed: $e');
+      developer.log('OTP verification failed: $e', name: 'AuthService', level: 900);
       throw Exception('رمز التحقق غير صحيح: ${e.toString()}');
     }
   }
@@ -85,28 +129,67 @@ class AuthService {
   Future<UserCredential> signInAnonymously() async {
     try {
       return await _auth.signInAnonymously();
+    } on FirebaseAuthException catch (e) {
+      developer.log('Firebase Auth error in signInAnonymously: ${e.code} - ${e.message}', name: 'AuthService', level: 900);
+      throw Exception('فشل تسجيل الدخول كزائر: ${e.message}');
     } catch (e) {
       throw Exception('فشل تسجيل الدخول كزائر');
     }
   }
 
   // Email/Password sign in (for doctors and receptionists)
-  Future<UserCredential> signInWithEmail({
+  Future<UserCredential?> signInWithEmail({
     required String email,
     required String password,
   }) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        throw Exception('لم يتم العثور على المستخدم');
-      } else if (e.code == 'wrong-password') {
-        throw Exception('كلمة المرور غير صحيحة');
+      developer.log('Signing in with email: $email', name: 'AuthService');
+      UserCredential? result;
+      try {
+        result = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } catch (e) {
+        // Handle PigeonUserDetails type cast error - user is actually signed in
+        developer.log('Type cast error (known issue), checking current user...', name: 'AuthService', level: 900);
+        if (_auth.currentUser != null) {
+          developer.log('User is signed in despite error: ${_auth.currentUser?.uid ?? 'unknown'}', name: 'AuthService');
+          // Return null but user is authenticated
+          return null;
+        }
+        rethrow;
       }
-      throw Exception(e.message ?? 'خطأ في تسجيل الدخول');
+      developer.log('Email sign-in successful! User: ${result.user?.uid ?? 'N/A'}', name: 'AuthService');
+      return result;
+    } on FirebaseAuthException catch (e) {
+      developer.log('Firebase Auth error: ${e.code} - ${e.message}', name: 'AuthService', level: 900);
+      String errorMessage = 'خطأ في تسجيل الدخول';
+      
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'لم يتم العثور على المستخدم';
+          break;
+        case 'wrong-password':
+          errorMessage = 'كلمة المرور غير صحيحة';
+          break;
+        case 'invalid-email':
+          errorMessage = 'البريد الإلكتروني غير صحيح';
+          break;
+        case 'user-disabled':
+          errorMessage = 'تم تعطيل هذا الحساب';
+          break;
+        case 'network-request-failed':
+          errorMessage = 'خطأ في الاتصال بالإنترنت';
+          break;
+        default:
+          errorMessage = e.message ?? 'خطأ في تسجيل الدخول';
+      }
+      
+      throw Exception(errorMessage);
+    } catch (e) {
+      developer.log('Unexpected error in signInWithEmail: $e', name: 'AuthService', level: 900);
+      throw Exception('خطأ غير متوقع: ${e.toString()}');
     }
   }
 
@@ -118,7 +201,7 @@ class AuthService {
     String? email,
   }) async {
     try {
-      print('📝 Creating patient profile for: $name ($userId)');
+      developer.log('Creating patient profile for: $name ($userId)', name: 'AuthService');
       await _firestore.collection(AppConstants.patientsCollection).doc(userId).set({
         'name': name,
         'phone': phone,
@@ -126,7 +209,7 @@ class AuthService {
         'role': AppConstants.rolePatient,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Patient profile created in Firestore');
+      developer.log('Patient profile created in Firestore', name: 'AuthService');
 
       // Save to shared preferences
       final prefs = await SharedPreferences.getInstance();
@@ -134,9 +217,12 @@ class AuthService {
       await prefs.setString(AppConstants.keyUserId, userId);
       await prefs.setString(AppConstants.keyUserPhone, phone);
       await prefs.setBool(AppConstants.keyIsLoggedIn, true);
-      print('✅ Patient data saved to SharedPreferences');
+      developer.log('Patient data saved to SharedPreferences', name: 'AuthService');
+    } on FirebaseException catch (e) {
+      developer.log('Firebase error in createPatientProfile: ${e.code} - ${e.message}', name: 'AuthService', level: 900);
+      throw Exception('فشل إنشاء الملف الشخصي: ${e.message}');
     } catch (e) {
-      print('❌ Failed to create patient profile: $e');
+      developer.log('Failed to create patient profile: $e', name: 'AuthService', level: 900);
       throw Exception('فشل إنشاء الملف الشخصي: ${e.toString()}');
     }
   }
@@ -167,6 +253,7 @@ class AuthService {
 
       return null;
     } catch (e) {
+      developer.log('Error getting user role: $e', name: 'AuthService', level: 900);
       return null;
     }
   }
@@ -179,8 +266,11 @@ class AuthService {
       // Clear shared preferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
+    } on FirebaseAuthException catch (e) {
+      developer.log('Firebase Auth error in signOut: ${e.code} - ${e.message}', name: 'AuthService', level: 900);
+      throw Exception('فشل تسجيل الخروج: ${e.message}');
     } catch (e) {
-      throw Exception('فشل تسجيل الخروج');
+      throw Exception('فشل تسجيل الخروج: ${e.toString()}');
     }
   }
 

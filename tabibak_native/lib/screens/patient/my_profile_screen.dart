@@ -26,7 +26,7 @@ class MyProfileScreen extends StatelessWidget {
                 // Profile Avatar
                 CircleAvatar(
                   radius: 60,
-                  backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+                  backgroundColor: AppTheme.primaryGreen.withValues(alpha: 0.1),
                   child: Icon(
                     Icons.person,
                     size: 60,
@@ -81,6 +81,38 @@ class MyProfileScreen extends StatelessWidget {
                   value: 'مريض',
                 ),
                 
+                const SizedBox(height: 30),
+                
+                // Medical History Section
+                _buildSectionHeader('السجل الطبي'),
+                
+                const SizedBox(height: 15),
+                
+                _buildMedicalHistoryCard(
+                  icon: Icons.medical_services,
+                  title: 'الحساسية',
+                  value: userModel?.allergies ?? 'لا توجد',
+                  color: AppTheme.errorRed,
+                ),
+                
+                const SizedBox(height: 15),
+                
+                _buildMedicalHistoryCard(
+                  icon: Icons.medication,
+                  title: 'الأدوية الحالية',
+                  value: userModel?.medications ?? 'لا توجد',
+                  color: AppTheme.accentBlue,
+                ),
+                
+                const SizedBox(height: 15),
+                
+                _buildMedicalHistoryCard(
+                  icon: Icons.local_hospital,
+                  title: 'الأمراض المزمنة',
+                  value: userModel?.chronicDiseases ?? 'لا توجد',
+                  color: AppTheme.warningOrange,
+                ),
+                
                 const SizedBox(height: 40),
                 
                 // Logout Button
@@ -107,6 +139,20 @@ class MyProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.primaryPurple,
+        ),
+      ),
+    );
+  }
+
   Widget _buildInfoCard({
     required IconData icon,
     required String title,
@@ -119,7 +165,7 @@ class MyProfileScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 5,
             offset: const Offset(0, 2),
@@ -131,12 +177,12 @@ class MyProfileScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withOpacity(0.1),
+              color: AppTheme.primaryPurple.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
-              color: AppTheme.primaryGreen,
+              color: AppTheme.primaryPurple,
               size: 24,
             ),
           ),
@@ -150,6 +196,70 @@ class MyProfileScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMedicalHistoryCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 4),

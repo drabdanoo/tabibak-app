@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../screens/role_selection_screen.dart';
+import '../screens/patient/patient_home_screen.dart';
+import '../screens/doctor/doctor_dashboard_screen.dart';
+import '../screens/receptionist/receptionist_dashboard_screen.dart';
 import '../config/theme.dart';
-import 'role_selection_screen.dart';
-import 'patient/patient_home_screen.dart';
-import 'doctor/doctor_dashboard_screen.dart';
-import 'receptionist/receptionist_dashboard_screen.dart';
+import 'dart:developer' as developer;
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -18,6 +19,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  bool _navigationStarted = false;
 
   @override
   void initState() {
@@ -42,24 +44,32 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _checkAuthAndNavigate() async {
     try {
+      // Add a small delay for better UX
       await Future.delayed(const Duration(seconds: 2));
       
+      // Prevent multiple navigation attempts
+      if (_navigationStarted) return;
+      _navigationStarted = true;
+
       if (!mounted) return;
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
-    if (authProvider.isAuthenticated && authProvider.userRole != null) {
-      // User is logged in, navigate to appropriate screen
-      _navigateToHome(authProvider.userRole!);
-    } else {
-      // User not logged in, show role selection
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-      );
-    }
+      if (authProvider.isAuthenticated && authProvider.userRole != null) {
+        // User is logged in, navigate to appropriate screen
+        _navigateToHome(authProvider.userRole!);
+      } else {
+        // User not logged in, show role selection
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+          );
+        }
+      }
     } catch (e) {
-      print('Navigation error: $e');
-      if (mounted) {
+      developer.log('Navigation error: $e', name: 'SplashScreen', level: 900);
+      // Even if there's an error, we should navigate to role selection
+      if (mounted && !_navigationStarted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
         );
@@ -84,9 +94,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         homeScreen = const RoleSelectionScreen();
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => homeScreen),
-    );
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => homeScreen),
+      );
+    }
   }
 
   @override
@@ -116,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     borderRadius: BorderRadius.circular(30),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),

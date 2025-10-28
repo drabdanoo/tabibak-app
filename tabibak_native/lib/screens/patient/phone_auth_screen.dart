@@ -75,7 +75,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen.withOpacity(0.1),
+                      color: AppTheme.primaryGreen.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -205,8 +205,20 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                   
                   // Guest Mode Button
                   TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(context, '/patient-home');
+                    onPressed: authProvider.isLoading ? null : () async {
+                      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                      final success = await authProvider.signInAnonymously();
+                      
+                      if (success && mounted) {
+                        Navigator.pushReplacementNamed(context, '/patient-home');
+                      } else if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(authProvider.error ?? 'فشل تسجيل الدخول كزائر'),
+                            backgroundColor: AppTheme.errorRed,
+                          ),
+                        );
+                      }
                     },
                     child: const Text(
                       'تصفح كزائر (بدون تسجيل دخول)',

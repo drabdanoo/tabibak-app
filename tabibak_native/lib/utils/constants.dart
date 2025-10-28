@@ -29,6 +29,9 @@ class AppConstants {
   static const String keyUserPhone = 'user_phone';
   static const String keyIsLoggedIn = 'is_logged_in';
   
+  // Firebase Messaging Topics
+  static const String appointmentRemindersTopic = 'appointment_reminders';
+
   // Date Formats
   static const String dateFormat = 'yyyy-MM-dd';
   static const String timeFormat = 'HH:mm';
