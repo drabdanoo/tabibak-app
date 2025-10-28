@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
@@ -21,6 +23,7 @@ class OTPVerificationScreen extends StatefulWidget {
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   final _otpController = TextEditingController();
   String _currentOTP = '';
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -39,39 +42,62 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       return;
     }
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.verifyOTP(_currentOTP);
+    setState(() {
+      _isLoading = true;
+    });
 
-    if (!mounted) return;
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.verifyOTP(_currentOTP);
 
-    if (success) {
-      // Check if user profile exists
-      if (authProvider.userRole == null) {
-        // New user, go to profile setup
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PatientProfileSetupScreen(
-              phoneNumber: widget.phoneNumber,
+      if (!mounted) return;
+
+      if (success) {
+        // Check if user profile exists
+        if (authProvider.userRole == null) {
+          // New user, go to profile setup
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PatientProfileSetupScreen(
+                phoneNumber: widget.phoneNumber,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // Existing user, go to home
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const PatientHomeScreen(),
+            ),
+          );
+        }
       } else {
-        // Existing user, go to home
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PatientHomeScreen(),
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authProvider.error ?? 'رمز التحقق غير صحيح'),
+              backgroundColor: AppTheme.errorRed,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء التحقق: ${e.toString()}'),
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'رمز التحقق غير صحيح'),
-          backgroundColor: AppTheme.errorRed,
-        ),
-      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -97,11 +123,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen.withOpacity(0.1),
+                    color: AppTheme.primaryGreen.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.sms,
+                    Icons.lock,
                     size: 50,
                     color: AppTheme.primaryGreen,
                   ),
@@ -111,7 +137,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 
                 // Title
                 const Text(
-                  'أدخل رمز التحقق',
+                  'التحقق من رقم الهاتف',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -121,55 +147,47 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 
                 const SizedBox(height: 12),
                 
-                // Phone Number
+                // Description
                 Text(
-                  'تم إرسال رمز التحقق إلى',
+                  'تم إرسال رمز مكون من 6 أرقام إلى ${widget.phoneNumber}',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[600],
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  widget.phoneNumber,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
-                  ),
-                  textAlign: TextAlign.center,
-                  textDirection: TextDirection.ltr,
-                ),
                 
                 const SizedBox(height: 40),
                 
-                // OTP Input
+                // OTP Field
                 Directionality(
                   textDirection: TextDirection.ltr,
                   child: PinCodeTextField(
                     appContext: context,
                     length: 6,
-                    controller: _otpController,
-                    keyboardType: TextInputType.number,
+                    obscureText: false,
                     animationType: AnimationType.fade,
                     pinTheme: PinTheme(
                       shape: PinCodeFieldShape.box,
                       borderRadius: BorderRadius.circular(12),
                       fieldHeight: 60,
-                      fieldWidth: 50,
-                      activeFillColor: Colors.white,
-                      inactiveFillColor: Colors.grey[100],
-                      selectedFillColor: Colors.white,
+                      fieldWidth: 45,
                       activeColor: AppTheme.primaryGreen,
-                      inactiveColor: Colors.grey[300]!,
+                      activeFillColor: AppTheme.primaryGreen.withValues(alpha: 0.1),
                       selectedColor: AppTheme.primaryGreen,
+                      selectedFillColor: Colors.white,
+                      inactiveColor: Colors.grey[300]!,
+                      inactiveFillColor: Colors.white,
+                      errorBorderColor: AppTheme.errorRed,
                     ),
+                    cursorColor: AppTheme.primaryGreen,
                     animationDuration: const Duration(milliseconds: 300),
-                    backgroundColor: Colors.transparent,
                     enableActiveFill: true,
+                    controller: _otpController,
+                    keyboardType: TextInputType.number,
                     onCompleted: (value) {
                       _currentOTP = value;
+                      _verifyOTP();
                     },
                     onChanged: (value) {
                       _currentOTP = value;
@@ -177,46 +195,89 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   ),
                 ),
                 
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
                 
                 // Verify Button
                 ElevatedButton(
-                  onPressed: authProvider.isLoading ? null : _verifyOTP,
+                  onPressed: _isLoading ? null : _verifyOTP,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: authProvider.isLoading
+                  child: _isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 2,
                           ),
                         )
                       : const Text(
                           'تحقق',
-                          style: TextStyle(fontSize: 18),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
                 
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 
-                // Resend OTP
+                // Resend Code
                 TextButton(
-                  onPressed: () {
-                    // TODO: Implement resend OTP
+                  onPressed: _isLoading ? null : () {
+                    // TODO: Implement resend code functionality
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('جاري إعادة إرسال الرمز...'),
+                        content: Text('إعادة إرسال الرمز غير متوفرة حالياً'),
                       ),
                     );
                   },
                   child: const Text(
-                    'لم تستلم الرمز؟ إعادة الإرسال',
-                    style: TextStyle(fontSize: 16),
+                    'إعادة إرسال الرمز',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppTheme.primaryGreen,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
+                
+                if (authProvider.error != null && !authProvider.isLoading) ...[
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorRed.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppTheme.errorRed,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            authProvider.error!,
+                            style: const TextStyle(
+                              color: AppTheme.errorRed,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           );

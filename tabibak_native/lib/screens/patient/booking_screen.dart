@@ -90,19 +90,19 @@ class _BookingScreenState extends State<BookingScreen> {
         throw Exception('يجب تسجيل الدخول أولاً');
       }
 
-      // Format date
-      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
-
       // Check for conflicts
       final hasConflict = await _firestoreService.hasAppointmentConflict(
-        doctorId: widget.doctor.id,
-        date: dateStr,
-        time: _selectedTime!,
+        widget.doctor.id,
+        _selectedDate!,
+        null,
       );
 
       if (hasConflict) {
         throw Exception('هذا الموعد محجوز مسبقاً. الرجاء اختيار وقت آخر');
       }
+
+      // Format date for appointment
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
 
       // Create appointment
       final appointment = AppointmentModel(

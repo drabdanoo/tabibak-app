@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    
+    <!-- Background circle -->
+    <path
+        android:fillColor="#2D9B9B"
+        android:pathData="M256,512 C115.03,512 0,396.97 0,256 C0,115.03 115.03,0 256,0 C396.97,0 512,115.03 512,256 C512,396.97 396.97,512 256,512 Z" />
+    
+    <!-- Medical cross/plus symbol -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M256,150 L256,362 M150,256 L362,256"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="40"
+        android:strokeLineCap="round" />
+    
+    <!-- Heart accent -->
+    <path
+        android:fillColor="#FF6B6B"
+        android:pathData="M380,200 C380,180 365,170 350,170 C340,170 330,180 320,190 C310,180 300,170 290,170 C275,170 260,180 260,200 C260,230 290,260 320,280 C350,260 380,230 380,200 Z" />
+    
+</vector>

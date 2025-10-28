@@ -4,38 +4,50 @@ class DoctorModel {
   final String id;
   final String name;
   final String email;
-  final String? phone;
+  final String phone;
   final String specialty;
-  final String? photoUrl;
-  final double? consultationFee;
+  final String? bio;
+  final String? profileImageUrl;
+  final double rating;
+  final int reviewCount;
+  final bool isAvailable;
+  final List<String> languages;
+  final String clinicAddress;
   final String? openingTime;
   final String? closingTime;
-  final bool listed;
-  final bool? clinicClosed;
-  final DateTime? closureEndDate;
+  final double? consultationFee;
   final String? location;
-  final double? rating;
-  final int? reviewsCount;
-  final DateTime? createdAt;
 
   DoctorModel({
     required this.id,
     required this.name,
     required this.email,
-    this.phone,
+    required this.phone,
     required this.specialty,
-    this.photoUrl,
-    this.consultationFee,
+    this.bio,
+    this.profileImageUrl,
+    required this.rating,
+    required this.reviewCount,
+    required this.isAvailable,
+    required this.languages,
+    required this.clinicAddress,
     this.openingTime,
     this.closingTime,
-    this.listed = true,
-    this.clinicClosed,
-    this.closureEndDate,
+    this.consultationFee,
     this.location,
-    this.rating,
-    this.reviewsCount,
-    this.createdAt,
   });
+
+  /// Get the initials of the doctor's name (first letter of first name and last name)
+  String get initials {
+    if (name.isEmpty) return '';
+    
+    final names = name.split(' ');
+    if (names.length >= 2) {
+      return '${names.first.substring(0, 1)}${names.last.substring(0, 1)}';
+    } else {
+      return names.first.substring(0, 1);
+    }
+  }
 
   factory DoctorModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -43,19 +55,19 @@ class DoctorModel {
       id: doc.id,
       name: data['name'] ?? '',
       email: data['email'] ?? '',
-      phone: data['phone'],
+      phone: data['phone'] ?? '',
       specialty: data['specialty'] ?? '',
-      photoUrl: data['photoUrl'],
-      consultationFee: _parseDouble(data['consultationFee']),
+      bio: data['bio'],
+      profileImageUrl: data['profileImageUrl'],
+      rating: (data['rating'] ?? 0.0).toDouble(),
+      reviewCount: data['reviewCount'] ?? 0,
+      isAvailable: data['isAvailable'] ?? true,
+      languages: List<String>.from(data['languages'] ?? []),
+      clinicAddress: data['clinicAddress'] ?? '',
       openingTime: data['openingTime'],
       closingTime: data['closingTime'],
-      listed: data['listed'] ?? true,
-      clinicClosed: data['clinicClosed'],
-      closureEndDate: data['closureEndDate']?.toDate(),
+      consultationFee: data['consultationFee']?.toDouble(),
       location: data['location'],
-      rating: _parseDouble(data['rating']),
-      reviewsCount: data['reviewsCount'],
-      createdAt: data['createdAt']?.toDate(),
     );
   }
 
@@ -65,43 +77,17 @@ class DoctorModel {
       'email': email,
       'phone': phone,
       'specialty': specialty,
-      'photoUrl': photoUrl,
-      'consultationFee': consultationFee,
+      'bio': bio,
+      'profileImageUrl': profileImageUrl,
+      'rating': rating,
+      'reviewCount': reviewCount,
+      'isAvailable': isAvailable,
+      'languages': languages,
+      'clinicAddress': clinicAddress,
       'openingTime': openingTime,
       'closingTime': closingTime,
-      'listed': listed,
-      'clinicClosed': clinicClosed,
-      'closureEndDate': closureEndDate,
+      'consultationFee': consultationFee,
       'location': location,
-      'rating': rating,
-      'reviewsCount': reviewsCount,
-      'createdAt': createdAt ?? FieldValue.serverTimestamp(),
     };
-  }
-
-  String get initials {
-    final names = name.split(' ');
-    if (names.length >= 2) {
-      return '${names[0][0]}${names[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
-  }
-
-  bool get isOpen {
-    if (clinicClosed == true) {
-      if (closureEndDate != null && closureEndDate!.isAfter(DateTime.now())) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  // Helper function to parse double from dynamic (handles String, int, double)
-  static double? _parseDouble(dynamic value) {
-    if (value == null) return null;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value);
-    return null;
   }
 }

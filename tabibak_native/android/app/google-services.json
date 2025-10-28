@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "464755135042-b3mtqf1ee0t0q3s5fhq8jc15vfru188b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.abdullah.medbook",
+            "certificate_hash": "1f38f686d9f68f0fd967c4d08ded27d04cc6c6d4"
+          }
+        },
+        {
           "client_id": "464755135042-tuml1lmjvb7sqc05m2546kl4oqm2nnjb.apps.googleusercontent.com",
           "client_type": 3
         }

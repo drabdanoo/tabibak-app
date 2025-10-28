@@ -4,9 +4,61 @@ import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../models/appointment_model.dart';
 import '../../config/theme.dart';
+import 'appointment_details_screen.dart';
 
-class MyAppointmentsScreen extends StatelessWidget {
+class MyAppointmentsScreen extends StatefulWidget {
   const MyAppointmentsScreen({super.key});
+
+  @override
+  State<MyAppointmentsScreen> createState() => _MyAppointmentsScreenState();
+}
+
+class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  List<AppointmentModel> _filterAppointments(List<AppointmentModel> appointments, int tabIndex) {
+    final now = DateTime.now();
+    
+    switch (tabIndex) {
+      case 0: // All
+        return appointments;
+      case 1: // Upcoming
+        return appointments.where((apt) {
+          if (apt.appointmentDate == null) return false;
+          try {
+            final aptDate = DateTime.parse(apt.appointmentDate!);
+            return aptDate.isAfter(now.subtract(const Duration(days: 1))) && 
+                   (apt.isPending || apt.isConfirmed);
+          } catch (e) {
+            return false;
+          }
+        }).toList();
+      case 2: // Past
+        return appointments.where((apt) {
+          if (apt.appointmentDate == null) return apt.isCompleted || apt.isCancelled;
+          try {
+            final aptDate = DateTime.parse(apt.appointmentDate!);
+            return aptDate.isBefore(now) || apt.isCompleted || apt.isCancelled;
+          } catch (e) {
+            return apt.isCompleted || apt.isCancelled;
+          }
+        }).toList();
+      default:
+        return appointments;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +79,15 @@ class MyAppointmentsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('مواعيدي'),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(text: 'الكل'),
+            Tab(text: 'القادمة'),
+            Tab(text: 'السابقة'),
+          ],
+        ),
       ),
       body: StreamBuilder<List<AppointmentModel>>(
         stream: FirestoreService().getPatientAppointments(user.uid),
@@ -60,49 +121,79 @@ class MyAppointmentsScreen extends StatelessWidget {
             );
           }
 
-          final appointments = snapshot.data ?? [];
+          final allAppointments = snapshot.data ?? [];
 
-          if (appointments.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'لا توجد مواعيد',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'احجز موعدك الأول مع أحد الأطباء',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+          return TabBarView(
+            controller: _tabController,
+            children: List.generate(3, (tabIndex) {
+              final appointments = _filterAppointments(allAppointments, tabIndex);
+              
+              if (appointments.isEmpty) {
+                return _buildEmptyState(tabIndex);
+              }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: appointments.length,
-            itemBuilder: (context, index) {
-              final appointment = appointments[index];
-              return _AppointmentCard(appointment: appointment);
-            },
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: appointments.length,
+                itemBuilder: (context, index) {
+                  final appointment = appointments[index];
+                  return _AppointmentCard(appointment: appointment);
+                },
+              );
+            }),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(int tabIndex) {
+    String message;
+    IconData icon;
+    
+    switch (tabIndex) {
+      case 1:
+        message = 'لا توجد مواعيد قادمة';
+        icon = Icons.event_available;
+        break;
+      case 2:
+        message = 'لا توجد مواعيد سابقة';
+        icon = Icons.history;
+        break;
+      default:
+        message = 'لا توجد مواعيد';
+        icon = Icons.calendar_today;
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 80,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          if (tabIndex == 0) ...[
+            const SizedBox(height: 12),
+            Text(
+              'احجز موعدك الأول مع أحد الأطباء',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -143,7 +234,17 @@ class _AppointmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AppointmentDetailsScreen(appointment: appointment),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,7 +268,7 @@ class _AppointmentCard extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: _getStatusColor().withOpacity(0.1),
+                    color: _getStatusColor().withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -287,6 +388,7 @@ class _AppointmentCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
       ),
     );
   }

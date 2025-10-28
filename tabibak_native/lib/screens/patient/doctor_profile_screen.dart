@@ -23,7 +23,7 @@ class DoctorProfileScreen extends StatelessWidget {
             // Doctor Header
             Container(
               padding: const EdgeInsets.all(24),
-              color: AppTheme.primaryGreen.withOpacity(0.1),
+              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
               child: Center(
                 child: Column(
                   children: [
@@ -136,7 +136,7 @@ class _InfoTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withOpacity(0.1),
+              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
