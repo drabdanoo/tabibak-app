@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder for splash logo - Replace with actual PNG/SVG from Canva -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="180dp"
+    android:height="180dp"
+    android:viewportWidth="180"
+    android:viewportHeight="180">
+    
+    <!-- Background Circle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M90,90m-85,0a85,85 0,1 1,170 0a85,85 0,1 1,-170 0" />
+    
+    <!-- Stethoscope Heart Icon (Simplified) -->
+    <path
+        android:fillColor="#2D9B9B"
+        android:pathData="M90,60C80,60 72,68 72,78C72,88 90,110 90,110C90,110 108,88 108,78C108,68 100,60 90,60Z" />
+    
+    <path
+        android:fillColor="#2D9B9B"
+        android:strokeColor="#2D9B9B"
+        android:strokeWidth="3"
+        android:pathData="M60,80Q60,60 75,55M120,80Q120,60 105,55" />
+    
+</vector>
