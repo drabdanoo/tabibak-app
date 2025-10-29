@@ -129,10 +129,11 @@ class AuthProvider with ChangeNotifier {
         otp: otp,
       );
       
-      // Check if user is signed in (credential might be null due to type cast error)
+      // Check if user is signed in (credential might be null in some cases)
       _currentUser = credential?.user ?? _authService.currentUser;
       
       if (_currentUser != null) {
+        developer.log('User successfully verified: ${_currentUser!.uid}', name: 'AuthProvider');
         await _loadUserRole();
         _setLoading(false);
         return true;
@@ -142,6 +143,8 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
+      developer.log('Error in verifyOTP: $e', name: 'AuthProvider', level: 900);
+      
       // Check if user is actually signed in despite error
       _currentUser = _authService.currentUser;
       if (_currentUser != null) {
@@ -151,7 +154,12 @@ class AuthProvider with ChangeNotifier {
         return true;
       }
       
-      _setError(e.toString());
+      // Extract error message from Exception if possible
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring('Exception: '.length);
+      }
+      _setError(errorMessage);
       _setLoading(false);
       return false;
     }
@@ -201,10 +209,11 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
       
-      // Check if user is signed in (credential might be null due to type cast error)
+      // Check if user is signed in (credential might be null in some cases)
       _currentUser = credential?.user ?? _authService.currentUser;
       
       if (_currentUser != null) {
+        developer.log('User successfully signed in: ${_currentUser!.uid}', name: 'AuthProvider');
         await _loadUserRole();
         _setLoading(false);
         return true;
@@ -214,6 +223,8 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
+      developer.log('Error in signInWithEmail: $e', name: 'AuthProvider', level: 900);
+      
       // Check if user is actually signed in despite error
       _currentUser = _authService.currentUser;
       if (_currentUser != null) {
@@ -223,7 +234,12 @@ class AuthProvider with ChangeNotifier {
         return true;
       }
       
-      _setError(e.toString());
+      // Extract error message from Exception if possible
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring('Exception: '.length);
+      }
+      _setError(errorMessage);
       _setLoading(false);
       return false;
     }
