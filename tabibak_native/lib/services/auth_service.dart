@@ -87,20 +87,7 @@ class AuthService {
         smsCode: otp,
       );
       
-      UserCredential? result;
-      try {
-        result = await _auth.signInWithCredential(credential);
-      } catch (e) {
-        // Handle PigeonUserDetails type cast error - user is actually signed in
-        developer.log('Type cast error (known issue), checking current user...', name: 'AuthService', level: 900);
-        if (_auth.currentUser != null) {
-          developer.log('User is signed in despite error: ${_auth.currentUser?.uid ?? 'unknown'}', name: 'AuthService');
-          // Create a mock UserCredential since sign-in succeeded
-          return null; // We'll handle this in the provider
-        }
-        rethrow;
-      }
-      
+      UserCredential result = await _auth.signInWithCredential(credential);
       developer.log('OTP verification successful! User: ${result.user?.uid ?? 'N/A'}', name: 'AuthService');
       return result;
     } on FirebaseAuthException catch (e) {
@@ -120,7 +107,15 @@ class AuthService {
       
       throw Exception(errorMessage);
     } catch (e) {
-      developer.log('OTP verification failed: $e', name: 'AuthService', level: 900);
+      developer.log('OTP verification error: $e', name: 'AuthService', level: 900);
+      
+      // Check if user is actually signed in despite the error
+      if (_auth.currentUser != null) {
+        developer.log('User is signed in despite error: ${_auth.currentUser?.uid ?? 'unknown'}', name: 'AuthService');
+        // Return null to indicate success but no UserCredential object
+        return null;
+      }
+      
       throw Exception('رمز التحقق غير صحيح: ${e.toString()}');
     }
   }
@@ -144,22 +139,10 @@ class AuthService {
   }) async {
     try {
       developer.log('Signing in with email: $email', name: 'AuthService');
-      UserCredential? result;
-      try {
-        result = await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      } catch (e) {
-        // Handle PigeonUserDetails type cast error - user is actually signed in
-        developer.log('Type cast error (known issue), checking current user...', name: 'AuthService', level: 900);
-        if (_auth.currentUser != null) {
-          developer.log('User is signed in despite error: ${_auth.currentUser?.uid ?? 'unknown'}', name: 'AuthService');
-          // Return null but user is authenticated
-          return null;
-        }
-        rethrow;
-      }
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
       developer.log('Email sign-in successful! User: ${result.user?.uid ?? 'N/A'}', name: 'AuthService');
       return result;
     } on FirebaseAuthException catch (e) {
@@ -182,6 +165,9 @@ class AuthService {
         case 'network-request-failed':
           errorMessage = 'خطأ في الاتصال بالإنترنت';
           break;
+        case 'invalid-credential':
+          errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+          break;
         default:
           errorMessage = e.message ?? 'خطأ في تسجيل الدخول';
       }
@@ -189,6 +175,14 @@ class AuthService {
       throw Exception(errorMessage);
     } catch (e) {
       developer.log('Unexpected error in signInWithEmail: $e', name: 'AuthService', level: 900);
+      
+      // Check if user is actually signed in despite the error
+      if (_auth.currentUser != null) {
+        developer.log('User is signed in despite error: ${_auth.currentUser?.uid ?? 'unknown'}', name: 'AuthService');
+        // Return null to indicate success but no UserCredential object
+        return null;
+      }
+      
       throw Exception('خطأ غير متوقع: ${e.toString()}');
     }
   }
