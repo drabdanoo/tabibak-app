@@ -12,51 +12,51 @@ class RoleSelectionScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: const BoxDecoration(
-                color: AppTheme.primaryGreen,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.local_hospital,
-                    size: 80,
-                    color: Colors.white,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: const BoxDecoration(
+                  color: AppTheme.primaryGreen,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'طبيبك',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.local_hospital,
+                      size: 80,
                       color: Colors.white,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'اختر نوع الحساب',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white.withValues(alpha: 0.9),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'طبيبك',
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'اختر نوع الحساب',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 40),
+              const SizedBox(height: 40),
 
-            // Role Cards
-            Expanded(
-              child: Padding(
+              // Role Cards
+              Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -108,20 +108,20 @@ class RoleSelectionScreen extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
 
-            // Footer
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                'الإصدار 1.0.0',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
+              // Footer
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'الإصدار 1.0.0',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

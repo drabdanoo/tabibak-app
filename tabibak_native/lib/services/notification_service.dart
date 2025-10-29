@@ -175,7 +175,6 @@ class NotificationService {
               tz.TZDateTime.from(reminderTime, tz.local),
               notificationDetails,
               androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-              uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
             );
             
             developer.log('Scheduled reminder for appointment ${appointment.id} at $reminderTime', name: 'NotificationService');
@@ -217,7 +216,6 @@ class NotificationService {
           tz.TZDateTime.from(scheduledDate, tz.local),
           notificationDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
 
         developer.log('Scheduled notification $id at $scheduledDate', name: 'NotificationService');

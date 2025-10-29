@@ -92,7 +92,6 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen> {
             if (recordedFile != null)
               AudioPlayerWidget(
                 audioPath: recordedFile!.path,
-                audioType: AudioType.file,
                 playerStyle: PlayerStyle.style5,
                 backgroundColor: AppTheme.primaryPurple,
                 progressBarColor: Colors.white,
