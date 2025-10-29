@@ -235,14 +235,29 @@ class AuthProvider with ChangeNotifier {
     _clearError();
 
     try {
-      await _authService.signInAnonymously();
-      _currentUser = _authService.currentUser;
-      _userRole = 'guest';
-      _setLoading(false);
-      notifyListeners();
-      return true;
+      // Try anonymous sign in first
+      try {
+        await _authService.signInAnonymously();
+        _currentUser = _authService.currentUser;
+        _userRole = 'guest';
+        _setLoading(false);
+        notifyListeners();
+        return true;
+      } catch (e) {
+        // If anonymous auth fails, try guest email/password account
+        developer.log('Anonymous auth failed, trying guest account: $e', name: 'AuthProvider', level: 900);
+        await _authService.signInWithEmail(
+          email: 'guest@tabibak.app',
+          password: 'Guest@123456',
+        );
+        _currentUser = _authService.currentUser;
+        _userRole = 'guest';
+        _setLoading(false);
+        notifyListeners();
+        return true;
+      }
     } catch (e) {
-      _setError(e.toString());
+      _setError('فشل تسجيل الدخول كزائر: ${e.toString()}');
       _setLoading(false);
       return false;
     }

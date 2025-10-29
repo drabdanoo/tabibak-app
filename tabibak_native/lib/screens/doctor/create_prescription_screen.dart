@@ -83,7 +83,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
         doctorId: doctor.id,
         doctorName: doctor.fullName, // Assuming doctor.fullName exists
         doctorSpecialty: doctor.specialty, // Assuming doctor.specialty exists
-        diagnosis: widget.appointment.reason, // Assuming appointment.reason can be used as diagnosis
+        diagnosis: widget.appointment.reason ?? '', // Provides an empty string if reason is null
         medications: _medications.map((med) {
           return PrescriptionItem(
             medicationName: med['name'] ?? '',
