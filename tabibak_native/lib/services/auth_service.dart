@@ -22,7 +22,9 @@ class AuthService {
     required Function(String error) onError,
   }) async {
     try {
-      // Disable reCAPTCHA for testing
+      developer.log('Sending OTP to: $phoneNumber', name: 'AuthService');
+      
+      // Disable reCAPTCHA for testing - only works in debug/test mode
       await _auth.setSettings(appVerificationDisabledForTesting: true);
       
       await _auth.verifyPhoneNumber(
@@ -32,6 +34,7 @@ class AuthService {
           developer.log('Auto-verification completed', name: 'AuthService');
           try {
             await _auth.signInWithCredential(credential);
+            developer.log('Auto sign-in successful', name: 'AuthService');
           } catch (e) {
             developer.log('Auto-verification sign in error: $e', name: 'AuthService', level: 900);
           }
@@ -50,6 +53,9 @@ class AuthService {
             case 'quota-exceeded':
               errorMessage = 'تم تجاوز الحد الأقصى لطلبات التحقق، حاول لاحقاً';
               break;
+            case 'operation-not-allowed':
+              errorMessage = 'المصادقة عبر الهاتف غير مفعلة. الرجاء التواصل مع الدعم الفني';
+              break;
             default:
               errorMessage = e.message ?? 'فشل التحقق من رقم الهاتف';
           }
@@ -57,11 +63,11 @@ class AuthService {
           onError(errorMessage);
         },
         codeSent: (String verificationId, int? resendToken) {
-          developer.log('Code sent, verificationId: $verificationId', name: 'AuthService');
+          developer.log('Code sent successfully, verificationId: ${verificationId.substring(0, MathUtils.min(verificationId.length, 20))}...', name: 'AuthService');
           onCodeSent(verificationId);
         },
         codeAutoRetrievalTimeout: (String verificationId) {
-          developer.log('Auto-retrieval timeout, manual entry required', name: 'AuthService');
+          developer.log('Auto-retrieval timeout for verificationId: ${verificationId.substring(0, MathUtils.min(verificationId.length, 20))}... - manual entry required', name: 'AuthService');
           // This is normal - just means user needs to enter code manually
         },
         timeout: const Duration(seconds: 120), // Increased timeout
@@ -224,27 +230,39 @@ class AuthService {
   // Get user role
   Future<String?> getUserRole(String userId) async {
     try {
+      developer.log('Getting user role for userId: $userId', name: 'AuthService');
+      
       // Check patients
       final patientDoc = await _firestore
           .collection(AppConstants.patientsCollection)
           .doc(userId)
           .get();
-      if (patientDoc.exists) return AppConstants.rolePatient;
+      if (patientDoc.exists) {
+        developer.log('User role found: patient', name: 'AuthService');
+        return AppConstants.rolePatient;
+      }
 
       // Check doctors
       final doctorDoc = await _firestore
           .collection(AppConstants.doctorsCollection)
           .doc(userId)
           .get();
-      if (doctorDoc.exists) return AppConstants.roleDoctor;
+      if (doctorDoc.exists) {
+        developer.log('User role found: doctor', name: 'AuthService');
+        return AppConstants.roleDoctor;
+      }
 
       // Check receptionists
       final receptionistDoc = await _firestore
           .collection(AppConstants.receptionistsCollection)
           .doc(userId)
           .get();
-      if (receptionistDoc.exists) return AppConstants.roleReceptionist;
+      if (receptionistDoc.exists) {
+        developer.log('User role found: receptionist', name: 'AuthService');
+        return AppConstants.roleReceptionist;
+      }
 
+      developer.log('No user role found for userId: $userId', name: 'AuthService', level: 900);
       return null;
     } catch (e) {
       developer.log('Error getting user role: $e', name: 'AuthService', level: 900);
