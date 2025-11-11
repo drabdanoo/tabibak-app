@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/prescription_template_model.dart';
 import '../../services/firestore_service.dart';
 import '../../config/theme.dart';
+import '../../utils/auth_debug.dart';
 
 class PrescriptionTemplatesScreen extends StatefulWidget {
   const PrescriptionTemplatesScreen({super.key});
@@ -24,6 +25,14 @@ class _PrescriptionTemplatesScreenState extends State<PrescriptionTemplatesScree
     _loadTemplates = () {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final doctorId = authProvider.currentUser?.uid;
+      final userRole = authProvider.userRole;
+
+      print('DEBUG - Doctor ID: $doctorId');
+      print('DEBUG - User Role: $userRole');
+      print('DEBUG - Current User: ${authProvider.currentUser?.email}');
+      
+      // Debug auth claims to see what's actually available
+      AuthDebug.printUserClaims();
 
       if (doctorId != null) {
         setState(() {
@@ -65,7 +74,61 @@ class _PrescriptionTemplatesScreenState extends State<PrescriptionTemplatesScree
                     
                     if (snapshot.hasError) {
                       return Center(
-                        child: Text('Error loading templates: ${snapshot.error}'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                size: 64,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Template Access Issue',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'The app needs permission to access template storage. This is a Firebase configuration issue.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  // Force token refresh
+                                  try {
+                                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                    await authProvider.currentUser?.getIdToken(true);
+                                    print('DEBUG - Token refreshed');
+                                  } catch (e) {
+                                    print('DEBUG - Token refresh error: $e');
+                                  }
+                                  setState(() {
+                                    _loadTemplates();
+                                  });
+                                },
+                                child: const Text('Refresh Token & Try Again'),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Error: ${snapshot.error}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     }
                     
@@ -478,8 +541,38 @@ class _CreatePrescriptionTemplateScreenState extends State<CreatePrescriptionTem
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Error saving template';
+        if (e.toString().contains('permission-denied')) {
+          errorMessage = 'Permission denied: Firebase needs to be configured to allow template storage';
+        } else if (e.toString().contains('network')) {
+          errorMessage = 'Network error: Please check your internet connection';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving template: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Details',
+              textColor: Colors.white,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Error Details'),
+                    content: Text(e.toString()),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         );
       }
     } finally {

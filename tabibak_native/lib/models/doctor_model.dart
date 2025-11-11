@@ -59,16 +59,44 @@ class DoctorModel {
       specialty: data['specialty'] ?? '',
       bio: data['bio'],
       profileImageUrl: data['profileImageUrl'],
-      rating: (data['rating'] ?? 0.0).toDouble(),
+      rating: _parseDouble(data['rating']) ?? 0.0,
       reviewCount: data['reviewCount'] ?? 0,
       isAvailable: data['isAvailable'] ?? true,
-      languages: List<String>.from(data['languages'] ?? []),
+      languages: _parseStringList(data['languages']) ?? [],
       clinicAddress: data['clinicAddress'] ?? '',
       openingTime: data['openingTime'],
       closingTime: data['closingTime'],
-      consultationFee: data['consultationFee']?.toDouble(),
+      consultationFee: _parseDouble(data['consultationFee']),
       location: data['location'],
     );
+  }
+
+  // Helper method to safely parse string lists from Firestore
+  static List<String>? _parseStringList(dynamic value) {
+    if (value == null) return null;
+    if (value is List) {
+      return value.map((item) => item?.toString() ?? '').toList();
+    }
+    if (value is String) {
+      // If it's a single string, treat it as a list with one item
+      return value.isEmpty ? null : [value];
+    }
+    return null;
+  }
+
+  // Helper method to safely parse double values from Firestore
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      try {
+        return double.parse(value);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   Map<String, dynamic> toMap() {

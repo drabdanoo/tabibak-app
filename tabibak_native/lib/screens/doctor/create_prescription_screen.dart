@@ -64,9 +64,9 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final doctor = authProvider.userModel;
+    final doctorId = authProvider.currentUser?.uid;
 
-    if (doctor == null) {
+    if (doctorId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Doctor information not found'),
@@ -77,12 +77,26 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     }
 
     try {
+      // Get doctor information from Firestore
+      final doctorDoc = await FirestoreService().getDoctorById(doctorId);
+      if (doctorDoc == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not load doctor information'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       final prescription = PrescriptionModel(
         id: '',
         patientId: widget.appointment.patientId,
-        doctorId: doctor.id,
-        doctorName: doctor.fullName, // Assuming doctor.fullName exists
-        doctorSpecialty: doctor.specialty, // Assuming doctor.specialty exists
+        doctorId: doctorId,
+        doctorName: doctorDoc.name,
+        doctorSpecialty: doctorDoc.specialty,
         diagnosis: widget.appointment.reason ?? '', // Provides an empty string if reason is null
         medications: _medications.map((med) {
           return PrescriptionItem(

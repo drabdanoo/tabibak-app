@@ -27,6 +27,19 @@ class PatientModel {
     this.createdAt,
   });
 
+  // Helper method to safely parse string lists from Firestore
+  static List<String>? _parseStringList(dynamic value) {
+    if (value == null) return null;
+    if (value is List) {
+      return value.map((item) => item?.toString() ?? '').toList();
+    }
+    if (value is String) {
+      // If it's a single string, treat it as a list with one item
+      return value.isEmpty ? null : [value];
+    }
+    return null;
+  }
+
   factory PatientModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return PatientModel(
@@ -37,12 +50,8 @@ class PatientModel {
       age: data['age'],
       gender: data['gender'],
       bloodType: data['bloodType'],
-      allergies: data['allergies'] != null 
-          ? List<String>.from(data['allergies']) 
-          : null,
-      medications: data['medications'] != null 
-          ? List<String>.from(data['medications']) 
-          : null,
+      allergies: _parseStringList(data['allergies']),
+      medications: _parseStringList(data['medications']),
       medicalHistory: data['medicalHistory'],
       createdAt: data['createdAt']?.toDate(),
     );

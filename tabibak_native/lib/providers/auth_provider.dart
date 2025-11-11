@@ -59,7 +59,9 @@ class AuthProvider with ChangeNotifier {
   Future<void> _loadUserRole() async {
     if (_currentUser == null) return;
     try {
+      developer.log('Loading user role for: ${_currentUser!.uid}', name: 'AuthProvider');
       _userRole = await _authService.getUserRole(_currentUser!.uid);
+      developer.log('User role loaded: $_userRole', name: 'AuthProvider');
       
       // Schedule appointment reminders after loading user role
       if (_userRole != null) {
