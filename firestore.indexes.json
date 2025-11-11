@@ -97,6 +97,34 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "fields": [
+        {
+          "fieldPath": "doctorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION",
+      "collectionGroup": "prescription_templates"
+    },
+    {
+      "fields": [
+        {
+          "fieldPath": "doctorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION",
+      "collectionGroup": "medical_note_templates"
     }
   ],
   "fieldOverrides": []

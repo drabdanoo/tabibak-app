@@ -15,10 +15,21 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   String _countryCode = '+964';
+  final FocusNode _phoneFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // For web, ensure focus is available after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _phoneFocus.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _phoneFocus.dispose();
     super.dispose();
   }
 
@@ -157,12 +168,27 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                       Expanded(
                         child: TextFormField(
                           controller: _phoneController,
+                          focusNode: _phoneFocus,
                           keyboardType: TextInputType.phone,
                           textDirection: TextDirection.ltr,
+                          enableInteractiveSelection: true,
+                          onChanged: (value) {
+                            print('Phone input changed: $value');
+                          },
+                          onTap: () {
+                            print('Phone input tapped');
+                          },
                           decoration: const InputDecoration(
                             labelText: 'رقم الهاتف',
                             hintText: '7XXXXXXXXX',
                             prefixIcon: Icon(Icons.phone),
+                            border: OutlineInputBorder(),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.grey),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.blue, width: 2),
+                            ),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {

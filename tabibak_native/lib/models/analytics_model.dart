@@ -38,10 +38,41 @@ class DoctorAnalytics {
       appointmentsByMonth: Map<String, int>.from(data['appointmentsByMonth'] ?? {}),
       conditionsCount: Map<String, int>.from(data['conditionsCount'] ?? {}),
       appointmentsByDayOfWeek: Map<String, int>.from(data['appointmentsByDayOfWeek'] ?? {}),
-      averageAppointmentDuration: (data['averageAppointmentDuration'] ?? 0.0).toDouble(),
-      patientSatisfaction: Map<String, double>.from(data['patientSatisfaction'] ?? {}),
+      averageAppointmentDuration: _parseDouble(data['averageAppointmentDuration']) ?? 0.0,
+      patientSatisfaction: _parseSatisfactionMap(data['patientSatisfaction']),
       lastUpdated: (data['lastUpdated'] as Timestamp).toDate(),
     );
+  }
+
+  // Helper method to safely parse double values
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      try {
+        return double.parse(value);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // Helper method to safely parse satisfaction map
+  static Map<String, double> _parseSatisfactionMap(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, dynamic>) {
+      final Map<String, double> result = {};
+      value.forEach((key, val) {
+        final parsedValue = _parseDouble(val);
+        if (parsedValue != null) {
+          result[key] = parsedValue;
+        }
+      });
+      return result;
+    }
+    return {};
   }
 
   Map<String, dynamic> toMap() {
