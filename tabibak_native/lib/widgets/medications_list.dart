@@ -101,7 +101,7 @@ class _MedicationsListState extends State<MedicationsList>
                   int idx = entry.key;
                   var medication = entry.value;
                   return _buildAnimatedMedicationItem(context, medication, idx);
-                }).toList(),
+                }),
               ],
             ),
           ),

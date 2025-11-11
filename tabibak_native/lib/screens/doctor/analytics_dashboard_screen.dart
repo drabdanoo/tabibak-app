@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/analytics_model.dart';
+import '../../services/analytics_service.dart';
+import '../../services/test_data_service.dart';
 import '../../config/theme.dart';
 
 class AnalyticsDashboardScreen extends StatefulWidget {
@@ -15,6 +17,9 @@ class AnalyticsDashboardScreen extends StatefulWidget {
 class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   DoctorAnalytics? _analytics;
   bool _isLoading = true;
+  bool _isAddingData = false;
+  final AnalyticsService _analyticsService = AnalyticsService();
+  final TestDataService _testDataService = TestDataService();
 
   @override
   void initState() {
@@ -28,16 +33,19 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final doctorId = authProvider.currentUser?.uid;
 
+    print('DEBUG - Loading analytics for doctor: $doctorId');
+
     if (doctorId != null) {
       try {
-        // For now, we'll generate mock analytics data
-        // In a real app, this would come from Firestore
-        final analytics = await _generateMockAnalytics(doctorId);
+        // Fetch real analytics data from Firestore
+        final analytics = await _analyticsService.generateDoctorAnalytics(doctorId);
+        print('DEBUG - Analytics loaded: ${analytics.totalAppointments} appointments, ${analytics.totalPatients} patients');
         setState(() {
           _analytics = analytics;
           _isLoading = false;
         });
       } catch (e) {
+        print('ERROR - Loading analytics: $e');
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -45,52 +53,38 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
           );
         }
       }
+    } else {
+      setState(() => _isLoading = false);
+      print('DEBUG - No doctor ID found');
     }
   }
 
-  Future<DoctorAnalytics> _generateMockAnalytics(String doctorId) async {
-    // Mock data - in real app, this would come from aggregated Firestore data
-    return DoctorAnalytics(
-      doctorId: doctorId,
-      totalPatients: 127,
-      totalAppointments: 245,
-      completedAppointments: 220,
-      cancelledAppointments: 25,
-      appointmentsByMonth: {
-        '2024-10': 45,
-        '2024-11': 52,
-        '2024-12': 38,
-        '2025-01': 41,
-        '2025-02': 35,
-      },
-      conditionsCount: {
-        'Hypertension': 28,
-        'Diabetes': 22,
-        'Common Cold': 35,
-        'Back Pain': 18,
-        'Headache': 31,
-        'Allergies': 15,
-        'Asthma': 12,
-        'Other': 25,
-      },
-      appointmentsByDayOfWeek: {
-        'Monday': 18,
-        'Tuesday': 22,
-        'Wednesday': 20,
-        'Thursday': 25,
-        'Friday': 19,
-        'Saturday': 8,
-        'Sunday': 5,
-      },
-      averageAppointmentDuration: 25.5,
-      patientSatisfaction: {
-        'Excellent': 4.2,
-        'Good': 3.1,
-        'Average': 1.8,
-        'Poor': 0.4,
-      },
-      lastUpdated: DateTime.now(),
-    );
+  Future<void> _addSampleData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final doctorId = authProvider.currentUser?.uid;
+    
+    if (doctorId == null) return;
+
+    setState(() => _isAddingData = true);
+
+    try {
+      await _testDataService.addSampleAppointments(doctorId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sample data added successfully!')),
+        );
+      }
+      // Reload analytics after adding sample data
+      _loadAnalytics();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding sample data: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isAddingData = false);
+    }
   }
 
   @override
@@ -113,8 +107,60 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _analytics == null
-              ? const Center(child: Text('No analytics data available'))
+          : _analytics == null || _analytics!.totalAppointments == 0
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.analytics_outlined,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _analytics?.totalAppointments == 0 
+                          ? 'No appointments yet' 
+                          : 'No analytics data available',
+                        style: const TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _analytics?.totalAppointments == 0 
+                          ? 'Start seeing patients to view your analytics dashboard'
+                          : 'Complete some appointments to see analytics',
+                        style: const TextStyle(color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton(
+                            onPressed: _loadAnalytics,
+                            child: const Text('Refresh'),
+                          ),
+                          if (_analytics?.totalAppointments == 0) ...[
+                            const SizedBox(width: 16),
+                            ElevatedButton(
+                              onPressed: _isAddingData ? null : _addSampleData,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.accentCyan,
+                              ),
+                              child: _isAddingData 
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Text('Add Sample Data'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                )
               : _buildDashboard(),
     );
   }
@@ -279,7 +325,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
 
   Widget _buildConditionsChart() {
     final conditions = _analytics!.topConditions.take(5).toList();
-    final values = conditions.map((condition) => _analytics!.conditionsCount[condition]!.toDouble()).toList();
+    final values = conditions.map((condition) => (_analytics!.conditionsCount[condition] ?? 0).toDouble()).toList();
 
     return Card(
       elevation: 4,
@@ -334,7 +380,16 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
 
   Widget _buildDayOfWeekChart() {
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final values = days.map((day) => _analytics!.appointmentsByDayOfWeek[day]!.toDouble()).toList();
+    final dayMapping = {
+      'Mon': 'Monday',
+      'Tue': 'Tuesday',
+      'Wed': 'Wednesday',
+      'Thu': 'Thursday',
+      'Fri': 'Friday',
+      'Sat': 'Saturday',
+      'Sun': 'Sunday',
+    };
+    final values = days.map((day) => (_analytics!.appointmentsByDayOfWeek[dayMapping[day]] ?? 0).toDouble()).toList();
 
     return Card(
       elevation: 4,

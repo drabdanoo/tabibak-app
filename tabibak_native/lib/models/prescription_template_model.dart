@@ -49,6 +49,35 @@ class PrescriptionTemplate {
     };
   }
 
+  // JSON serialization for local storage
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'doctorId': doctorId,
+      'name': name,
+      'condition': condition,
+      'medications': medications.map((item) => item.toMap()).toList(),
+      'notes': notes,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory PrescriptionTemplate.fromJson(Map<String, dynamic> json) {
+    return PrescriptionTemplate(
+      id: json['id'] ?? '',
+      doctorId: json['doctorId'] ?? '',
+      name: json['name'] ?? '',
+      condition: json['condition'] ?? '',
+      medications: (json['medications'] as List<dynamic>?)
+          ?.map((item) => PrescriptionItemTemplate.fromMap(item as Map<String, dynamic>))
+          .toList() ?? [],
+      notes: json['notes'] ?? '',
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+    );
+  }
+
   PrescriptionTemplate copyWith({
     String? id,
     String? doctorId,

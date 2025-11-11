@@ -230,27 +230,45 @@ class AuthService {
   // Get user role
   Future<String?> getUserRole(String userId) async {
     try {
+      developer.log('Getting user role for: $userId', name: 'AuthService');
+      
       // Check patients
       final patientDoc = await _firestore
           .collection(AppConstants.patientsCollection)
           .doc(userId)
           .get();
-      if (patientDoc.exists) return AppConstants.rolePatient;
+      
+      developer.log('Patient doc exists: ${patientDoc.exists}', name: 'AuthService');
+      if (patientDoc.exists) {
+        developer.log('User is a patient', name: 'AuthService');
+        return AppConstants.rolePatient;
+      }
 
       // Check doctors
       final doctorDoc = await _firestore
           .collection(AppConstants.doctorsCollection)
           .doc(userId)
           .get();
-      if (doctorDoc.exists) return AppConstants.roleDoctor;
+      
+      developer.log('Doctor doc exists: ${doctorDoc.exists}', name: 'AuthService');
+      if (doctorDoc.exists) {
+        developer.log('User is a doctor', name: 'AuthService');
+        return AppConstants.roleDoctor;
+      }
 
       // Check receptionists
       final receptionistDoc = await _firestore
           .collection(AppConstants.receptionistsCollection)
           .doc(userId)
           .get();
-      if (receptionistDoc.exists) return AppConstants.roleReceptionist;
+      
+      developer.log('Receptionist doc exists: ${receptionistDoc.exists}', name: 'AuthService');
+      if (receptionistDoc.exists) {
+        developer.log('User is a receptionist', name: 'AuthService');
+        return AppConstants.roleReceptionist;
+      }
 
+      developer.log('No role found for user: $userId', name: 'AuthService', level: 900);
       return null;
     } catch (e) {
       developer.log('Error getting user role: $e', name: 'AuthService', level: 900);

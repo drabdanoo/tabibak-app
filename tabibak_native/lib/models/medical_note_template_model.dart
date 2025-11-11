@@ -29,6 +29,19 @@ class MedicalNoteTemplate {
     required this.updatedAt,
   });
 
+  // Helper method to safely parse string lists from Firestore
+  static List<String> _parseStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value.map((item) => item?.toString() ?? '').toList();
+    }
+    if (value is String) {
+      // If it's a single string, treat it as a list with one item
+      return value.isEmpty ? [] : [value];
+    }
+    return [];
+  }
+
   factory MedicalNoteTemplate.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return MedicalNoteTemplate(
@@ -41,7 +54,7 @@ class MedicalNoteTemplate {
       physicalExamination: data['physicalExamination'] ?? '',
       assessment: data['assessment'] ?? '',
       plan: data['plan'] ?? '',
-      commonFindings: List<String>.from(data['commonFindings'] ?? []),
+      commonFindings: _parseStringList(data['commonFindings']),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
     );
@@ -61,6 +74,41 @@ class MedicalNoteTemplate {
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
+  }
+
+  // JSON serialization for local storage
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'doctorId': doctorId,
+      'name': name,
+      'condition': condition,
+      'chiefComplaint': chiefComplaint,
+      'historyOfPresentIllness': historyOfPresentIllness,
+      'physicalExamination': physicalExamination,
+      'assessment': assessment,
+      'plan': plan,
+      'commonFindings': commonFindings,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory MedicalNoteTemplate.fromJson(Map<String, dynamic> json) {
+    return MedicalNoteTemplate(
+      id: json['id'] ?? '',
+      doctorId: json['doctorId'] ?? '',
+      name: json['name'] ?? '',
+      condition: json['condition'] ?? '',
+      chiefComplaint: json['chiefComplaint'] ?? '',
+      historyOfPresentIllness: json['historyOfPresentIllness'] ?? '',
+      physicalExamination: json['physicalExamination'] ?? '',
+      assessment: json['assessment'] ?? '',
+      plan: json['plan'] ?? '',
+      commonFindings: List<String>.from(json['commonFindings'] ?? []),
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+    );
   }
 
   MedicalNoteTemplate copyWith({

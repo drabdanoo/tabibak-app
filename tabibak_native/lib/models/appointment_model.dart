@@ -39,6 +39,19 @@ class AppointmentModel {
     this.updatedAt,
   });
 
+  // Helper method to safely parse string lists from Firestore
+  static List<String>? _parseStringList(dynamic value) {
+    if (value == null) return null;
+    if (value is List) {
+      return value.map((item) => item?.toString() ?? '').toList();
+    }
+    if (value is String) {
+      // If it's a single string, treat it as a list with one item
+      return value.isEmpty ? null : [value];
+    }
+    return null;
+  }
+
   factory AppointmentModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return AppointmentModel(
@@ -55,12 +68,8 @@ class AppointmentModel {
       status: data['status'] ?? 'pending',
       reason: data['reason'],
       notes: data['notes'],
-      allergies: data['allergies'] != null 
-          ? List<String>.from(data['allergies']) 
-          : null,
-      medications: data['medications'] != null 
-          ? List<String>.from(data['medications']) 
-          : null,
+      allergies: _parseStringList(data['allergies']),
+      medications: _parseStringList(data['medications']),
       createdAt: data['createdAt']?.toDate() ?? DateTime.now(),
       updatedAt: data['updatedAt']?.toDate(),
     );
