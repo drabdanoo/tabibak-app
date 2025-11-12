@@ -71,7 +71,11 @@ class AppointmentService {
       return { isClosed: false };
     } catch (error) {
       console.error('Error checking clinic closure:', error);
-      return { isClosed: false };
+      // Fail-safe: if we can't determine clinic status, assume it's closed to prevent invalid bookings
+      return { 
+        isClosed: true, 
+        reason: 'Unable to verify clinic availability. Please try again or contact support.' 
+      };
     }
   }
 
@@ -156,7 +160,8 @@ class AppointmentService {
       return { hasConflict: false };
     } catch (error) {
       console.error('Error checking appointment conflict:', error);
-      return { hasConflict: false };
+      // Let the caller handle the error appropriately
+      throw error;
     }
   }
 
@@ -171,6 +176,23 @@ class AppointmentService {
       const appointmentDate = typeof appointmentData.appointmentDate === 'string'
         ? new Date(appointmentData.appointmentDate)
         : appointmentData.appointmentDate;
+
+      // Parse time string to Date object
+      const parseTimeString = (timeStr) => {
+        const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+        if (!match) throw new Error('Invalid time format');
+        
+        let [, hours, minutes, period] = match;
+        hours = parseInt(hours);
+        minutes = parseInt(minutes);
+        
+        if (period) {
+          if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12;
+          if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
+        }
+        
+        return { hours, minutes };
+      };
 
       // Client-side validations
       const closureCheck = await this.checkClinicClosure(
@@ -198,10 +220,15 @@ class AppointmentService {
         };
       }
 
+      // Parse time and create datetime for conflict check
+      const { hours, minutes } = parseTimeString(appointmentData.appointmentTime);
+      const appointmentDateTime = new Date(appointmentDate);
+      appointmentDateTime.setHours(hours, minutes, 0, 0);
+
       const conflictCheck = await this.checkAppointmentConflict(
         appointmentData.doctorId,
-        appointmentDate,
-        appointmentData.appointmentTime
+        appointmentDateTime,
+        appointmentData.excludeAppointmentId // Pass the exclude ID correctly
       );
 
       if (conflictCheck.hasConflict) {
@@ -410,28 +437,68 @@ class AppointmentService {
         return [];
       }
 
+      // Validate time format
+      const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+      const validateAndParseTime = (timeStr) => {
+        if (typeof timeStr !== 'string' || !TIME_REGEX.test(timeStr)) {
+          return null;
+        }
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return { hours, minutes };
+      };
+
+      // Validate working hours
+      const startTime = validateAndParseTime(workingHours.start);
+      const endTime = validateAndParseTime(workingHours.end);
+
+      if (!startTime || !endTime) {
+        console.error('Invalid working hours configuration:', workingHours);
+        return { slots: [], error: 'Invalid working hours configuration' };
+      }
+
+      // Single batch query for all appointments on the date
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      const appointmentsSnapshot = await getDocs(
+        query(
+          collection(this.db, COLLECTIONS.APPOINTMENTS),
+          where('doctorId', '==', doctorId),
+          where('appointmentDate', '>=', Timestamp.fromDate(startOfDay)),
+          where('appointmentDate', '<=', Timestamp.fromDate(endOfDay)),
+          where('status', 'in', ['pending', 'confirmed'])
+        )
+      );
+      
+      // Build occupied slots map
+      const occupiedSlots = new Set();
+      appointmentsSnapshot.forEach(doc => {
+        const appointment = doc.data();
+        const appointmentTime = appointment.appointmentDate.toDate();
+        const slotKey = `${appointmentTime.getHours()}:${appointmentTime.getMinutes()}`;
+        occupiedSlots.add(slotKey);
+      });
+
       // Generate time slots (30-minute intervals)
       const slots = [];
-      const [startHour, startMinute] = workingHours.start.split(':').map(Number);
-      const [endHour, endMinute] = workingHours.end.split(':').map(Number);
+      const startTimeDate = new Date(date);
+      startTimeDate.setHours(startTime.hours, startTime.minutes, 0, 0);
 
-      const startTime = new Date(date);
-      startTime.setHours(startHour, startMinute, 0, 0);
+      const endTimeDate = new Date(date);
+      endTimeDate.setHours(endTime.hours, endTime.minutes, 0, 0);
 
-      const endTime = new Date(date);
-      endTime.setHours(endHour, endMinute, 0, 0);
+      let currentTime = new Date(startTimeDate);
 
-      let currentTime = new Date(startTime);
-
-      while (currentTime < endTime) {
+      while (currentTime < endTimeDate) {
         const slotDate = new Date(currentTime);
-        
-        // Check if slot is available
-        const conflictCheck = await this.checkAppointmentConflict(doctorId, slotDate);
+        const slotKey = `${slotDate.getHours()}:${slotDate.getMinutes()}`;
         
         slots.push({
           time: slotDate,
-          available: !conflictCheck.hasConflict,
+          available: !occupiedSlots.has(slotKey),
           display: slotDate.toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit',

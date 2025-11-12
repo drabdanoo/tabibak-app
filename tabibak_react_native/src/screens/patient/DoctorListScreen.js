@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   Image,
   RefreshControl,
-  ScrollView
+  ScrollView,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import firestoreService from '../../services/firestoreService';
@@ -32,6 +33,7 @@ export default function DoctorListScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [lastVisible, setLastVisible] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadSpecialties();
@@ -43,22 +45,29 @@ export default function DoctorListScreen({ navigation }) {
   }, [searchText, selectedSpecialty, doctors]);
 
   const loadSpecialties = async () => {
-    const result = await firestoreService.getSpecialties();
-    if (result.success) {
-      setSpecialties(result.specialties);
+    try {
+      const result = await firestoreService.getSpecialties();
+      if (result.success) {
+        setSpecialties(result.specialties);
+      }
+    } catch (error) {
+      console.error('Error loading specialties:', error);
+      setError('Failed to load specialties');
     }
   };
 
-  const loadDoctors = async (isRefreshing = false) => {
+  const loadDoctors = async (specialty = selectedSpecialty, isRefreshing = false) => {
     try {
       if (isRefreshing) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
+      
+      setError(null); // Clear previous errors
 
       const filters = {
-        specialty: selectedSpecialty !== 'All' ? selectedSpecialty : null
+        specialty: specialty !== 'All' ? specialty : null
       };
 
       const result = await firestoreService.getDoctors(filters, 20);
@@ -66,9 +75,12 @@ export default function DoctorListScreen({ navigation }) {
       if (result.success) {
         setDoctors(result.doctors);
         setLastVisible(result.lastVisible);
+      } else {
+        setError(result.error || 'Failed to load doctors');
       }
     } catch (error) {
       console.error('Error loading doctors:', error);
+      setError('Failed to load doctors. Please check your connection and try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -93,6 +105,7 @@ export default function DoctorListScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Error loading more doctors:', error);
+      Alert.alert('Error', 'Failed to load more doctors');
     } finally {
       setLoadingMore(false);
     }
@@ -122,12 +135,12 @@ export default function DoctorListScreen({ navigation }) {
 
   const handleSpecialtySelect = (specialty) => {
     setSelectedSpecialty(specialty);
-    // Reload doctors with new filter
-    loadDoctors();
+    // Pass specialty directly to avoid stale state
+    loadDoctors(specialty);
   };
 
   const onRefresh = useCallback(() => {
-    loadDoctors(true);
+    loadDoctors(selectedSpecialty, true);
   }, [selectedSpecialty]);
 
   const renderDoctorCard = ({ item }) => (
@@ -247,15 +260,33 @@ export default function DoctorListScreen({ navigation }) {
     );
   };
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="search-outline" size={64} color={colors.gray} />
-      <Text style={styles.emptyText}>No doctors found</Text>
-      <Text style={styles.emptySubtext}>
-        Try adjusting your search or filters
-      </Text>
-    </View>
-  );
+  const renderEmpty = () => {
+    if (error) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
+          <Text style={styles.emptyText}>Error Loading Data</Text>
+          <Text style={styles.emptySubtext}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={() => loadDoctors()}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="search-outline" size={64} color={colors.gray} />
+        <Text style={styles.emptyText}>No doctors found</Text>
+        <Text style={styles.emptySubtext}>
+          Try adjusting your search or filters
+        </Text>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -466,6 +497,18 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.md,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  retryButton: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    fontSize: typography.sizes.md,
+    color: colors.white,
+    fontWeight: '600',
   },
 });
 
