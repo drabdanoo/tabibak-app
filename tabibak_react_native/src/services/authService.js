@@ -73,9 +73,30 @@ class AuthService {
         const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber, appVerifier);
         return { success: true, confirmation };
       } else {
-        // For native platforms (iOS/Android), no reCAPTCHA needed
-        const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber);
-        return { success: true, confirmation };
+        // For native platforms (iOS/Android)
+        // NOTE: Firebase JS SDK phone auth requires reCAPTCHA even on native
+        // For production, migrate to @react-native-firebase/auth
+        // See FIXES_STATUS.md for implementation guide
+        
+        // Attempt with warning
+        console.warn(
+          'Phone auth on native requires @react-native-firebase/auth. ' +
+          'Current implementation may fail. See FIXES_STATUS.md for migration guide.'
+        );
+        
+        try {
+          // This will likely fail without proper app verification
+          const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber);
+          return { success: true, confirmation };
+        } catch (nativeError) {
+          // Provide helpful error message
+          return {
+            success: false,
+            error: 'Phone authentication on mobile requires native Firebase setup. ' +
+                   'Please use email login or contact support. ' +
+                   'Error: ' + nativeError.message
+          };
+        }
       }
     } catch (error) {
       console.error('Error sending OTP:', error);
@@ -226,7 +247,9 @@ class AuthService {
    */
   async signOut() {
     try {
+      console.log('Calling Firebase signOut');
       await firebaseSignOut(this.auth);
+      console.log('Firebase signOut successful');
       return true;
     } catch (error) {
       console.error('Error signing out:', error);

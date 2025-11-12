@@ -13,6 +13,7 @@ import {
   ScrollView,
   StatusBar
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
@@ -20,9 +21,32 @@ import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
 const ProfileSetupScreen = ({ navigation }) => {
   const [fullName, setFullName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateObject, setDateObject] = useState(new Date());
   const [gender, setGender] = useState('');
   const [loading, setLoading] = useState(false);
   const { createProfile } = useAuth();
+  
+  const formatDate = (date) => {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+  
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    
+    if (selectedDate) {
+      const today = new Date();
+      if (selectedDate > today) {
+        Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+        return;
+      }
+      setDateObject(selectedDate);
+      setDateOfBirth(formatDate(selectedDate));
+    }
+  };
 
   const handleSubmit = async () => {
     if (!fullName.trim()) {
@@ -92,14 +116,25 @@ const ProfileSetupScreen = ({ navigation }) => {
             />
 
             <Text style={styles.label}>Date of Birth</Text>
-            <TextInput
+            <TouchableOpacity
               style={styles.input}
-              value={dateOfBirth}
-              onChangeText={setDateOfBirth}
-              placeholder="MM/DD/YYYY"
-              placeholderTextColor={Colors.gray}
-              keyboardType="numeric"
-            />
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={dateOfBirth ? styles.inputText : styles.placeholderText}>
+                {dateOfBirth || 'MM/DD/YYYY'}
+              </Text>
+              <Ionicons name="calendar-outline" size={20} color={Colors.gray} />
+            </TouchableOpacity>
+            
+            {showDatePicker && (
+              <DateTimePicker
+                value={dateObject}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+              />
+            )}
 
             <Text style={styles.label}>Gender</Text>
             <View style={styles.genderContainer}>
@@ -227,7 +262,18 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     color: Colors.text,
     borderWidth: 1,
-    borderColor: Colors.border
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  inputText: {
+    fontSize: FontSizes.md,
+    color: Colors.text
+  },
+  placeholderText: {
+    fontSize: FontSizes.md,
+    color: Colors.gray
   },
   genderContainer: {
     flexDirection: 'row',

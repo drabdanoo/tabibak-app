@@ -19,6 +19,12 @@ const db = getFirestore();
 class FirestoreService {
   constructor() {
     this.db = db;
+    // Cache for specialties to avoid repeated queries
+    this.specialtiesCache = {
+      data: null,
+      timestamp: 0
+    };
+    this.CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
   }
 
   /**
@@ -33,6 +39,49 @@ class FirestoreService {
       let q = collection(this.db, COLLECTIONS.DOCTORS);
       const constraints = [];
 
+      // If search text is provided, disable pagination and fetch larger set
+      if (filters.searchText) {
+        console.warn('Search text disables pagination. Consider using Algolia/Typesense for production.');
+        
+        // Build query without pagination
+        if (filters.specialty && filters.specialty !== 'All') {
+          constraints.push(where('specialty', '==', filters.specialty));
+        }
+        
+        if (filters.minRating) {
+          constraints.push(where('rating', '>=', filters.minRating));
+        }
+        
+        if (filters.location) {
+          constraints.push(where('city', '==', filters.location));
+        }
+        
+        constraints.push(orderBy('rating', 'desc'));
+        constraints.push(orderBy('name', 'asc'));
+        constraints.push(limit(100)); // Fetch larger set for filtering
+        
+        q = query(q, ...constraints);
+        const querySnapshot = await getDocs(q);
+        
+        // Client-side filtering
+        const searchLower = filters.searchText.toLowerCase();
+        const doctors = querySnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(doctor =>
+            doctor.name?.toLowerCase().includes(searchLower) ||
+            doctor.specialty?.toLowerCase().includes(searchLower) ||
+            doctor.bio?.toLowerCase().includes(searchLower)
+          );
+        
+        return {
+          success: true,
+          doctors: doctors.slice(0, limitCount),
+          lastVisible: null, // No pagination with search
+          hasMore: false
+        };
+      }
+
+      // Normal paginated query (no search text)
       // Filter by specialty
       if (filters.specialty && filters.specialty !== 'All') {
         constraints.push(where('specialty', '==', filters.specialty));
@@ -71,21 +120,11 @@ class FirestoreService {
       // Get last visible document for pagination
       const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
 
-      // If search text is provided, filter client-side (Firestore doesn't support text search)
-      let filteredDoctors = doctors;
-      if (filters.searchText) {
-        const searchLower = filters.searchText.toLowerCase();
-        filteredDoctors = doctors.filter(doctor => 
-          doctor.name?.toLowerCase().includes(searchLower) ||
-          doctor.specialty?.toLowerCase().includes(searchLower) ||
-          doctor.bio?.toLowerCase().includes(searchLower)
-        );
-      }
-
       return { 
         success: true, 
-        doctors: filteredDoctors, 
-        lastVisible 
+        doctors, 
+        lastVisible,
+        hasMore: doctors.length === limitCount
       };
     } catch (error) {
       console.error('Error getting doctors:', error);
@@ -123,6 +162,40 @@ class FirestoreService {
    */
   async getSpecialties() {
     try {
+      // Check cache first
+      const now = Date.now();
+      if (this.specialtiesCache.data && 
+          (now - this.specialtiesCache.timestamp) < this.CACHE_TTL) {
+        return { 
+          success: true, 
+          specialties: this.specialtiesCache.data,
+          cached: true 
+        };
+      }
+      
+      // Try to get specialties from metadata collection first (more efficient)
+      const specialtiesDoc = await getDoc(
+        doc(this.db, 'metadata', 'specialties')
+      );
+      
+      if (specialtiesDoc.exists()) {
+        const data = specialtiesDoc.data();
+        const specialtiesList = ['All', ...(data.list || [])];
+        
+        // Update cache
+        this.specialtiesCache = {
+          data: specialtiesList,
+          timestamp: now
+        };
+        
+        return { 
+          success: true, 
+          specialties: specialtiesList
+        };
+      }
+      
+      // Fallback to scanning entire doctors collection
+      console.warn('Using fallback method for specialties - consider setting up metadata document');
       const querySnapshot = await getDocs(collection(this.db, COLLECTIONS.DOCTORS));
       const specialties = new Set(['All']);
 
@@ -133,9 +206,17 @@ class FirestoreService {
         }
       });
 
+      const specialtiesList = Array.from(specialties);
+      
+      // Update cache
+      this.specialtiesCache = {
+        data: specialtiesList,
+        timestamp: now
+      };
+
       return { 
         success: true, 
-        specialties: Array.from(specialties) 
+        specialties: specialtiesList
       };
     } catch (error) {
       console.error('Error getting specialties:', error);
@@ -154,10 +235,15 @@ class FirestoreService {
     try {
       const constraints = [];
 
+      // Add orderBy first to avoid composite index requirements
+      constraints.push(orderBy('appointmentDate', 'desc'));
+
       // Filter by user type
       if (userType === 'patient') {
         constraints.push(where('patientId', '==', userId));
       } else if (userType === 'doctor') {
+        constraints.push(where('doctorId', '==', userId));
+      } else if (userType === 'receptionist') {
         constraints.push(where('doctorId', '==', userId));
       }
 
@@ -165,9 +251,6 @@ class FirestoreService {
       if (filters.status) {
         constraints.push(where('status', '==', filters.status));
       }
-
-      // Order by appointment date
-      constraints.push(orderBy('appointmentDate', 'desc'));
 
       const q = query(collection(this.db, COLLECTIONS.APPOINTMENTS), ...constraints);
       const querySnapshot = await getDocs(q);
@@ -195,13 +278,16 @@ class FirestoreService {
     try {
       const constraints = [];
 
+      // Add orderBy first to avoid composite index requirements
+      constraints.push(orderBy('appointmentDate', 'desc'));
+
       if (userType === 'patient') {
         constraints.push(where('patientId', '==', userId));
       } else if (userType === 'doctor') {
         constraints.push(where('doctorId', '==', userId));
+      } else if (userType === 'receptionist') {
+        constraints.push(where('doctorId', '==', userId));
       }
-
-      constraints.push(orderBy('appointmentDate', 'desc'));
 
       const q = query(collection(this.db, COLLECTIONS.APPOINTMENTS), ...constraints);
 

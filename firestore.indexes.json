@@ -19,6 +19,48 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "doctorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "appointmentDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "doctorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "appointmentDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "patientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "appointmentDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "userId",
           "order": "ASCENDING"
         },
@@ -37,41 +79,13 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "lastUsed",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "familyMembers",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "primaryUserId",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "createdAt",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "medicalDocuments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "patientId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "uploadedAt",
           "order": "DESCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "ratings",
+      "collectionGroup": "prescriptions",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -97,34 +111,6 @@
           "order": "DESCENDING"
         }
       ]
-    },
-    {
-      "fields": [
-        {
-          "fieldPath": "doctorId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAt",
-          "order": "DESCENDING"
-        }
-      ],
-      "queryScope": "COLLECTION",
-      "collectionGroup": "prescription_templates"
-    },
-    {
-      "fields": [
-        {
-          "fieldPath": "doctorId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAt",
-          "order": "DESCENDING"
-        }
-      ],
-      "queryScope": "COLLECTION",
-      "collectionGroup": "medical_note_templates"
     }
   ],
   "fieldOverrides": []

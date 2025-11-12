@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import firestoreService from '../../services/firestoreService';
@@ -14,7 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { colors, spacing, typography } from '../../config/theme';
 
 export default function DoctorDashboardScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [stats, setStats] = useState({
     today: 0,
@@ -76,6 +77,41 @@ export default function DoctorDashboardScreen({ navigation }) {
   const onRefresh = () => {
     setRefreshing(true);
     // The real-time listener will automatically update the data
+  };
+
+  const handleLogout = () => {
+    console.log('Logout button pressed');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => console.log('Logout cancelled')
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('Attempting to logout...');
+              const success = await signOut();
+              console.log('Logout result:', success);
+              
+              if (!success) {
+                Alert.alert('Error', 'Failed to logout. Please try again.');
+              }
+              // If successful, the AuthContext will update the user state to null
+              // which will automatically navigate to the login screen via AppNavigator
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', `Failed to logout: ${error.message}`);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderStatCard = (title, value, icon, color) => (
@@ -223,26 +259,26 @@ export default function DoctorDashboardScreen({ navigation }) {
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={styles.actionCard}
-              onPress={() => navigation.navigate('AllAppointments')}
+              onPress={() => navigation.navigate('Appointments')}
             >
               <Ionicons name="calendar" size={32} color={colors.primary} />
               <Text style={styles.actionText}>View All Appointments</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => navigation.navigate('PatientRecords')}
+              style={[styles.actionCard, { opacity: 0.5 }]}
+              disabled={true}
             >
-              <Ionicons name="folder-open" size={32} color={colors.primary} />
-              <Text style={styles.actionText}>Patient Records</Text>
+              <Ionicons name="folder-open" size={32} color={colors.gray} />
+              <Text style={[styles.actionText, { color: colors.gray }]}>Patient Records (Coming Soon)</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => navigation.navigate('Schedule')}
+              style={[styles.actionCard, { opacity: 0.5 }]}
+              disabled={true}
             >
-              <Ionicons name="time" size={32} color={colors.primary} />
-              <Text style={styles.actionText}>My Schedule</Text>
+              <Ionicons name="time" size={32} color={colors.gray} />
+              <Text style={[styles.actionText, { color: colors.gray }]}>My Schedule (Coming Soon)</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -251,6 +287,15 @@ export default function DoctorDashboardScreen({ navigation }) {
             >
               <Ionicons name="person" size={32} color={colors.primary} />
               <Text style={styles.actionText}>My Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionCard, { borderColor: colors.error }]}
+              onPress={handleLogout}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="log-out" size={32} color={colors.error} />
+              <Text style={[styles.actionText, { color: colors.error }]}>Logout</Text>
             </TouchableOpacity>
           </View>
         </View>

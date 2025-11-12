@@ -17,16 +17,19 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
       setLoading(true);
+      console.log('Auth state changed. Firebase user:', firebaseUser);
       
       if (firebaseUser) {
         setUser(firebaseUser);
         
         // Get user role and profile
         const role = await authService.getUserRole(firebaseUser.uid);
+        console.log('User role:', role);
         setUserRole(role);
         
         if (role) {
           const profile = await authService.getUserProfile(firebaseUser.uid, role);
+          console.log('User profile:', profile);
           setUserProfile(profile);
           
           // Save to AsyncStorage for persistence
@@ -37,6 +40,7 @@ export const AuthProvider = ({ children }) => {
           await notificationService.registerDeviceToken(firebaseUser.uid, role);
         }
       } else {
+        console.log('No user, clearing auth state');
         setUser(null);
         setUserRole(null);
         setUserProfile(null);
@@ -47,7 +51,10 @@ export const AuthProvider = ({ children }) => {
       }
       
       setLoading(false);
-      if (initializing) setInitializing(false);
+      if (initializing) {
+        console.log('Finished initializing auth context');
+        setInitializing(false);
+      }
     });
 
     return unsubscribe;
@@ -116,20 +123,39 @@ export const AuthProvider = ({ children }) => {
 
   // Sign out
   const signOut = async () => {
+    console.log('Starting sign out process');
+    
     // Unregister device token before signing out
     if (user) {
-      await notificationService.unregisterDeviceToken(user.uid);
+      try {
+        console.log('Unregistering device token for user:', user.uid);
+        await notificationService.unregisterDeviceToken(user.uid);
+        console.log('Device token unregistered successfully');
+      } catch (error) {
+        console.error('Failed to unregister device token:', error);
+        // Continue with sign-out even if unregister fails
+      }
     }
     
-    const success = await authService.signOut();
-    
-    if (success) {
-      setUser(null);
-      setUserRole(null);
-      setUserProfile(null);
+    try {
+      console.log('Calling authService.signOut()');
+      const success = await authService.signOut();
+      console.log('authService.signOut() result:', success);
+      
+      if (success) {
+        console.log('Sign out successful, clearing user state');
+        setUser(null);
+        setUserRole(null);
+        setUserProfile(null);
+        return true;
+      }
+      
+      console.log('Sign out failed, authService.signOut() returned false');
+      return false;
+    } catch (error) {
+      console.error('Sign out failed with error:', error);
+      return false;
     }
-    
-    return success;
   };
 
   const value = {
