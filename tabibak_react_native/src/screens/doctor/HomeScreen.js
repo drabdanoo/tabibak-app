@@ -46,13 +46,13 @@ const DoctorHomeScreen = ({ navigation }) => {
     loadMonthlyRevenue();
   }, [user.uid]);
 
-  const prioritizedAppointments = appointments.sort((a, b) => {
+  const prioritizedAppointments = [...appointments].sort((a, b) => {
     const statusOrder = { Confirmed: 0, Pending: 1, Completed: 2, Cancelled: 3 };
     return (statusOrder[a.status] || 4) - (statusOrder[b.status] || 4);
   });
 
   const filteredAppointments = prioritizedAppointments.filter(appointment =>
-    appointment.patientName.toLowerCase().includes(searchQuery.toLowerCase())
+    (appointment.patientName || '').toLowerCase().includes((searchQuery || '').toLowerCase())
   );
 
   const handleFinishVisit = (appointment) => {

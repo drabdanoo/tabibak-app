@@ -156,7 +156,6 @@ The Tabibok Health React Native application is fully configured and ready for pr
 - [x] **appointmentService.js**:
   - checkClinicClosure
   - checkDuplicateBooking
-  - requestAppointment
   - bookAppointment
   - updateAppointmentStatus
   - finishAppointment

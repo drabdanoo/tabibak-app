@@ -17,12 +17,16 @@ export default function App() {
       console.error('Unhandled Promise Rejection:', event.reason);
     };
 
-    // Listen for unhandled promise rejections (web compatible)
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    // Only attach listener in web environments where window is defined
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
-    return () => {
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-    };
+      return () => {
+        if (typeof window !== 'undefined' && window.removeEventListener) {
+          window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+        }
+      };
+    }
   }, []);
 
   return (

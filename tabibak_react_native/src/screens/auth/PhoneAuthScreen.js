@@ -21,7 +21,6 @@ const PhoneAuthScreen = ({ navigation }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('+964');
   const [loading, setLoading] = useState(false);
-  const [recaptchaReady, setRecaptchaReady] = useState(false);
   const { sendOTP } = useAuth();
 
   // Initialize reCAPTCHA on component mount for web
@@ -31,7 +30,6 @@ const PhoneAuthScreen = ({ navigation }) => {
       const timer = setTimeout(() => {
         try {
           authService.initRecaptcha('recaptcha-container');
-          setRecaptchaReady(true);
           console.log('reCAPTCHA initialized successfully');
         } catch (error) {
           console.error('Failed to initialize reCAPTCHA:', error);
@@ -39,9 +37,6 @@ const PhoneAuthScreen = ({ navigation }) => {
       }, 100);
       
       return () => clearTimeout(timer);
-    } else {
-      // Native platforms don't need reCAPTCHA initialization
-      setRecaptchaReady(true);
     }
   }, []);
 

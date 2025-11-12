@@ -81,8 +81,6 @@ export default function DoctorDashboardScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    console.log('Logout button pressed');
-    
     // Use window.confirm for web, Alert.alert for native
     const confirmed = Platform.OS === 'web' 
       ? window.confirm('Are you sure you want to logout?')
@@ -95,7 +93,6 @@ export default function DoctorDashboardScreen({ navigation }) {
                 text: 'Cancel', 
                 style: 'cancel',
                 onPress: () => {
-                  console.log('Logout cancelled');
                   resolve(false);
                 }
               },
@@ -103,7 +100,6 @@ export default function DoctorDashboardScreen({ navigation }) {
                 text: 'Logout',
                 style: 'destructive',
                 onPress: () => {
-                  console.log('Logout confirmed');
                   resolve(true);
                 }
               },
@@ -112,14 +108,11 @@ export default function DoctorDashboardScreen({ navigation }) {
         });
     
     if (!confirmed) {
-      console.log('User cancelled logout');
       return;
     }
     
     try {
-      console.log('Attempting to logout...');
       const success = await signOut();
-      console.log('Logout result:', success);
       
       if (!success) {
         if (Platform.OS === 'web') {

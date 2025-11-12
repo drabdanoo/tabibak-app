@@ -237,9 +237,14 @@ export default function BookAppointmentScreen({ route, navigation }) {
         patientId: user.uid,
       };
 
-      const result = await appointmentService.requestAppointment(appointmentData);
+      const result = await appointmentService.bookAppointment(appointmentData);
       if (result.success) {
-        ToastAndroid.show('Appointment requested successfully!', ToastAndroid.SHORT);
+        // Cross-platform success feedback
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Appointment requested successfully!', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Success', 'Appointment requested successfully!');
+        }
         navigation.navigate('PatientHome');
       } else {
         Alert.alert('Error', result.error || 'Failed to request appointment.');
