@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tabibok",
+    "name": "Tabibok Health",
     "slug": "tabibok-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,8 +14,9 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.abdullah.reacttabibok",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "bundleIdentifier": "com.tabibok.health",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,8 +24,9 @@
         "backgroundColor": "#10b981"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.abdullah.reacttabibok",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.tabibok.health",
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

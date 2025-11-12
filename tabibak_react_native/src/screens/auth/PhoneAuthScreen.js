@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,24 +15,47 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import { authService } from '../../services/authService';
 
 const PhoneAuthScreen = ({ navigation }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [countryCode, setCountryCode] = useState('+1');
+  const [countryCode, setCountryCode] = useState('+964');
   const [loading, setLoading] = useState(false);
+  const [recaptchaReady, setRecaptchaReady] = useState(false);
   const { sendOTP } = useAuth();
+
+  // Initialize reCAPTCHA on component mount for web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // Give the DOM time to render the container
+      const timer = setTimeout(() => {
+        try {
+          authService.initRecaptcha('recaptcha-container');
+          setRecaptchaReady(true);
+          console.log('reCAPTCHA initialized successfully');
+        } catch (error) {
+          console.error('Failed to initialize reCAPTCHA:', error);
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    } else {
+      // Native platforms don't need reCAPTCHA initialization
+      setRecaptchaReady(true);
+    }
+  }, []);
 
   const formatPhoneNumber = (text) => {
     // Remove all non-digit characters
     const cleaned = text.replace(/\D/g, '');
     
-    // Format as (XXX) XXX-XXXX
+    // Format Iraqi phone number: XXX XXX XXXX (10 digits)
     if (cleaned.length <= 3) {
       return cleaned;
     } else if (cleaned.length <= 6) {
-      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+      return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
     } else {
-      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+      return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 10)}`;
     }
   };
 
@@ -45,8 +68,12 @@ const PhoneAuthScreen = ({ navigation }) => {
     // Clean phone number (remove formatting)
     const cleanedPhone = phoneNumber.replace(/\D/g, '');
     
-    if (cleanedPhone.length < 10) {
-      Alert.alert('Invalid Phone Number', 'Please enter a valid 10-digit phone number');
+    if (cleanedPhone.length !== 10) {
+      if (Platform.OS === 'web') {
+        window.alert('رقم هاتف غير صالح\nInvalid Phone Number\n\nPlease enter a valid 10-digit Iraqi phone number');
+      } else {
+        Alert.alert('Invalid Phone Number', 'Please enter a valid 10-digit Iraqi phone number');
+      }
       return;
     }
 
@@ -63,10 +90,18 @@ const PhoneAuthScreen = ({ navigation }) => {
           confirmation: result.confirmation
         });
       } else {
-        Alert.alert('Error', result.error || 'Failed to send OTP. Please try again.');
+        if (Platform.OS === 'web') {
+          window.alert(`Error: ${result.error || 'Failed to send OTP. Please try again.'}`);
+        } else {
+          Alert.alert('Error', result.error || 'Failed to send OTP. Please try again.');
+        }
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      if (Platform.OS === 'web') {
+        window.alert('Error: An unexpected error occurred. Please try again.');
+      } else {
+        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      }
       console.error('Phone auth error:', error);
     } finally {
       setLoading(false);
@@ -92,29 +127,36 @@ const PhoneAuthScreen = ({ navigation }) => {
           <Ionicons name="phone-portrait" size={80} color={Colors.primary} />
           <Text style={styles.title}>Enter Your Phone Number</Text>
           <Text style={styles.subtitle}>
-            We'll send you a verification code
+            We'll send you a verification code{'\n'}
+            أدخل رقم هاتفك العراقي
           </Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Phone Number</Text>
+          <Text style={styles.label}>Phone Number (رقم الهاتف)</Text>
           
           <View style={styles.phoneInputContainer}>
             <View style={styles.countryCodeContainer}>
               <Text style={styles.countryCode}>{countryCode}</Text>
+              <Text style={styles.countryFlag}>🇮🇶</Text>
             </View>
             
             <TextInput
               style={styles.phoneInput}
               value={phoneNumber}
               onChangeText={handlePhoneChange}
-              placeholder="(123) 456-7890"
+              placeholder="770 123 4567"
               placeholderTextColor={Colors.gray}
               keyboardType="phone-pad"
-              maxLength={14}
+              maxLength={12}
               autoFocus
             />
           </View>
+
+          <Text style={styles.helperText}>
+            Iraqi phone number (10 digits){'\n'}
+            رقم عراقي (10 أرقام)
+          </Text>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -185,14 +227,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    gap: 4
   },
   countryCode: {
     fontSize: FontSizes.md,
     fontWeight: '600',
     color: Colors.text
+  },
+  countryFlag: {
+    fontSize: 20
   },
   phoneInput: {
     flex: 1,
@@ -204,6 +252,13 @@ const styles = StyleSheet.create({
     color: Colors.text,
     borderWidth: 1,
     borderColor: Colors.border
+  },
+  helperText: {
+    fontSize: FontSizes.sm,
+    color: Colors.textLight,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+    lineHeight: 20
   },
   button: {
     backgroundColor: Colors.primary,
