@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   ToastAndroid,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -90,7 +91,11 @@ const ReceptionistHomeScreen = ({ navigation }) => {
         'Confirmed'
       );
       if (result.success) {
-        ToastAndroid.show('Appointment confirmed!', ToastAndroid.SHORT);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Appointment confirmed!', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Success', 'Appointment confirmed!');
+        }
       } else {
         Alert.alert('Error', result.error || 'Failed to confirm appointment');
       }
@@ -116,7 +121,11 @@ const ReceptionistHomeScreen = ({ navigation }) => {
                 'Rejected'
               );
               if (result.success) {
-                ToastAndroid.show('Appointment rejected!', ToastAndroid.SHORT);
+                if (Platform.OS === 'android') {
+                  ToastAndroid.show('Appointment rejected!', ToastAndroid.SHORT);
+                } else {
+                  Alert.alert('Success', 'Appointment rejected!');
+                }
               } else {
                 Alert.alert('Error', result.error || 'Failed to reject appointment');
               }
@@ -142,7 +151,11 @@ const ReceptionistHomeScreen = ({ navigation }) => {
       );
 
       if (result.success) {
-        ToastAndroid.show('Patient checked in!', ToastAndroid.SHORT);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Patient checked in!', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Success', 'Patient checked in!');
+        }
       } else {
         Alert.alert('Error', result.error || 'Failed to check in patient');
       }
