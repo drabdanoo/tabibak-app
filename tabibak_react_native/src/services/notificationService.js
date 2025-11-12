@@ -65,10 +65,15 @@ class NotificationService {
         return null;
       }
 
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      // Try to get projectId from multiple sources for better compatibility
+      const projectId = 
+        Constants.expoConfig?.extra?.eas?.projectId ||
+        Constants.manifest?.extra?.eas?.projectId ||
+        process.env.EXPO_PROJECT_ID;
       
+      // Allow running without projectId in development
       if (!projectId) {
-        console.error('Project ID not found. Make sure EAS is configured.');
+        console.warn('Project ID not found. Push notifications will not work. This is expected in development.');
         return null;
       }
 

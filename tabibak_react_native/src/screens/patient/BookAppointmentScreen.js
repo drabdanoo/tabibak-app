@@ -23,7 +23,6 @@ export default function BookAppointmentScreen({ route, navigation }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   
@@ -75,17 +74,6 @@ export default function BookAppointmentScreen({ route, navigation }) {
       
       setSelectedDate(date);
       setSelectedTime(null); // Reset time when date changes
-    }
-  };
-
-  const handleTimeChange = (event, time) => {
-    setShowTimePicker(Platform.OS === 'ios');
-    
-    if (time) {
-      const appointmentDateTime = new Date(selectedDate);
-      appointmentDateTime.setHours(time.getHours());
-      appointmentDateTime.setMinutes(time.getMinutes());
-      setSelectedTime(appointmentDateTime);
     }
   };
 

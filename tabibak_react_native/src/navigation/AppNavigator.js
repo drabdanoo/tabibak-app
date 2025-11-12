@@ -55,6 +55,9 @@ const AppNavigator = () => {
             {userRole === USER_ROLES.RECEPTIONIST && (
               <Stack.Screen name="ReceptionistStack" component={ReceptionistStack} />
             )}
+            {(!userRole || (userRole !== USER_ROLES.PATIENT && userRole !== USER_ROLES.DOCTOR && userRole !== USER_ROLES.RECEPTIONIST)) && (
+              <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
+            )}
           </>
         )}
       </Stack.Navigator>

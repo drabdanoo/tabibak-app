@@ -64,7 +64,7 @@
 - ✅ Modular structure with dedicated screens for each role
 
 **Navigation Structure:**
-```
+```text
 AppNavigator (Root)
 ├── Auth Screens (Not logged in)
 │   ├── RoleSelectionScreen
@@ -174,7 +174,7 @@ AppNavigator (Root)
 ## 🚀 How to Run
 
 ```bash
-cd g:\tabibak-app\tabibak_react_native
+cd tabibak_react_native
 npm install
 npx expo start
 ```

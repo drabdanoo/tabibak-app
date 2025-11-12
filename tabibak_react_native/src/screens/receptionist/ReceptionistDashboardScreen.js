@@ -256,7 +256,7 @@ export default function ReceptionistDashboardScreen({ navigation }) {
           <View style={styles.actionsGrid}>
             <TouchableOpacity
               style={styles.actionCard}
-              onPress={() => navigation.navigate('AllAppointments')}
+              onPress={() => navigation.navigate('Appointments')}
             >
               <Ionicons name="calendar" size={32} color={colors.primary} />
               <Text style={styles.actionText}>View All Appointments</Text>

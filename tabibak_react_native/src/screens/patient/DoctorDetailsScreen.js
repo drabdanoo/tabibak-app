@@ -138,17 +138,32 @@ export default function DoctorDetailsScreen({ route, navigation }) {
         )}
 
         {/* Working Hours */}
-        {doctor.workingHours && (
+        {doctor.workingHours && Object.keys(doctor.workingHours).length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Working Hours</Text>
-            {Object.entries(doctor.workingHours).map(([day, hours]) => (
-              <View key={day} style={styles.hourRow}>
-                <Text style={styles.dayText}>{day}</Text>
-                <Text style={styles.hoursText}>
-                  {hours.open ? `${hours.start} - ${hours.end}` : 'Closed'}
-                </Text>
-              </View>
-            ))}
+            {Object.entries(doctor.workingHours).map(([day, hours]) => {
+              // Defensive validation
+              if (!hours || typeof hours !== 'object') {
+                return (
+                  <View key={day} style={styles.hourRow}>
+                    <Text style={styles.dayText}>{day}</Text>
+                    <Text style={styles.hoursText}>Unavailable</Text>
+                  </View>
+                );
+              }
+              
+              const isOpen = hours.open === true;
+              const hasValidTimes = typeof hours.start === 'string' && typeof hours.end === 'string';
+              
+              return (
+                <View key={day} style={styles.hourRow}>
+                  <Text style={styles.dayText}>{day}</Text>
+                  <Text style={styles.hoursText}>
+                    {isOpen && hasValidTimes ? `${hours.start} - ${hours.end}` : 'Closed'}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
 

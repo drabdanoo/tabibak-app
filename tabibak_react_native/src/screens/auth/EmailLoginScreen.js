@@ -23,7 +23,7 @@ const EmailLoginScreen = ({ navigation, route }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signInWithEmail } = useAuth();
+  const { signInWithEmail, signOut } = useAuth();
 
   const getRoleTitle = () => {
     if (role === USER_ROLES.DOCTOR) return 'Doctor';
@@ -49,7 +49,7 @@ const EmailLoginScreen = ({ navigation, route }) => {
             'Access Denied',
             `This account is not registered as a ${getRoleTitle().toLowerCase()}`
           );
-          await useAuth().signOut();
+          await signOut();
           return;
         }
         // Navigation will be handled by AuthContext

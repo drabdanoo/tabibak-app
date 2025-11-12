@@ -55,9 +55,14 @@ class StorageService {
         return { success: false, error: 'Camera permission denied' };
       }
 
+      // Fix allowsEditing default logic
+      const allowsEditing = typeof options.allowsEditing === 'boolean' 
+        ? options.allowsEditing 
+        : true;
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: options.allowsEditing || true,
+        allowsEditing: allowsEditing,
         aspect: options.aspect || [4, 3],
         quality: options.quality || 0.8,
       });
@@ -92,9 +97,14 @@ class StorageService {
         return { success: false, error: 'Media library permission denied' };
       }
 
+      // Fix allowsEditing default logic
+      const allowsEditing = typeof options.allowsEditing === 'boolean' 
+        ? options.allowsEditing 
+        : true;
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsEditing: options.allowsEditing !== false,
+        allowsEditing: allowsEditing,
         aspect: options.aspect || [4, 3],
         quality: options.quality || 0.8,
         allowsMultipleSelection: options.allowsMultipleSelection || false,
@@ -260,16 +270,36 @@ class StorageService {
    * @returns {Promise<boolean>}
    */
   async deletePatientDocument(documentId, storagePath) {
+    console.log('Deleting document:', documentId);
+    
     try {
-      // Delete from Storage
-      await this.deleteFile(storagePath);
+      // Delete from Storage first
+      try {
+        await this.deleteFile(storagePath);
+        console.log('Storage file deleted successfully');
+      } catch (storageError) {
+        console.error('Storage deletion failed:', storageError);
+        // Consider if you want to continue or abort
+        if (storageError.code !== 'storage/object-not-found') {
+          return false; // Abort if storage delete fails
+        }
+        // Continue if file already doesn't exist
+        console.warn('Storage file not found, continuing with Firestore deletion');
+      }
 
       // Delete from Firestore
-      await deleteDoc(doc(this.db, COLLECTIONS.DOCUMENTS, documentId));
-
-      return true;
+      try {
+        await deleteDoc(doc(this.db, COLLECTIONS.DOCUMENTS, documentId));
+        console.log('Firestore document deleted successfully');
+        return true;
+      } catch (firestoreError) {
+        console.error('Firestore deletion failed:', firestoreError);
+        // Storage deleted but Firestore failed - log for manual cleanup
+        console.error('ORPHANED STORAGE FILE:', storagePath);
+        return false;
+      }
     } catch (error) {
-      console.error('Error deleting patient document:', error);
+      console.error('Document deletion failed:', error);
       return false;
     }
   }

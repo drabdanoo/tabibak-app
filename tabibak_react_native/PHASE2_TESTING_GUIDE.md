@@ -3,8 +3,8 @@
 ## 🚀 Running the Application
 
 ### Start Development Server
+From the `tabibak_react_native` directory:
 ```bash
-cd g:\tabibak-app\tabibak_react_native
 npx expo start
 ```
 
