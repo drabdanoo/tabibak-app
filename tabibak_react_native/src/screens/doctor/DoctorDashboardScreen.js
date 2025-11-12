@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import firestoreService from '../../services/firestoreService';
@@ -79,39 +80,62 @@ export default function DoctorDashboardScreen({ navigation }) {
     // The real-time listener will automatically update the data
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log('Logout button pressed');
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { 
-          text: 'Cancel', 
-          style: 'cancel',
-          onPress: () => console.log('Logout cancelled')
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('Attempting to logout...');
-              const success = await signOut();
-              console.log('Logout result:', success);
-              
-              if (!success) {
-                Alert.alert('Error', 'Failed to logout. Please try again.');
-              }
-              // If successful, the AuthContext will update the user state to null
-              // which will automatically navigate to the login screen via AppNavigator
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Error', `Failed to logout: ${error.message}`);
-            }
-          },
-        },
-      ]
-    );
+    
+    // Use window.confirm for web, Alert.alert for native
+    const confirmed = Platform.OS === 'web' 
+      ? window.confirm('Are you sure you want to logout?')
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Logout',
+            'Are you sure you want to logout?',
+            [
+              { 
+                text: 'Cancel', 
+                style: 'cancel',
+                onPress: () => {
+                  console.log('Logout cancelled');
+                  resolve(false);
+                }
+              },
+              {
+                text: 'Logout',
+                style: 'destructive',
+                onPress: () => {
+                  console.log('Logout confirmed');
+                  resolve(true);
+                }
+              },
+            ]
+          );
+        });
+    
+    if (!confirmed) {
+      console.log('User cancelled logout');
+      return;
+    }
+    
+    try {
+      console.log('Attempting to logout...');
+      const success = await signOut();
+      console.log('Logout result:', success);
+      
+      if (!success) {
+        if (Platform.OS === 'web') {
+          window.alert('Failed to logout. Please try again.');
+        } else {
+          Alert.alert('Error', 'Failed to logout. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      if (Platform.OS === 'web') {
+        window.alert(`Failed to logout: ${error.message}`);
+      } else {
+        Alert.alert('Error', `Failed to logout: ${error.message}`);
+      }
+    }
   };
 
   const renderStatCard = (title, value, icon, color) => (

@@ -1,0 +1,40 @@
+{
+  "cli": {
+    "version": ">= 5.4.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "",
+        "appleTeamId": "",
+        "appleId": "",
+        "appleIdPassword": "@env APPLE_PASSWORD"
+      },
+      "android": {
+        "serviceAccount": "@env ANDROID_SERVICE_ACCOUNT"
+      }
+    }
+  }
+}

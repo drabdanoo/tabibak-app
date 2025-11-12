@@ -286,5 +286,13 @@ service cloud.firestore {
         allow create: if signedIn() && request.resource.data.senderId == request.auth.uid && get(/databases/$(db)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
       }
     }
+
+    // === User Tokens (Push Notifications) ===
+    match /userTokens/{userId} {
+      // Users can read and write their own device tokens
+      allow read, write: if isSelf(userId);
+      // Admins can read all tokens (for debugging)
+      allow read: if isAdmin();
+    }
   }
 }
