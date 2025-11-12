@@ -70,6 +70,7 @@ tabibak_react_native/
 - Node.js (v14 or higher)
 - npm or yarn
 - Expo CLI (`npm install -g expo-cli`)
+- EAS CLI (`npm install -g eas-cli`)
 - Android Studio (for Android) or Xcode (for iOS)
 
 ### Installation
@@ -112,6 +113,87 @@ npm run web
 # or
 npx expo start --web
 ```
+
+## 🏗️ Building for Production
+
+This app uses **EAS (Expo Application Services)** for native builds. Follow these steps to build the app for distribution:
+
+### Prerequisites
+1. Create an EAS account: https://expo.dev
+2. Login to EAS: `eas login`
+3. Ensure `eas.json` is configured (already present in project)
+
+### Build Commands
+
+#### Android Production Build (AAB - for Play Store)
+```bash
+eas build -p android --profile production
+```
+
+#### iOS Production Build (Archive - for App Store)
+```bash
+eas build -p ios --profile production
+```
+
+#### Preview Builds (for internal testing)
+```bash
+# Android APK preview
+eas build -p android --profile preview
+
+# iOS preview
+eas build -p ios --profile preview
+```
+
+### Build Configuration
+
+The `eas.json` file contains build profiles:
+
+```json
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "aab"
+      }
+    }
+  }
+}
+```
+
+### Important Notes
+
+⚠️ **Native Module Changes**: If you add new native modules or modify native configuration:
+1. Run `npx expo prebuild --clean` locally
+2. Review the native code in `ios/` and `android/` directories
+3. Commit these changes before building via EAS
+
+⚠️ **Secrets & Environment Variables**: Store sensitive credentials in EAS Secrets:
+```bash
+eas secret:push --scope PROJECT_ID
+```
+
+### Post-Build
+
+After successful build:
+- **Android**: Download the AAB file to submit to Google Play Store
+- **iOS**: Follow EAS instructions to submit to App Store or use TestFlight
+
+For detailed instructions: https://docs.expo.dev/build/introduction/
 
 ## 📱 Features Implemented
 

@@ -164,8 +164,15 @@ class NotificationService {
       console.log('Device token unregistered');
       return true;
     } catch (error) {
+      // Gracefully handle permissions errors
+      if (error.code === 'permission-denied') {
+        console.warn('Permission denied when unregistering device token. This is expected if user does not have delete permissions.');
+        // Return true since the user is logging out anyway
+        return true;
+      }
       console.error('Error unregistering device token:', error);
-      return false;
+      // Don't block logout on token unregistration failure
+      return true;
     }
   }
 

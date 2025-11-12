@@ -515,6 +515,53 @@ class AppointmentService {
       return [];
     }
   }
+
+  /**
+   * Complete an appointment and save visit notes
+   * @param {string} appointmentId - Appointment ID
+   * @param {string} diagnosis - Doctor's diagnosis
+   * @param {string} prescription - Doctor's prescription
+   * @returns {Promise<object>} - { success: boolean, error?: string }
+   */
+  async finishAppointment(appointmentId, diagnosis, prescription) {
+    try {
+      const appointmentRef = doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId);
+      
+      await updateDoc(appointmentRef, {
+        status: 'Completed',
+        diagnosis,
+        prescription,
+        completedAt: serverTimestamp(),
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error completing appointment:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Update appointment status
+   * @param {string} appointmentId - Appointment ID
+   * @param {string} status - New status (e.g., 'Confirmed', 'Rejected', 'Checked-in')
+   * @returns {Promise<object>} - { success: boolean, error?: string }
+   */
+  async updateAppointmentStatus(appointmentId, status) {
+    try {
+      const appointmentRef = doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId);
+      
+      await updateDoc(appointmentRef, {
+        status,
+        updatedAt: serverTimestamp(),
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 export default new AppointmentService();

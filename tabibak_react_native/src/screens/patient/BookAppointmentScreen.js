@@ -8,7 +8,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Platform
+  Platform,
+  ToastAndroid
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -184,6 +185,67 @@ export default function BookAppointmentScreen({ route, navigation }) {
       }
     } catch (error) {
       console.error('Error booking appointment:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const handleRequestAppointment = async () => {
+    if (!selectedDate || !selectedTime) {
+      Alert.alert('Validation Error', 'Please select both a date and a time slot.');
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+
+      // Clinic Closure Validation
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const closureCheck = await appointmentService.checkClinicClosure(doctor.id, dateStr);
+      if (closureCheck.isClosed) {
+        Alert.alert('Clinic Closed', closureCheck.reason || 'The clinic is closed on this date.');
+        setBookingLoading(false);
+        return;
+      }
+
+      // Duplicate Booking Prevention
+      const duplicateCheck = await appointmentService.checkDuplicateBooking(user.uid, doctor.id, dateStr);
+      if (duplicateCheck.isDuplicate) {
+        Alert.alert(
+          'Duplicate Booking',
+          'You already have a pending or confirmed appointment with this doctor on this date.',
+          [
+            {
+              text: 'View Appointment',
+              onPress: () => navigation.navigate('Appointments'),
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        setBookingLoading(false);
+        return;
+      }
+
+      // Request Appointment
+      const appointmentData = {
+        doctorId: doctor.id,
+        selectedDate,
+        selectedTime,
+        allergies: allergies.trim() || 'None',
+        medications: currentMedications.trim() || 'None',
+        patientId: user.uid,
+      };
+
+      const result = await appointmentService.requestAppointment(appointmentData);
+      if (result.success) {
+        ToastAndroid.show('Appointment requested successfully!', ToastAndroid.SHORT);
+        navigation.navigate('PatientHome');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to request appointment.');
+      }
+    } catch (error) {
+      console.error('Error requesting appointment:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setBookingLoading(false);
@@ -601,6 +663,22 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: '600',
     marginLeft: spacing.sm,
+  },
+  requestButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+  },
+  disabledRequestButton: {
+    backgroundColor: colors.gray,
+  },
+  requestButtonText: {
+    color: colors.white,
+    fontSize: typography.sizes.lg,
+    fontWeight: '600',
   },
 });
 
