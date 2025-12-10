@@ -17,27 +17,87 @@ const DoctorVisitNotesScreen = ({ route, navigation }) => {
   const { appointment } = route.params;
   const [diagnosis, setDiagnosis] = useState('');
   const [prescription, setPrescription] = useState('');
+  const [medications, setMedications] = useState([]);
+  const [labRequests, setLabRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Medication form states
+  const [medicationName, setMedicationName] = useState('');
+  const [dosage, setDosage] = useState('');
+  const [instructions, setInstructions] = useState('');
+
+  // Lab request state
+  const [labTest, setLabTest] = useState('');
+
+  const addMedication = () => {
+    if (!medicationName.trim() || !dosage.trim()) {
+      Alert.alert('Validation Error', 'Please enter medication name and dosage.');
+      return;
+    }
+
+    const newMedication = {
+      name: medicationName.trim(),
+      dosage: dosage.trim(),
+      instructions: instructions.trim() || 'As directed',
+    };
+
+    setMedications([...medications, newMedication]);
+    // Clear form
+    setMedicationName('');
+    setDosage('');
+    setInstructions('');
+  };
+
+  const removeMedication = (index) => {
+    setMedications(medications.filter((_, i) => i !== index));
+  };
+
+  const addLabRequest = () => {
+    if (!labTest.trim()) {
+      Alert.alert('Validation Error', 'Please enter a lab test name.');
+      return;
+    }
+
+    if (labRequests.includes(labTest.trim())) {
+      Alert.alert('Duplicate', 'This lab test is already in the list.');
+      return;
+    }
+
+    setLabRequests([...labRequests, labTest.trim()]);
+    setLabTest('');
+  };
+
+  const removeLabRequest = (index) => {
+    setLabRequests(labRequests.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
-    if (!diagnosis.trim() || !prescription.trim()) {
-      Alert.alert('Validation Error', 'Please fill in both diagnosis and prescription fields.');
+    if (!diagnosis.trim()) {
+      Alert.alert('Validation Error', 'Please enter a diagnosis.');
       return;
     }
 
     try {
       setLoading(true);
+      
+      // Call updated finishAppointment with new parameters
       const result = await appointmentService.finishAppointment(
         appointment.id,
         diagnosis.trim(),
-        prescription.trim()
+        prescription.trim() || 'See prescription details',
+        medications,
+        labRequests
       );
 
       if (result.success) {
+        // TODO: Call utils.generateRxCard(doctorProfile, appointmentData) here
+        // Placeholder for prescription card generation
+        console.log('Prescription card generation placeholder');
+        
         Alert.alert('Success', 'Visit completed successfully!', [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('DoctorHome'),
+            onPress: () => navigation.navigate('Dashboard'),
           },
         ]);
       } else {
@@ -86,17 +146,119 @@ const DoctorVisitNotesScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="document-text" size={24} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Prescription</Text>
+            <Text style={styles.sectionTitle}>General Notes / Prescription</Text>
           </View>
           <TextInput
             style={styles.textInput}
-            placeholder="Enter prescription details..."
+            placeholder="Enter general prescription notes..."
             value={prescription}
             onChangeText={setPrescription}
             multiline
-            numberOfLines={6}
+            numberOfLines={4}
             textAlignVertical="top"
           />
+        </View>
+
+        {/* Medications Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="medkit" size={24} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Medications Prescribed</Text>
+          </View>
+          
+          {/* Medication List */}
+          {medications.length > 0 && (
+            <View style={styles.medicationList}>
+              {medications.map((med, index) => (
+                <View key={index} style={styles.medicationCard}>
+                  <View style={styles.medicationContent}>
+                    <Text style={styles.medicationName}>{med.name}</Text>
+                    <Text style={styles.medicationDosage}>{med.dosage}</Text>
+                    <Text style={styles.medicationInstructions}>{med.instructions}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => removeMedication(index)}
+                    style={styles.removeButton}
+                  >
+                    <Ionicons name="trash" size={20} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Add Medication Form */}
+          <View style={styles.addMedicationForm}>
+            <TextInput
+              style={styles.smallInput}
+              placeholder="Medication name *"
+              value={medicationName}
+              onChangeText={setMedicationName}
+            />
+            <View style={styles.row}>
+              <TextInput
+                style={[styles.smallInput, styles.halfInput]}
+                placeholder="Dosage *"
+                value={dosage}
+                onChangeText={setDosage}
+              />
+              <TextInput
+                style={[styles.smallInput, styles.halfInput]}
+                placeholder="Instructions"
+                value={instructions}
+                onChangeText={setInstructions}
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={addMedication}
+            >
+              <Ionicons name="add-circle" size={20} color={colors.white} />
+              <Text style={styles.addButtonText}>Add Medication</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Lab Requests Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="flask" size={24} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Lab Tests Requested</Text>
+          </View>
+
+          {/* Lab List */}
+          {labRequests.length > 0 && (
+            <View style={styles.labList}>
+              {labRequests.map((lab, index) => (
+                <View key={index} style={styles.labCard}>
+                  <Text style={styles.labText}>• {lab}</Text>
+                  <TouchableOpacity
+                    onPress={() => removeLabRequest(index)}
+                    style={styles.removeButton}
+                  >
+                    <Ionicons name="close-circle" size={20} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Add Lab Form */}
+          <View style={styles.addLabForm}>
+            <TextInput
+              style={styles.smallInput}
+              placeholder="Lab test name (e.g., Blood Sugar, X-Ray)"
+              value={labTest}
+              onChangeText={setLabTest}
+            />
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={addLabRequest}
+            >
+              <Ionicons name="add-circle" size={20} color={colors.white} />
+              <Text style={styles.addButtonText}>Add Lab Test</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Info Box */}
@@ -232,6 +394,99 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: '600',
     marginLeft: spacing.sm,
+  },
+  medicationList: {
+    marginBottom: spacing.md,
+  },
+  medicationCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: 8,
+    marginBottom: spacing.sm,
+    alignItems: 'center',
+  },
+  medicationContent: {
+    flex: 1,
+  },
+  medicationName: {
+    fontSize: typography.sizes.md,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  medicationDosage: {
+    fontSize: typography.sizes.sm,
+    color: colors.primary,
+    marginTop: spacing.xs,
+  },
+  medicationInstructions: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  removeButton: {
+    padding: spacing.xs,
+  },
+  addMedicationForm: {
+    backgroundColor: colors.white,
+    padding: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gray,
+  },
+  smallInput: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: spacing.sm,
+    fontSize: typography.sizes.sm,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.gray,
+    marginBottom: spacing.sm,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  addButton: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: colors.white,
+    fontSize: typography.sizes.sm,
+    fontWeight: '600',
+    marginLeft: spacing.xs,
+  },
+  labList: {
+    marginBottom: spacing.md,
+  },
+  labCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: 8,
+    marginBottom: spacing.sm,
+    alignItems: 'center',
+  },
+  labText: {
+    flex: 1,
+    fontSize: typography.sizes.md,
+    color: colors.text,
+  },
+  addLabForm: {
+    backgroundColor: colors.white,
+    padding: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gray,
   },
 });
 

@@ -28,5 +28,6 @@ export const COLLECTIONS = {
   MEDICAL_DOCUMENTS: 'medicalDocuments',
   DOCUMENTS: 'documents',
   USER_TOKENS: 'userTokens',
-  CLOSURES: 'closures'
+  CLOSURES: 'closures',
+  SPECIALTIES: 'specialties'
 };

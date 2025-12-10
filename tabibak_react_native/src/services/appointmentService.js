@@ -520,19 +520,33 @@ class AppointmentService {
    * Complete an appointment and save visit notes
    * @param {string} appointmentId - Appointment ID
    * @param {string} diagnosis - Doctor's diagnosis
-   * @param {string} prescription - Doctor's prescription
+   * @param {string} prescription - Doctor's prescription (general notes)
+   * @param {Array} medicationsPrescribed - Array of {name, dosage, instructions}
+   * @param {Array} labRequests - Array of lab test names
    * @returns {Promise<object>} - { success: boolean, error?: string }
    */
-  async finishAppointment(appointmentId, diagnosis, prescription) {
+  async finishAppointment(appointmentId, diagnosis, prescription, medicationsPrescribed = [], labRequests = []) {
     try {
       const appointmentRef = doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId);
       
-      await updateDoc(appointmentRef, {
+      const updateData = {
         status: 'Completed',
         diagnosis,
         prescription,
         completedAt: serverTimestamp(),
-      });
+      };
+
+      // Add medications if provided
+      if (medicationsPrescribed && medicationsPrescribed.length > 0) {
+        updateData.medicationsPrescribed = medicationsPrescribed;
+      }
+
+      // Add lab requests if provided
+      if (labRequests && labRequests.length > 0) {
+        updateData.labRequests = labRequests;
+      }
+
+      await updateDoc(appointmentRef, updateData);
 
       return { success: true };
     } catch (error) {

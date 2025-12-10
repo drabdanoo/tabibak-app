@@ -21,9 +21,10 @@ import ReceptionistStack from './ReceptionistStack';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { user, userRole, initializing } = useAuth();
+  const { user, userRole, initializing, roleLoading } = useAuth();
 
-  if (initializing) {
+  // Show loading screen while initializing auth or loading role
+  if (initializing || (user && roleLoading)) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />

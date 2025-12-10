@@ -52,7 +52,7 @@ service cloud.firestore {
       }
     }
 
-    // === Doctor Profiles ===
+    // === Doctors ===
     match /doctors/{uid} {
       // Anyone (including anonymous users) can read doctor profiles for browsing
       // The 'listed' field in the app controls which doctors are shown to patients.
@@ -63,6 +63,12 @@ service cloud.firestore {
       allow update: if (isDoctor() && isSelf(uid)) || isAdmin();
       // Only admins can delete doctors.
       allow delete: if isAdmin();
+    }
+
+    // === Specialties ===
+    match /specialties/{docId} {
+      // Any authenticated user can read specialties for filtering
+      allow read: if signedIn() || isAnonymous();
     }
 
     // === Patient Profiles ===

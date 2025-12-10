@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabibok Health - Healthcare Booking Platform</title>
+    <meta name="description" content="Tabibok Health - Book appointments with doctors, manage your medical records securely.">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .hero h2 {
+            font-size: 2.2em;
+            color: #10b981;
+            margin-bottom: 20px;
+        }
+        
+        .hero p {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .feature-card {
+            background: #f9fafb;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        
+        .feature-card h3 {
+            color: #10b981;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .cta-section {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+            border-radius: 12px;
+            margin: 40px 0;
+        }
+        
+        .cta-section h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        
+        .cta-section p {
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            opacity: 0.95;
+        }
+        
+        .download-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            color: #10b981;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .links {
+            text-align: center;
+            padding: 40px 20px;
+            background: #f9fafb;
+        }
+        
+        .links a {
+            color: #10b981;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .links a:hover {
+            text-decoration: underline;
+        }
+        
+        .disclaimer {
+            background: #fff9e6;
+            border: 2px solid #ffa500;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 40px 0;
+        }
+        
+        .disclaimer h3 {
+            color: #cc8400;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .disclaimer p {
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        footer {
+            background: #1f2937;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        footer p {
+            margin: 5px 0;
+            opacity: 0.8;
+        }
+        
+        footer a {
+            color: #10b981;
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2em;
+            }
+            
+            .hero h2 {
+                font-size: 1.8em;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+            
+            .download-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏥 Tabibok Health</h1>
+            <p>Your Healthcare Booking Platform</p>
+        </header>
+        
+        <div class="content">
+            <div class="hero">
+                <h2>Book Appointments, Manage Your Health</h2>
+                <p>Connect with verified doctors, book appointments, and manage your medical records securely - all in one place.</p>
+            </div>
+            
+            <div class="disclaimer">
+                <h3>⚠️ Medical Disclaimer</h3>
+                <p>
+                    <strong>This app is NOT a medical device and does NOT diagnose, treat, cure, or prevent any medical condition.</strong> 
+                    Tabibok Health is a booking and communication platform for healthcare services. Always consult qualified 
+                    healthcare professionals for medical advice, diagnosis, or treatment. Never disregard professional medical 
+                    advice or delay seeking it because of information from this app.
+                </p>
+            </div>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <h3>Easy Booking</h3>
+                    <p>Find and book appointments with verified doctors in your area. View real-time availability and get instant confirmation.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📋</div>
+                    <h3>Medical Records</h3>
+                    <p>Access your health history, prescriptions, and visit notes securely anytime, anywhere.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔔</div>
+                    <h3>Smart Reminders</h3>
+                    <p>Never miss an appointment with automatic notifications and reminders.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <h3>Secure Messaging</h3>
+                    <p>Communicate safely with your healthcare providers within the app.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">👨‍⚕️</div>
+                    <h3>For Healthcare Providers</h3>
+                    <p>Doctors and clinics can manage schedules, patients, and medical records efficiently.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Privacy First</h3>
+                    <p>Your health information is encrypted and protected according to healthcare data standards.</p>
+                </div>
+            </div>
+            
+            <div class="cta-section">
+                <h2>Download Tabibok Health Today</h2>
+                <p>Available on iOS and Android</p>
+                <div class="download-buttons">
+                    <a href="#" class="download-btn">
+                        <span style="font-size: 1.5em;">📱</span>
+                        <span>App Store</span>
+                    </a>
+                    <a href="#" class="download-btn">
+                        <span style="font-size: 1.5em;">🤖</span>
+                        <span>Google Play</span>
+                    </a>
+                </div>
+                <p style="margin-top: 20px; font-size: 0.9em;">Coming Soon!</p>
+            </div>
+            
+            <div class="links">
+                <a href="privacy-policy.html">Privacy Policy</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="support.html">Support</a>
+                <a href="contact.html">Contact</a>
+            </div>
+        </div>
+        
+        <footer>
+            <p><strong>Tabibok Health</strong></p>
+            <p>Healthcare Booking Made Simple</p>
+            <p style="margin-top: 15px;">
+                <a href="mailto:privacy@tabibakcare.com">privacy@tabibakcare.com</a>
+            </p>
+            <p style="margin-top: 15px; font-size: 0.9em;">
+                © 2025 Tabibok Health. All rights reserved.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

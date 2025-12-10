@@ -1,16 +1,16 @@
 {
   "indexes": [
     {
-      "collectionGroup": "appointments",
+      "collectionGroup": "doctors",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "doctorId",
-          "order": "ASCENDING"
+          "fieldPath": "rating",
+          "order": "DESCENDING"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
+          "fieldPath": "name",
+          "order": "ASCENDING"
         }
       ]
     },

@@ -16,7 +16,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.tabibok.health",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Tabibok Health needs camera access to allow you to capture and upload medical documents, prescriptions, and identification for your health records.",
+        "NSPhotoLibraryUsageDescription": "Tabibok Health needs photo library access to allow you to upload medical documents, prescriptions, and identification from your device.",
+        "NSLocationWhenInUseUsageDescription": "Tabibok Health uses your location to help you find nearby clinics and doctors.",
+        "NSHealthShareUsageDescription": "This app is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. It is a booking and communication platform for healthcare services."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,12 +30,26 @@
         "backgroundColor": "#10b981"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.tabibok.health",
+      "package": "com.abdullah.reacttabibok",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 1
+      "versionCode": 1,
+      "targetSdkVersion": 35,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "NOTIFICATIONS",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c6e91624-4f76-4b03-90f1-f4f724ab5547"
+      }
     }
   }
 }
