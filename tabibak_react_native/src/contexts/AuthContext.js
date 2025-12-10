@@ -11,7 +11,9 @@ export const AuthProvider = ({ children }) => {
   const [userRole, setUserRole] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [verificationConfirmation, setVerificationConfirmation] = useState(null);
 
   // Handle authentication state changes
   useEffect(() => {
@@ -21,6 +23,9 @@ export const AuthProvider = ({ children }) => {
       
       if (firebaseUser) {
         setUser(firebaseUser);
+        
+        // Set roleLoading to true while fetching role
+        setRoleLoading(true);
         
         // Get user role and profile
         const role = await authService.getUserRole(firebaseUser.uid);
@@ -39,11 +44,15 @@ export const AuthProvider = ({ children }) => {
           // Register device token for push notifications
           await notificationService.registerDeviceToken(firebaseUser.uid, role);
         }
+        
+        // Role loading complete
+        setRoleLoading(false);
       } else {
         console.log('No user, clearing auth state');
         setUser(null);
         setUserRole(null);
         setUserProfile(null);
+        setRoleLoading(false);
         
         // Clear AsyncStorage
         await AsyncStorage.removeItem('userRole');
@@ -62,14 +71,33 @@ export const AuthProvider = ({ children }) => {
 
   // Send OTP to phone number
   const sendOTP = async (phoneNumber) => {
-    return await authService.sendOTP(phoneNumber);
+    const result = await authService.sendOTP(phoneNumber);
+    
+    if (result.success && result.confirmation) {
+      // Store confirmation in context state instead of passing via navigation
+      setVerificationConfirmation(result.confirmation);
+      console.log('Verification confirmation stored in context');
+    }
+    
+    return result;
   };
 
   // Verify OTP
-  const verifyOTP = async (confirmation, code) => {
-    const result = await authService.verifyOTP(confirmation, code);
+  const verifyOTP = async (code) => {
+    if (!verificationConfirmation) {
+      console.error('No verification confirmation found');
+      return { 
+        success: false, 
+        error: 'Verification session expired. Please request a new code.' 
+      };
+    }
+    
+    const result = await authService.verifyOTP(verificationConfirmation, code);
     
     if (result.success) {
+      // Clear confirmation after successful verification
+      setVerificationConfirmation(null);
+      
       // Check if user has a profile
       const role = await authService.getUserRole(result.user.uid);
       
@@ -163,7 +191,9 @@ export const AuthProvider = ({ children }) => {
     userRole,
     userProfile,
     loading,
+    roleLoading,
     initializing,
+    verificationConfirmation,
     sendOTP,
     verifyOTP,
     createProfile,

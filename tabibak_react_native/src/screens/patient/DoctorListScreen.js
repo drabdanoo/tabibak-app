@@ -224,25 +224,29 @@ export default function DoctorListScreen({ navigation }) {
         style={styles.filterContainer}
         contentContainerStyle={styles.filterContent}
       >
-        {specialties.map((specialty) => (
-          <TouchableOpacity
-            key={specialty}
-            style={[
-              styles.filterChip,
-              selectedSpecialty === specialty && styles.filterChipActive
-            ]}
-            onPress={() => handleSpecialtySelect(specialty)}
-          >
-            <Text
+        {specialties.map((specialty) => {
+          const specialtyKey = typeof specialty === 'string' ? specialty : specialty.id;
+          const specialtyName = typeof specialty === 'string' ? specialty : specialty.name;
+          return (
+            <TouchableOpacity
+              key={specialtyKey}
               style={[
-                styles.filterChipText,
-                selectedSpecialty === specialty && styles.filterChipTextActive
+                styles.filterChip,
+                selectedSpecialty === specialtyKey && styles.filterChipActive
               ]}
+              onPress={() => handleSpecialtySelect(specialtyKey)}
             >
-              {specialty}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selectedSpecialty === specialtyKey && styles.filterChipTextActive
+                ]}
+              >
+                {specialtyName}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <Text style={styles.resultsText}>

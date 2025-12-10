@@ -1,17 +1,18 @@
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
+import {
+  getFirestore,
+  collection,
+  doc,
   getDoc,
-  getDocs, 
-  query, 
-  where, 
+  getDocs,
+  query,
+  where,
   orderBy,
   limit,
   startAfter,
   onSnapshot
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { COLLECTIONS } from '../config/firebase';
 
 const db = getFirestore();
@@ -42,27 +43,27 @@ class FirestoreService {
       // If search text is provided, disable pagination and fetch larger set
       if (filters.searchText) {
         console.warn('Search text disables pagination. Consider using Algolia/Typesense for production.');
-        
+
         // Build query without pagination
         if (filters.specialty && filters.specialty !== 'All') {
           constraints.push(where('specialty', '==', filters.specialty));
         }
-        
+
         if (filters.minRating) {
           constraints.push(where('rating', '>=', filters.minRating));
         }
-        
+
         if (filters.location) {
           constraints.push(where('city', '==', filters.location));
         }
-        
+
         constraints.push(orderBy('rating', 'desc'));
         constraints.push(orderBy('name', 'asc'));
         constraints.push(limit(100)); // Fetch larger set for filtering
-        
+
         q = query(q, ...constraints);
         const querySnapshot = await getDocs(q);
-        
+
         // Client-side filtering
         const searchLower = filters.searchText.toLowerCase();
         const doctors = querySnapshot.docs
@@ -72,7 +73,7 @@ class FirestoreService {
             doctor.specialty?.toLowerCase().includes(searchLower) ||
             doctor.bio?.toLowerCase().includes(searchLower)
           );
-        
+
         return {
           success: true,
           doctors: doctors.slice(0, limitCount),
@@ -120,9 +121,9 @@ class FirestoreService {
       // Get last visible document for pagination
       const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
 
-      return { 
-        success: true, 
-        doctors, 
+      return {
+        success: true,
+        doctors,
         lastVisible,
         hasMore: doctors.length === limitCount
       };
@@ -143,9 +144,9 @@ class FirestoreService {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return { 
-          success: true, 
-          doctor: { id: docSnap.id, ...docSnap.data() } 
+        return {
+          success: true,
+          doctor: { id: docSnap.id, ...docSnap.data() }
         };
       }
 
@@ -157,70 +158,66 @@ class FirestoreService {
   }
 
   /**
-   * Get all specialties (unique)
+   * Get all specialties
    * @returns {Promise<array>}
    */
   async getSpecialties() {
+    // Early validation: Check if COLLECTIONS.SPECIALTIES is properly configured
+    if (!COLLECTIONS.SPECIALTIES) {
+      console.error('CONFIGURATION ERROR: COLLECTIONS.SPECIALTIES is not defined.');
+      // Return default specialties to fail gracefully
+      return {
+        success: false,
+        specialties: [
+          { id: 'general-physician', name: 'General Physician' },
+          { id: 'pediatrician', name: 'Pediatrician' },
+          { id: 'dermatologist', name: 'Dermatologist' },
+          { id: 'cardiologist', name: 'Cardiologist' },
+          { id: 'neurologist', name: 'Neurologist' },
+          { id: 'orthopedic', name: 'Orthopedic Surgeon' }
+        ],
+        error: 'Configuration error: specialties collection not defined'
+      };
+    }
+
     try {
-      // Check cache first
-      const now = Date.now();
-      if (this.specialtiesCache.data && 
-          (now - this.specialtiesCache.timestamp) < this.CACHE_TTL) {
-        return { 
-          success: true, 
-          specialties: this.specialtiesCache.data,
-          cached: true 
-        };
-      }
-      
-      // Try to get specialties from metadata collection first (more efficient)
-      const specialtiesDoc = await getDoc(
-        doc(this.db, 'metadata', 'specialties')
-      );
-      
+      // First try to get from specialties metadata document
+      const specialtiesRef = doc(this.db, COLLECTIONS.SPECIALTIES, 'metadata');
+      const specialtiesDoc = await getDoc(specialtiesRef);
+
       if (specialtiesDoc.exists()) {
         const data = specialtiesDoc.data();
-        const specialtiesList = ['All', ...(data.list || [])];
-        
-        // Update cache
-        this.specialtiesCache = {
-          data: specialtiesList,
-          timestamp: now
-        };
-        
-        return { 
-          success: true, 
-          specialties: specialtiesList
-        };
+        if (data.list && Array.isArray(data.list)) {
+          return { success: true, specialties: data.list };
+        }
       }
-      
-      // Fallback to scanning entire doctors collection
-      console.warn('Using fallback method for specialties - consider setting up metadata document');
-      const querySnapshot = await getDocs(collection(this.db, COLLECTIONS.DOCTORS));
-      const specialties = new Set(['All']);
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.specialty) {
-          specialties.add(data.specialty);
+      // Fallback: scan the entire specialties collection
+      const q = query(collection(this.db, COLLECTIONS.SPECIALTIES));
+      const querySnapshot = await getDocs(q);
+
+      const specialties = [];
+      querySnapshot.forEach((docSnap) => {
+        if (docSnap.id !== 'metadata') { // Skip the metadata doc
+          specialties.push({ id: docSnap.id, ...docSnap.data() });
         }
       });
 
-      const specialtiesList = Array.from(specialties);
-      
-      // Update cache
-      this.specialtiesCache = {
-        data: specialtiesList,
-        timestamp: now
-      };
-
-      return { 
-        success: true, 
-        specialties: specialtiesList
-      };
+      return { success: true, specialties };
     } catch (error) {
       console.error('Error getting specialties:', error);
-      return { success: false, error: error.message, specialties: ['All'] };
+      // Return default specialties list if there's an error
+      return {
+        success: true,
+        specialties: [
+          { id: 'general-physician', name: 'General Physician' },
+          { id: 'pediatrician', name: 'Pediatrician' },
+          { id: 'dermatologist', name: 'Dermatologist' },
+          { id: 'cardiologist', name: 'Cardiologist' },
+          { id: 'neurologist', name: 'Neurologist' },
+          { id: 'orthopedic', name: 'Orthopedic Surgeon' }
+        ]
+      };
     }
   }
 
@@ -305,7 +302,7 @@ class FirestoreService {
       return unsubscribe;
     } catch (error) {
       console.error('Error setting up appointment listener:', error);
-      return () => {};
+      return () => { };
     }
   }
 
@@ -339,7 +336,7 @@ class FirestoreService {
       return unsubscribe;
     } catch (error) {
       console.error('Error setting up unconfirmed appointment listener:', error);
-      return () => {};
+      return () => { };
     }
   }
 
@@ -379,7 +376,7 @@ class FirestoreService {
   async getUserProfile(userId, role) {
     try {
       let collectionName;
-      
+
       switch (role) {
         case 'patient':
           collectionName = COLLECTIONS.PATIENTS;
@@ -398,9 +395,9 @@ class FirestoreService {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return { 
-          success: true, 
-          profile: { id: docSnap.id, ...docSnap.data() } 
+        return {
+          success: true,
+          profile: { id: docSnap.id, ...docSnap.data() }
         };
       }
 
@@ -408,6 +405,23 @@ class FirestoreService {
     } catch (error) {
       console.error('Error getting user profile:', error);
       return { success: false, error: error.message };
+    }
+  }
+  /**
+   * Calculate monthly revenue using Cloud Function
+   * @param {string} doctorId - Doctor ID
+   * @returns {Promise<number>}
+   */
+  async calculateMonthlyRevenue(doctorId) {
+    try {
+      const functions = getFunctions();
+      const calculateRevenue = httpsCallable(functions, 'calculateMonthlyRevenue');
+
+      const result = await calculateRevenue();
+      return result.data.revenue;
+    } catch (error) {
+      console.error('Error calculating monthly revenue:', error);
+      return 0;
     }
   }
 }

@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useAuth } from '../../contexts/AuthContext';
-import firestoreService from '../../firebase/firestoreService';
+import firestoreService from '../../services/firestoreService';
 import appointmentService from '../../services/appointmentService';
 import { colors, spacing, typography } from '../../config/theme';
 

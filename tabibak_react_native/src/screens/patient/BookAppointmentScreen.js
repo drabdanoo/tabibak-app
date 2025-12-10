@@ -18,36 +18,36 @@ import { useAuth } from '../../contexts/AuthContext';
 import { colors, spacing, typography } from '../../config/theme';
 
 export default function BookAppointmentScreen({ route, navigation }) {
-  const { doctor } = route.params;
+  const { doctor } = route.params || {};
   const { user } = useAuth();
-  
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
-  
+
   // Medical History Fields
   const [allergies, setAllergies] = useState('');
   const [currentMedications, setCurrentMedications] = useState('');
   const [chronicConditions, setChronicConditions] = useState('');
-  
+
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
-    if (selectedDate) {
+    if (selectedDate && doctor && doctor.id) {
       loadAvailableSlots();
     }
-  }, [selectedDate]);
+  }, [selectedDate, doctor]);
 
   const loadAvailableSlots = async () => {
     try {
       setLoading(true);
       const slots = await appointmentService.getAvailableTimeSlots(doctor.id, selectedDate);
       setAvailableSlots(slots);
-      
+
       // Auto-select first available slot
       const firstAvailable = slots.find(slot => slot.available);
       if (firstAvailable) {
@@ -61,18 +61,22 @@ export default function BookAppointmentScreen({ route, navigation }) {
   };
 
   const handleDateChange = (event, date) => {
+    if (Platform.OS === 'web') {
+      // Web date handling is done via the input onChange event directly
+      return;
+    }
     setShowDatePicker(Platform.OS === 'ios');
-    
+
     if (date) {
       // Don't allow past dates
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       if (date < today) {
         Alert.alert('Invalid Date', 'Please select a future date');
         return;
       }
-      
+
       setSelectedDate(date);
       setSelectedTime(null); // Reset time when date changes
     }
@@ -114,7 +118,7 @@ export default function BookAppointmentScreen({ route, navigation }) {
       // Step 1: Check clinic closure
       const dateStr = selectedDate.toISOString().split('T')[0];
       const closureCheck = await appointmentService.checkClinicClosure(doctor.id, dateStr);
-      
+
       if (closureCheck.isClosed) {
         Alert.alert('Clinic Closed', closureCheck.reason || 'The clinic is closed on this date');
         setBookingLoading(false);
@@ -285,8 +289,8 @@ export default function BookAppointmentScreen({ route, navigation }) {
             style={[
               styles.slotChip,
               !slot.available && styles.slotChipDisabled,
-              selectedTime && 
-              slot.time.getTime() === selectedTime.getTime() && 
+              selectedTime &&
+              slot.time.getTime() === selectedTime.getTime() &&
               styles.slotChipSelected
             ]}
             onPress={() => handleTimeSlotSelect(slot)}
@@ -296,8 +300,8 @@ export default function BookAppointmentScreen({ route, navigation }) {
               style={[
                 styles.slotChipText,
                 !slot.available && styles.slotChipTextDisabled,
-                selectedTime && 
-                slot.time.getTime() === selectedTime.getTime() && 
+                selectedTime &&
+                slot.time.getTime() === selectedTime.getTime() &&
                 styles.slotChipTextSelected
               ]}
             >
@@ -308,6 +312,25 @@ export default function BookAppointmentScreen({ route, navigation }) {
       </View>
     );
   };
+
+  // Guard: if doctor not provided, show error and return to previous screen
+  if (!doctor) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={64} color={colors.error} style={styles.errorIcon} />
+          <Text style={styles.errorTitle}>No Doctor Selected</Text>
+          <Text style={styles.errorMessage}>To book an appointment, please select a doctor first.</Text>
+          <TouchableOpacity
+            style={styles.ctaButton}
+            onPress={() => navigation.navigate('DoctorList')}
+          >
+            <Text style={styles.ctaButtonText}>Find a Doctor</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -326,23 +349,59 @@ export default function BookAppointmentScreen({ route, navigation }) {
         {/* Date Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Date</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={24} color={colors.primary} />
-            <Text style={styles.dateButtonText}>
-              {selectedDate.toLocaleDateString('en-US', {
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-              })}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color={colors.gray} />
-          </TouchableOpacity>
+          {Platform.OS === 'web' ? (
+            <View style={styles.dateButton}>
+              <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+              <input
+                type="date"
+                value={selectedDate.toISOString().split('T')[0]}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => {
+                  const dateVal = e.target.valueAsDate;
+                  if (dateVal) {
+                    // Adjust for timezone offset if necessary, or just use the date part
+                    // valueAsDate returns a UTC date at midnight
+                    // We want to preserve the local date selected
+                    const newDate = new Date(dateVal.getUTCFullYear(), dateVal.getUTCMonth(), dateVal.getUTCDate(), 12, 0, 0);
+                    setSelectedDate(newDate);
+                    setSelectedTime(null);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  marginLeft: 10,
+                  fontSize: 16,
+                  border: 'none',
+                  outline: 'none',
+                  backgroundColor: 'transparent',
+                  color: colors.text,
+                  fontFamily: 'System'
+                }}
+              />
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.dateButton}
+              activeOpacity={0.7}
+              onPress={() => {
+                console.log('Opening native date picker');
+                setShowDatePicker(true);
+              }}
+            >
+              <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+              <Text style={styles.dateButtonText}>
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                })}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color={colors.gray} />
+            </TouchableOpacity>
+          )}
 
-          {showDatePicker && (
+          {showDatePicker && Platform.OS !== 'web' && (
             <DateTimePicker
               value={selectedDate}
               mode="date"
@@ -685,5 +744,40 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: '600',
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  errorIcon: {
+    marginBottom: spacing.lg,
+  },
+  errorTitle: {
+    fontSize: typography.sizes.xl,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: typography.sizes.md,
+    color: colors.gray,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+  ctaButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    marginTop: spacing.md,
+  },
+  ctaButtonText: {
+    color: colors.white,
+    fontSize: typography.sizes.md,
+    fontWeight: '600',
+  },
 });
+
 

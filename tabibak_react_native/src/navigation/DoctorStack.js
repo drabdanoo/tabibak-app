@@ -7,11 +7,15 @@ import { Colors } from '../config/theme';
 // Doctor Screens
 import DoctorDashboardScreen from '../screens/doctor/DoctorDashboardScreen';
 import DoctorAppointmentsScreen from '../screens/doctor/DoctorAppointmentsScreen';
+import DoctorAppointmentDetailScreen from '../screens/doctor/DoctorAppointmentDetailScreen';
 import PatientDetailsScreen from '../screens/doctor/PatientDetailsScreen';
+import PatientHistoryScreen from '../screens/doctor/PatientHistoryScreen';
+import DoctorVisitNotesScreen from '../screens/doctor/DoctorVisitNotesScreen';
 import EMRScreen from '../screens/doctor/EMRScreen';
 import PrescriptionScreen from '../screens/doctor/PrescriptionScreen';
 import DoctorProfileScreen from '../screens/doctor/DoctorProfileScreen';
 import DoctorSettingsScreen from '../screens/doctor/DoctorSettingsScreen';
+import AppointmentDetailsScreen from '../screens/doctor/AppointmentDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -59,42 +63,78 @@ const DoctorTabs = () => {
 const DoctorStack = () => {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="DoctorTabs" 
-        component={DoctorTabs} 
+      <Stack.Screen
+        name="DoctorTabs"
+        component={DoctorTabs}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="PatientDetails" 
+      <Stack.Screen
+        name="AppointmentDetails"
+        component={AppointmentDetailsScreen}
+        options={{
+          title: 'Appointment Details',
+          headerStyle: { backgroundColor: Colors.primary },
+          headerTintColor: Colors.white
+        }}
+      />
+      <Stack.Screen
+        name="AppointmentDetail"
+        component={DoctorAppointmentDetailScreen}
+        options={{
+          title: 'Appointment Details',
+          headerStyle: { backgroundColor: Colors.primary },
+          headerTintColor: Colors.white
+        }}
+      />
+      <Stack.Screen
+        name="DoctorVisitNotes"
+        component={DoctorVisitNotesScreen}
+        options={{
+          title: 'Visit Notes',
+          headerStyle: { backgroundColor: Colors.primary },
+          headerTintColor: Colors.white
+        }}
+      />
+      <Stack.Screen
+        name="PatientHistory"
+        component={PatientHistoryScreen}
+        options={{
+          title: 'Patient History',
+          headerStyle: { backgroundColor: Colors.primary },
+          headerTintColor: Colors.white
+        }}
+      />
+      <Stack.Screen
+        name="PatientDetails"
         component={PatientDetailsScreen}
-        options={{ 
+        options={{
           title: 'Patient Details',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white
         }}
       />
-      <Stack.Screen 
-        name="EMR" 
+      <Stack.Screen
+        name="EMR"
         component={EMRScreen}
-        options={{ 
+        options={{
           title: 'Electronic Medical Record',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white
         }}
       />
-      <Stack.Screen 
-        name="Prescription" 
+      <Stack.Screen
+        name="Prescription"
         component={PrescriptionScreen}
-        options={{ 
+        options={{
           title: 'Create Prescription',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white
         }}
       />
-      <Stack.Screen 
-        name="Settings" 
+      <Stack.Screen
+        name="Settings"
         component={DoctorSettingsScreen}
-        options={{ 
+        options={{
           title: 'Settings',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white

@@ -8,7 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import firestoreService from '../../firebase/firestoreService';
+import firestoreService from '../../services/firestoreService';
 import { colors, spacing, typography } from '../../config/theme';
 
 const PatientHistoryScreen = ({ route }) => {

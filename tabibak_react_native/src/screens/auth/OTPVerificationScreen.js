@@ -15,10 +15,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
 
 const OTPVerificationScreen = ({ navigation, route }) => {
-  const { phoneNumber, confirmation } = route.params;
+  const { phoneNumber } = route.params;
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
-  const { verifyOTP } = useAuth();
+  const { verifyOTP, verificationConfirmation } = useAuth();
   
   const inputRefs = useRef([]);
 
@@ -45,34 +45,38 @@ const OTPVerificationScreen = ({ navigation, route }) => {
 
   const handleVerify = async () => {
     const otpCode = otp.join('');
-
+    
     if (otpCode.length !== 6) {
-      Alert.alert('Invalid Code', 'Please enter the 6-digit verification code');
+      Alert.alert('Error', 'Please enter a valid 6-digit code');
+      return;
+    }
+
+    if (!verificationConfirmation) {
+      Alert.alert('Error', 'Verification session expired. Please request a new code.');
+      navigation.goBack();
       return;
     }
 
     setLoading(true);
-
     try {
-      const result = await verifyOTP(confirmation, otpCode);
-
+      // verifyOTP now retrieves confirmation from context
+      const result = await verifyOTP(otpCode);
+      
       if (result.success) {
         if (result.needsProfile) {
-          // New user - navigate to profile setup
-          navigation.replace('ProfileSetup');
+          navigation.navigate('ProfileSetup', { 
+            user: result.user,
+            role: route.params.role
+          });
         } else {
-          // Existing user - navigation will be handled by AuthContext
-          // User will be redirected to their role-specific stack
+          // Navigate based on user role
+          // The AppNavigator will handle routing based on user role
         }
       } else {
-        Alert.alert('Invalid Code', result.error || 'The code you entered is incorrect. Please try again.');
-        // Clear OTP inputs
-        setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
+        Alert.alert('Error', result.error || 'Failed to verify code');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-      console.error('OTP verification error:', error);
+      Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
