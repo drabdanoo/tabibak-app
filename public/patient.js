@@ -738,8 +738,11 @@ async function submitBooking(event) {
     const user = auth.currentUser;
     if (!user) { window.showNotification('يرجى تسجيل الدخول أولاً لحجز موعد', 'error'); closeBookingModal(); showLoginModal(); return; }
 
-    const patientId = document.getElementById('patientSelector').value;
-    const isFamilyMember = patientId !== user.uid;
+    const rawPatientId = document.getElementById('patientSelector').value;
+    // For family members without a Firebase account, patientId may be empty.
+    // Fall back to userId so ownership rules (resource.data.patientId == auth.uid) still work.
+    const patientId = rawPatientId || user.uid;
+    const isFamilyMember = rawPatientId !== user.uid;
 
     const chronicConditions = [];
     if (document.getElementById('hypertension').checked) chronicConditions.push('ضغط الدم المرتفع');
@@ -806,15 +809,12 @@ async function submitBooking(event) {
         // Skip conflict check - receptionist will handle conflicts when confirming
         // since date/time are null at this stage
 
-        console.log('DEBUG: Attempting to add appointment to Firestore...');
-        console.log('DEBUG: User UID:', user.uid);
-        console.log('DEBUG: Auth token claims:', auth.currentUser?.getIdTokenResult ? 'available' : 'not available');
-        
-        const docRef = await db.collection('appointments').add(appointmentData);
-        console.log('DEBUG: Appointment added successfully with ID:', docRef.id);
-        
-        await docRef.update({ firestoreId: docRef.id });
-        console.log('DEBUG: Appointment updated with firestoreId');
+        // Pre-generate the doc ID so we can include firestoreId in the initial write.
+        // This avoids the add() + update() two-step pattern which can race against
+        // Firestore rule evaluation and cause permission-denied on the update.
+        const docRef = db.collection('appointments').doc();
+        await docRef.set({ ...appointmentData, firestoreId: docRef.id });
+        console.log('DEBUG: Appointment written with ID:', docRef.id);
 
         window.showNotification(`✅ تم إرسال طلب الحجز بنجاح!`, 'success');
         closeBookingModal();
