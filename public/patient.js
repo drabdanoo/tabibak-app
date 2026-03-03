@@ -6,8 +6,11 @@ const firebaseConfig = window.__MC_ENV__?.FIREBASE_CONFIG;
 
 const siteKey = window.__MC_ENV__?.APP_CHECK_KEY;
 
+if (!firebaseConfig) {
+    console.error('MedConnect: Firebase config missing. Ensure config.js is loaded before patient.js.');
+}
+
 firebase.initializeApp(firebaseConfig);
-// Initialize Firebase app
 
 // Initialize App Check immediately so tokens are attached to initial Firestore requests
 try {
@@ -24,16 +27,22 @@ try {
     console.warn('App Check init skipped:', e?.message || e);
 }
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+const auth = firebase.auth ? firebase.auth() : null;
+const db = firebase.firestore ? firebase.firestore() : null;
+
+if (!auth) {
+    console.error('MedConnect: Firebase Auth SDK not loaded. Check that firebase-auth-compat.js is not blocked by an ad blocker or network issue.');
+}
 
 // No emulator connections in production code.
 
 // Set authentication persistence to 'local' to keep users signed in.
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-    .catch((error) => {
-        console.error("Error setting auth persistence:", error);
-    });
+if (auth) {
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .catch((error) => {
+            console.error("Error setting auth persistence:", error);
+        });
+}
 
 
 // === Global State ===
