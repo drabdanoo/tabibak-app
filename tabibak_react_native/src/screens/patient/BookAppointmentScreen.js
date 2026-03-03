@@ -8,8 +8,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Platform,
-  ToastAndroid
+  Platform
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -111,9 +110,9 @@ export default function BookAppointmentScreen({ route, navigation }) {
     try {
       setBookingLoading(true);
 
-      // Step 1: Check clinic closure
+      // Step 1: Check clinic closure — must pass a Date object, not a string
       const dateStr = selectedDate.toISOString().split('T')[0];
-      const closureCheck = await appointmentService.checkClinicClosure(doctor.id, dateStr);
+      const closureCheck = await appointmentService.checkClinicClosure(doctor.id, selectedDate);
       
       if (closureCheck.isClosed) {
         Alert.alert('Clinic Closed', closureCheck.reason || 'The clinic is closed on this date');
@@ -121,11 +120,11 @@ export default function BookAppointmentScreen({ route, navigation }) {
         return;
       }
 
-      // Step 2: Check for duplicate booking
+      // Step 2: Check for duplicate booking — pass Date object for accurate range query
       const duplicateCheck = await appointmentService.checkDuplicateBooking(
         user.uid,
         doctor.id,
-        dateStr
+        selectedDate
       );
 
       if (duplicateCheck.isDuplicate) {
@@ -154,7 +153,12 @@ export default function BookAppointmentScreen({ route, navigation }) {
         doctorId: doctor.id,
         doctorName: doctor.name,
         appointmentDate: dateStr,
-        appointmentTime: selectedTime,
+        // Convert the Date object to "HH:MM AM/PM" so parseTimeString() can parse it
+        appointmentTime: selectedTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        }),
         reason: reason.trim(),
         notes: notes.trim(),
         status: 'pending',
@@ -191,71 +195,6 @@ export default function BookAppointmentScreen({ route, navigation }) {
     }
   };
 
-  const handleRequestAppointment = async () => {
-    if (!selectedDate || !selectedTime) {
-      Alert.alert('Validation Error', 'Please select both a date and a time slot.');
-      return;
-    }
-
-    try {
-      setBookingLoading(true);
-
-      // Clinic Closure Validation
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      const closureCheck = await appointmentService.checkClinicClosure(doctor.id, dateStr);
-      if (closureCheck.isClosed) {
-        Alert.alert('Clinic Closed', closureCheck.reason || 'The clinic is closed on this date.');
-        setBookingLoading(false);
-        return;
-      }
-
-      // Duplicate Booking Prevention
-      const duplicateCheck = await appointmentService.checkDuplicateBooking(user.uid, doctor.id, dateStr);
-      if (duplicateCheck.isDuplicate) {
-        Alert.alert(
-          'Duplicate Booking',
-          'You already have a pending or confirmed appointment with this doctor on this date.',
-          [
-            {
-              text: 'View Appointment',
-              onPress: () => navigation.navigate('Appointments'),
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
-        setBookingLoading(false);
-        return;
-      }
-
-      // Request Appointment
-      const appointmentData = {
-        doctorId: doctor.id,
-        selectedDate,
-        selectedTime,
-        allergies: allergies.trim() || 'None',
-        medications: currentMedications.trim() || 'None',
-        patientId: user.uid,
-      };
-
-      const result = await appointmentService.bookAppointment(appointmentData);
-      if (result.success) {
-        // Cross-platform success feedback
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Appointment requested successfully!', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Success', 'Appointment requested successfully!');
-        }
-        navigation.navigate('PatientHome');
-      } else {
-        Alert.alert('Error', result.error || 'Failed to request appointment.');
-      }
-    } catch (error) {
-      console.error('Error requesting appointment:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-    } finally {
-      setBookingLoading(false);
-    }
-  };
 
   const renderTimeSlots = () => {
     if (loading) {
@@ -668,22 +607,6 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: '600',
     marginLeft: spacing.sm,
-  },
-  requestButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.md,
-  },
-  disabledRequestButton: {
-    backgroundColor: colors.gray,
-  },
-  requestButtonText: {
-    color: colors.white,
-    fontSize: typography.sizes.lg,
-    fontWeight: '600',
   },
 });
 

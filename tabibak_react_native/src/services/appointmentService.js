@@ -454,7 +454,7 @@ class AppointmentService {
 
       if (!startTime || !endTime) {
         console.error('Invalid working hours configuration:', workingHours);
-        return { slots: [], error: 'Invalid working hours configuration' };
+        return [];
       }
 
       // Single batch query for all appointments on the date
@@ -473,12 +473,13 @@ class AppointmentService {
         )
       );
       
-      // Build occupied slots map
+      // Build occupied slots map — zero-padded HH:MM keys for consistent matching
+      const pad = (n) => String(n).padStart(2, '0');
       const occupiedSlots = new Set();
       appointmentsSnapshot.forEach(doc => {
         const appointment = doc.data();
         const appointmentTime = appointment.appointmentDate.toDate();
-        const slotKey = `${appointmentTime.getHours()}:${appointmentTime.getMinutes()}`;
+        const slotKey = `${pad(appointmentTime.getHours())}:${pad(appointmentTime.getMinutes())}`;
         occupiedSlots.add(slotKey);
       });
 
@@ -494,7 +495,7 @@ class AppointmentService {
 
       while (currentTime < endTimeDate) {
         const slotDate = new Date(currentTime);
-        const slotKey = `${slotDate.getHours()}:${slotDate.getMinutes()}`;
+        const slotKey = `${pad(slotDate.getHours())}:${pad(slotDate.getMinutes())}`;
         
         slots.push({
           time: slotDate,
@@ -538,6 +539,30 @@ class AppointmentService {
     } catch (error) {
       console.error('Error completing appointment:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get all appointments for a patient, sorted newest-first.
+   * @param {string} patientId - Patient UID
+   * @returns {Promise<Array>} - Array of appointment objects with a JS Date in `appointmentDateObj`
+   */
+  async getAppointmentsByPatient(patientId) {
+    try {
+      const q = query(
+        collection(this.db, COLLECTIONS.APPOINTMENTS),
+        where('patientId', '==', patientId),
+        orderBy('appointmentDate', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        appointmentDateObj: d.data().appointmentDate?.toDate?.() ?? null,
+      }));
+    } catch (error) {
+      console.error('Error getting patient appointments:', error);
+      return [];
     }
   }
 
