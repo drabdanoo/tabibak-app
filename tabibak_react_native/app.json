@@ -16,7 +16,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.tabibok.health",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,10 +29,28 @@
       "edgeToEdgeEnabled": true,
       "package": "com.tabibok.health",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 1
+      "versionCode": 1,
+      "notification": {
+        "color": "#10b981"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": null
+      }
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#10b981",
+          "defaultChannel": "default"
+        }
+      ]
+    ]
   }
 }

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { USER_ROLES } from '../config/firebase';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { Colors } from '../config/theme';
+import { navigationRef } from './navigationRef';
 
 // Auth Screens
 import PhoneAuthScreen from '../screens/auth/PhoneAuthScreen';
@@ -32,7 +33,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
           // Not authenticated - show auth screens

@@ -1,8 +1,10 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import authService from '../services/authService';
 import notificationService from '../services/notificationService';
 import { USER_ROLES } from '../config/firebase';
+import { navigationRef } from '../navigation/navigationRef';
 
 const AuthContext = createContext({});
 
@@ -12,6 +14,62 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initializing, setInitializing] = useState(true);
+
+  // Keep a ref so notification tap handler always reads the current role
+  // without needing to be recreated on every role change.
+  const currentRoleRef = useRef(null);
+  useEffect(() => { currentRoleRef.current = userRole; }, [userRole]);
+
+  // ─── Notification tap handler ──────────────────────────────────────────────
+  // Called both from foreground tap listener AND from cold-start check.
+  const handleNotificationTap = useCallback((response) => {
+    const role = currentRoleRef.current;
+    if (!role || !navigationRef.isReady()) return;
+
+    try {
+      // Navigate to the Appointments screen for the current role.
+      // Extend the switch below as new notification types are added.
+      if (role === USER_ROLES.PATIENT) {
+        // PatientStack → PatientTabs → Appointments tab
+        navigationRef.navigate('PatientStack', {
+          screen: 'PatientTabs',
+          params: { screen: 'Appointments' },
+        });
+      } else if (role === USER_ROLES.DOCTOR) {
+        navigationRef.navigate('DoctorStack');
+      } else if (role === USER_ROLES.RECEPTIONIST) {
+        navigationRef.navigate('ReceptionistStack');
+      }
+    } catch (err) {
+      console.warn('Notification navigation error:', err);
+    }
+  }, []);
+
+  // ─── Foreground + tap listeners ───────────────────────────────────────────
+  // Set up once on mount. The callbacks use refs so they never go stale.
+  useEffect(() => {
+    notificationService.setupNotificationListeners(
+      null,                  // foreground: OS displays the notification automatically
+      handleNotificationTap, // tap: navigate to the relevant screen
+    );
+    return () => notificationService.removeNotificationListeners();
+  }, [handleNotificationTap]);
+
+  // ─── Cold-start: app opened by tapping a notification while killed ─────────
+  // getLastNotificationResponseAsync returns the tapped notification on first
+  // read after a cold start. We wait until the role is known before navigating.
+  const coldStartHandled = useRef(false);
+  useEffect(() => {
+    if (!userRole || coldStartHandled.current) return;
+    coldStartHandled.current = true;
+
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        // Small delay to let NavigationContainer become ready after auth resolves
+        setTimeout(() => handleNotificationTap(response), 300);
+      }
+    });
+  }, [userRole, handleNotificationTap]);
 
   // Handle authentication state changes
   useEffect(() => {
