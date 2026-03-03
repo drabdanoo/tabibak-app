@@ -75,5 +75,26 @@ firebase-key.json
 secrets/
 credentials/
 
+# Firebase Admin SDK keys
+*adminsdk*.json
+*-firebase-adminsdk-*.json
+
+# Environment files with secrets (use .env.example for templates)
+.env
+.env.local
+.env.*.local
+functions/.env
+functions/*.env
+!functions/.env.example
+!*.env.example
+
+# Twilio and other third-party credentials
+twilio.json
+twilio-credentials.json
+
+# Any file named secrets
+*secrets*
+*credentials*
+
 # dataconnect generated files
 .dataconnect

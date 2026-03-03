@@ -280,7 +280,7 @@ exports.createDoctor = functionsV1.https.onCall(async (data, context) => {
     await db.collection("doctors").doc(userRecord.uid).set(doctorData);
     await db.collection("users").doc(userRecord.uid).set(
       {
-        uid: user.uid,
+        uid: userRecord.uid,
         role: "doctor",
         email,
         name,
@@ -434,16 +434,15 @@ exports.onAppointmentConfirmed = functionsV1.firestore
       }
 
       // Initialize Twilio client from secure environment config
-      const twilioConfig = functionsV1.config().twilio;
       const twilio = require("twilio");
-      const client = new twilio(twilioConfig.sid, twilio.token);
+      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
 
       const message = `تم تأكيد موعدك مع ${doctorName} في تاريخ ${appointmentDate} الساعة ${appointmentTime}. - MedConnect`;
 
       return client.messages.create({
         body: message,
         to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
-        from: twilioConfig.phone_number,
+        from: process.env.TWILIO_PHONE_NUMBER,
       });
     }
 
@@ -470,16 +469,15 @@ exports.onAppointmentCancelledByDoctor = functionsV1.firestore
         return null;
       }
 
-      const twilioConfig = functionsV1.config().twilio;
       const twilio = require("twilio");
-      const client = new twilio(twilioConfig.sid, twilio.token);
+      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
 
       const message = `تم إلغاء موعدك مع ${doctorName} في تاريخ ${appointmentDate} الساعة ${appointmentTime}. السبب: "${cancellationReason}". نعتذر عن هذا الإزعاج. - MedConnect`;
 
       return client.messages.create({
         body: message,
         to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
-        from: twilioConfig.phone_number,
+        from: process.env.TWILIO_PHONE_NUMBER,
       });
     }
     return null;
@@ -503,9 +501,8 @@ exports.onRescheduleResolved = functionsV1.firestore
         return null;
       }
 
-      const twilioConfig = functionsV1.config().twilio;
       const twilio = require("twilio");
-      const client = new twilio(twilioConfig.sid, twilio.token);
+      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
       let message;
 
       // Check if it was an approval (date or time changed)
@@ -520,7 +517,7 @@ exports.onRescheduleResolved = functionsV1.firestore
       return client.messages.create({
         body: message,
         to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
-        from: twilioConfig.phone_number,
+        from: process.env.TWILIO_PHONE_NUMBER,
       });
     }
     return null;
@@ -594,11 +591,10 @@ exports.sendAppointmentConfirmationSMS = functionsV1.https.onCall(async (data, c
   
   try {
     const twilio = require('twilio');
-    const functions = require('firebase-functions');
-    
-    const accountSid = functions.config().twilio?.sid;
-    const authToken = functions.config().twilio?.token;
-    const phoneNumber = functions.config().twilio?.phone_number;
+
+    const accountSid = process.env.TWILIO_SID;
+    const authToken = process.env.TWILIO_TOKEN;
+    const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
     
     logger.info('Twilio config check:', { hasSid: !!accountSid, hasToken: !!authToken, hasPhone: !!phoneNumber });
     

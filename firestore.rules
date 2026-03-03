@@ -36,6 +36,13 @@ service cloud.firestore {
     }
     function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
     function hasValidAppCheck() { return request.app != null; }
+    // Returns true only if the requesting doctor has the given patient in their patients array.
+    // Requires doctors/{uid}.patients[] to be maintained by Cloud Functions on appointment creation.
+    function isDoctorForPatient(patientId) {
+      return isDoctor()
+        && "patients" in get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data
+        && patientId in get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data.patients;
+    }
 
     // === User Profiles ===
     match /users/{uid} {
@@ -69,12 +76,11 @@ service cloud.firestore {
     match /patients/{uid} {
       // Patients can read and update their own profile.
       // Admins can read and update any patient profile.
-      allow read, update: if isSelf(uid) || isAdmin();
+      // Doctors can only read profiles of patients in their patients[] array (maintained by Cloud Functions).
+      allow read: if isSelf(uid) || isAdmin() || isDoctorForPatient(uid);
+      allow update: if isSelf(uid) || isAdmin();
       // Allow authenticated users to create their own profile (first time registration)
       allow create: if signedIn() && request.auth.uid == uid;
-      // Doctors can read patient profiles, but this should be restricted to patients they have appointments with.
-      // This is a potential privacy issue.
-      allow read: if isDoctor(); // TODO: Restrict to doctors who have an appointment with the patient.
     }
 
     // === Receptionist Profiles ===
@@ -149,16 +155,17 @@ service cloud.firestore {
 
     // === Appointment Notes ===
     match /appointmentNotes/{noteId} {
-      // Patients can read notes for their appointments.
-      // Doctors can read notes for their appointments.
+      // Patients can read notes for their own appointments.
+      // Doctors can only read notes they created (doctorId matches).
       // Admins can read all notes.
-      allow read: if isAdmin() 
-        || isDoctor() 
+      allow read: if isAdmin()
+        || (isDoctor() && resource.data.doctorId == request.auth.uid)
         || (isPatient() && resource.data.patientId == request.auth.uid);
-      // Only doctors can create and update notes.
-      allow create, update: if isDoctor();
-      // Doctors and admins can delete notes.
-      allow delete: if isAdmin() || isDoctor();
+      // Only the creating doctor can create and update notes.
+      allow create: if isDoctor() && request.resource.data.doctorId == request.auth.uid;
+      allow update: if isDoctor() && resource.data.doctorId == request.auth.uid;
+      // Doctors (who own the note) and admins can delete notes.
+      allow delete: if isAdmin() || (isDoctor() && resource.data.doctorId == request.auth.uid);
     }
 
     // === Ratings ===
@@ -216,11 +223,12 @@ service cloud.firestore {
 
     // === Family Members ===
     match /familyMembers/{memberId} {
-      // Primary user can manage their family members
-      // Doctors can read family members for their patients
+      // Primary user can manage their family members.
+      // Doctors can read family members only for patients in their patients[] array.
+      // Admins can read all.
       allow read: if isAdmin()
         || (signedIn() && resource.data.primaryUserId == request.auth.uid)
-        || isDoctor();
+        || isDoctorForPatient(resource.data.primaryUserId);
       allow create, update, delete: if signedIn() && request.resource.data.primaryUserId == request.auth.uid;
     }
 
@@ -248,12 +256,13 @@ service cloud.firestore {
 
     // === Medical History (Enhanced EMR) ===
     match /medicalHistory/{historyId} {
-      // Patients can read their own medical history
-      // Doctors can read/write medical history for their patients
+      // Patients can read their own medical history.
+      // Doctors can only read/write history for patients in their patients[] array.
+      // Admins can read all.
       allow read: if isAdmin()
         || (isPatient() && resource.data.patientId == request.auth.uid)
-        || isDoctor();
-      allow create, update: if isDoctor();
+        || isDoctorForPatient(resource.data.patientId);
+      allow create, update: if isDoctor() && isDoctorForPatient(request.resource.data.patientId);
       allow delete: if isAdmin();
     }
 

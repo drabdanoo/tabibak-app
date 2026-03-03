@@ -11,6 +11,11 @@ firebase.initializeApp(firebaseConfig);
 
 // Initialize App Check immediately so tokens are attached to initial Firestore requests
 try {
+    // On localhost/dev, use debug token so reCAPTCHA is never needed
+    const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (isLocalDev) {
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    }
     const appCheck = firebase.appCheck();
     if (siteKey) {
         appCheck.activate(siteKey, true);
@@ -784,11 +789,9 @@ async function submitBooking(event) {
             const appCheck = firebase.appCheck();
             await appCheck.getToken(/* forceRefresh= */ true);
         } catch (acErr) {
-            console.error('App Check token error:', acErr);
-            window.showNotification('خطأ في حماية التطبيق (App Check). يرجى إعادة تحميل الصفحة أو التأكد من إعداد App Check.', 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'إرسال طلب الحجز';
-            return;
+            // Non-blocking: log the warning but allow booking to proceed.
+            // App Check enforcement is controlled server-side via Firebase Console.
+            console.warn('App Check token unavailable (proceeding anyway):', acErr?.message || acErr);
         }
 
         // Skip conflict check - receptionist will handle conflicts when confirming
@@ -890,6 +893,14 @@ async function handleLogin(event) {
         let errorMessage = 'حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.';
         if (error.code === 'auth/network-request-failed') {
             errorMessage = 'فشل الاتصال بالشبكة. يرجى التحقق من اتصالك بالإنترنت أو تعطيل أي برامج حماية قد تمنع الاتصال.';
+        } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/recaptcha-not-enabled') {
+            errorMessage = 'فشل التحقق الأمني. إذا كنت تستخدم مانع إعلانات أو VPN، يرجى تعطيله وإعادة المحاولة.';
+            // Reset reCAPTCHA so user can try again
+            if (recaptchaVerifier) { try { recaptchaVerifier.clear(); } catch(_) {} recaptchaVerifier = null; recaptchaInitPromise = null; }
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = 'تم تجاوز عدد المحاولات المسموح بها. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.';
+        } else if (error.code === 'auth/invalid-phone-number') {
+            errorMessage = 'رقم الهاتف غير صحيح. يرجى إدخال رقم هاتف عراقي صحيح.';
         }
         window.showNotification(errorMessage, 'error');
     } finally {
