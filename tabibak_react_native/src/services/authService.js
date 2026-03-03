@@ -1,21 +1,18 @@
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithPhoneNumber, 
+import {
+  getAuth,
+  signInWithPhoneNumber,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  RecaptchaVerifier
 } from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  serverTimestamp 
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp
 } from 'firebase/firestore';
-import { Platform } from 'react-native';
 import { firebaseConfig, COLLECTIONS, USER_ROLES } from '../config/firebase';
 
 // Initialize Firebase
@@ -27,77 +24,25 @@ class AuthService {
   constructor() {
     this.auth = auth;
     this.db = db;
-    this.recaptchaVerifier = null;
   }
 
   /**
-   * Initialize reCAPTCHA verifier (required for web)
-   * @param {string} containerId - Container element ID
+   * Send OTP to phone number.
+   *
+   * @param {string} phoneNumber - E.164 format, e.g. +9647701234567
+   * @param {object} appVerifier - FirebaseRecaptchaVerifierModal ref (required on all platforms)
+   * @returns {Promise<{success: boolean, confirmation?: object, error?: string}>}
    */
-  initRecaptcha(containerId = 'recaptcha-container') {
-    // Only initialize on web platform
-    if (Platform.OS === 'web' && !this.recaptchaVerifier) {
-      try {
-        this.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-          size: 'invisible',
-          callback: () => {
-            console.log('reCAPTCHA verified');
-          },
-          'expired-callback': () => {
-            console.log('reCAPTCHA expired');
-          }
-        });
-      } catch (error) {
-        console.error('Error initializing reCAPTCHA:', error);
-      }
-    }
-    return this.recaptchaVerifier;
-  }
-
-  /**
-   * Send OTP to phone number
-   * @param {string} phoneNumber - Phone number in E.164 format (e.g., +1234567890)
-   * @returns {Promise<object>} - Confirmation object
-   */
-  async sendOTP(phoneNumber) {
+  async sendOTP(phoneNumber, appVerifier) {
     try {
-      // For web platform, we need RecaptchaVerifier
-      if (Platform.OS === 'web') {
-        const appVerifier = this.recaptchaVerifier || this.initRecaptcha();
-        if (!appVerifier) {
-          return { 
-            success: false, 
-            error: 'reCAPTCHA initialization failed. Phone authentication requires reCAPTCHA on web.' 
-          };
-        }
-        const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber, appVerifier);
-        return { success: true, confirmation };
-      } else {
-        // For native platforms (iOS/Android)
-        // NOTE: Firebase JS SDK phone auth requires reCAPTCHA even on native
-        // For production, migrate to @react-native-firebase/auth
-        // See FIXES_STATUS.md for implementation guide
-        
-        // Attempt with warning
-        console.warn(
-          'Phone auth on native requires @react-native-firebase/auth. ' +
-          'Current implementation may fail. See FIXES_STATUS.md for migration guide.'
-        );
-        
-        try {
-          // This will likely fail without proper app verification
-          const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber);
-          return { success: true, confirmation };
-        } catch (nativeError) {
-          // Provide helpful error message
-          return {
-            success: false,
-            error: 'Phone authentication on mobile requires native Firebase setup. ' +
-                   'Please use email login or contact support. ' +
-                   'Error: ' + nativeError.message
-          };
-        }
+      if (!appVerifier) {
+        return {
+          success: false,
+          error: 'App verifier is required for phone authentication.',
+        };
       }
+      const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber, appVerifier);
+      return { success: true, confirmation };
     } catch (error) {
       console.error('Error sending OTP:', error);
       return { success: false, error: error.message };

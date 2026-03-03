@@ -61,8 +61,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Send OTP to phone number
-  const sendOTP = async (phoneNumber) => {
-    return await authService.sendOTP(phoneNumber);
+  // appVerifier is the FirebaseRecaptchaVerifierModal ref — required on all platforms
+  const sendOTP = async (phoneNumber, appVerifier) => {
+    return await authService.sendOTP(phoneNumber, appVerifier);
   };
 
   // Verify OTP
