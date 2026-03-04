@@ -26,21 +26,23 @@ const ProfileSetupScreen = ({ navigation }) => {
   const [gender, setGender] = useState('');
   const [loading, setLoading] = useState(false);
   const { createProfile } = useAuth();
-  
+
+  // Format as DD/MM/YYYY — the convention used in the Arab world
   const formatDate = (date) => {
+    const day   = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${month}/${day}/${year}`;
+    const year  = date.getFullYear();
+    return `${day}/${month}/${year}`;
   };
-  
+
   const handleDateChange = (event, selectedDate) => {
+    // Android picker auto-dismisses; iOS spinner stays until the user scrolls away
     setShowDatePicker(Platform.OS === 'ios');
-    
+
     if (selectedDate) {
       const today = new Date();
       if (selectedDate > today) {
-        Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+        Alert.alert('تاريخ غير صالح', 'لا يمكن أن يكون تاريخ الميلاد في المستقبل');
         return;
       }
       setDateObject(selectedDate);
@@ -50,17 +52,17 @@ const ProfileSetupScreen = ({ navigation }) => {
 
   const handleSubmit = async () => {
     if (!fullName.trim()) {
-      Alert.alert('Required Field', 'Please enter your full name');
+      Alert.alert('حقل مطلوب', 'يرجى إدخال اسمك الكامل');
       return;
     }
 
     if (!dateOfBirth.trim()) {
-      Alert.alert('Required Field', 'Please enter your date of birth');
+      Alert.alert('حقل مطلوب', 'يرجى إدخال تاريخ ميلادك');
       return;
     }
 
     if (!gender) {
-      Alert.alert('Required Field', 'Please select your gender');
+      Alert.alert('حقل مطلوب', 'يرجى تحديد جنسك');
       return;
     }
 
@@ -73,14 +75,12 @@ const ProfileSetupScreen = ({ navigation }) => {
         gender
       });
 
-      if (success) {
-        // Navigation will be handled by AuthContext
-        // User will be redirected to Patient stack
-      } else {
-        Alert.alert('Error', 'Failed to create profile. Please try again.');
+      if (!success) {
+        Alert.alert('خطأ', 'فشل إنشاء الملف الشخصي. يرجى المحاولة مرة أخرى.');
       }
+      // On success, AuthContext sets userRole → AppNavigator redirects to PatientStack
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      Alert.alert('خطأ', 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
       console.error('Profile creation error:', error);
     } finally {
       setLoading(false);
@@ -90,7 +90,7 @@ const ProfileSetupScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-      
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
@@ -98,34 +98,33 @@ const ProfileSetupScreen = ({ navigation }) => {
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <Ionicons name="person-add" size={80} color={Colors.primary} />
-            <Text style={styles.title}>Complete Your Profile</Text>
-            <Text style={styles.subtitle}>
-              Please provide your information
-            </Text>
+            <Text style={styles.title}>أكمل ملفك الشخصي</Text>
+            <Text style={styles.subtitle}>يرجى تقديم معلوماتك الشخصية</Text>
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={styles.label}>الاسم الكامل</Text>
             <TextInput
               style={styles.input}
               value={fullName}
               onChangeText={setFullName}
-              placeholder="Enter your full name"
+              placeholder="أدخل اسمك الكامل"
               placeholderTextColor={Colors.gray}
               autoCapitalize="words"
+              textAlign="right"
             />
 
-            <Text style={styles.label}>Date of Birth</Text>
+            <Text style={styles.label}>تاريخ الميلاد</Text>
             <TouchableOpacity
               style={styles.input}
               onPress={() => setShowDatePicker(true)}
             >
               <Text style={dateOfBirth ? styles.inputText : styles.placeholderText}>
-                {dateOfBirth || 'MM/DD/YYYY'}
+                {dateOfBirth || 'يوم/شهر/سنة'}
               </Text>
               <Ionicons name="calendar-outline" size={20} color={Colors.gray} />
             </TouchableOpacity>
-            
+
             {showDatePicker && (
               <DateTimePicker
                 value={dateObject}
@@ -136,7 +135,7 @@ const ProfileSetupScreen = ({ navigation }) => {
               />
             )}
 
-            <Text style={styles.label}>Gender</Text>
+            <Text style={styles.label}>الجنس</Text>
             <View style={styles.genderContainer}>
               <TouchableOpacity
                 style={[
@@ -145,16 +144,16 @@ const ProfileSetupScreen = ({ navigation }) => {
                 ]}
                 onPress={() => setGender('male')}
               >
-                <Ionicons 
-                  name="male" 
-                  size={24} 
-                  color={gender === 'male' ? Colors.white : Colors.primary} 
+                <Ionicons
+                  name="male"
+                  size={24}
+                  color={gender === 'male' ? Colors.white : Colors.primary}
                 />
                 <Text style={[
                   styles.genderText,
                   gender === 'male' && styles.genderTextSelected
                 ]}>
-                  Male
+                  ذكر
                 </Text>
               </TouchableOpacity>
 
@@ -165,16 +164,16 @@ const ProfileSetupScreen = ({ navigation }) => {
                 ]}
                 onPress={() => setGender('female')}
               >
-                <Ionicons 
-                  name="female" 
-                  size={24} 
-                  color={gender === 'female' ? Colors.white : Colors.primary} 
+                <Ionicons
+                  name="female"
+                  size={24}
+                  color={gender === 'female' ? Colors.white : Colors.primary}
                 />
                 <Text style={[
                   styles.genderText,
                   gender === 'female' && styles.genderTextSelected
                 ]}>
-                  Female
+                  أنثى
                 </Text>
               </TouchableOpacity>
 
@@ -185,16 +184,16 @@ const ProfileSetupScreen = ({ navigation }) => {
                 ]}
                 onPress={() => setGender('other')}
               >
-                <Ionicons 
-                  name="person" 
-                  size={24} 
-                  color={gender === 'other' ? Colors.white : Colors.primary} 
+                <Ionicons
+                  name="person"
+                  size={24}
+                  color={gender === 'other' ? Colors.white : Colors.primary}
                 />
                 <Text style={[
                   styles.genderText,
                   gender === 'other' && styles.genderTextSelected
                 ]}>
-                  Other
+                  آخر
                 </Text>
               </TouchableOpacity>
             </View>
@@ -208,7 +207,7 @@ const ProfileSetupScreen = ({ navigation }) => {
               {loading ? (
                 <ActivityIndicator color={Colors.white} />
               ) : (
-                <Text style={styles.buttonText}>Complete Setup</Text>
+                <Text style={styles.buttonText}>إكمال الإعداد</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -236,7 +235,8 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xl,
     fontWeight: 'bold',
     color: Colors.text,
-    marginTop: Spacing.md
+    marginTop: Spacing.md,
+    textAlign: 'center'
   },
   subtitle: {
     fontSize: FontSizes.md,
@@ -252,7 +252,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
     marginBottom: Spacing.sm,
-    marginTop: Spacing.md
+    marginTop: Spacing.md,
+    textAlign: 'right'
   },
   input: {
     backgroundColor: Colors.backgroundLight,
