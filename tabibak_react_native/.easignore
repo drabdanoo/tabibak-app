@@ -1,17 +1,7 @@
-# Dependencies – installed fresh on the build server
-node_modules/
+# EAS archive exclusions
+# Ref: https://expo.fyi/eas-build-archive
 
-# Local prebuild output – EAS regenerates these on the server
-android/
-ios/
-
-# Expo local dev cache
-.expo/
-
-# Logs and OS noise
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.DS_Store
-Thumbs.db
+/node_modules
+/android
+/ios
+/.expo
