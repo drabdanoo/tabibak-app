@@ -1,12 +1,12 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  SafeAreaView,
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
   StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
 import { USER_ROLES } from '../../config/firebase';
@@ -24,7 +24,7 @@ const RoleSelectionScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-      
+
       <View style={styles.content}>
         <View style={styles.header}>
           <Ionicons name="medical" size={80} color={Colors.primary} />
@@ -33,7 +33,7 @@ const RoleSelectionScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.rolesContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.roleCard, styles.patientCard]}
             onPress={() => handleRoleSelect(USER_ROLES.PATIENT)}
             activeOpacity={0.8}
@@ -45,7 +45,7 @@ const RoleSelectionScreen = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.roleCard, styles.doctorCard]}
             onPress={() => handleRoleSelect(USER_ROLES.DOCTOR)}
             activeOpacity={0.8}
@@ -57,7 +57,7 @@ const RoleSelectionScreen = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.roleCard, styles.receptionistCard]}
             onPress={() => handleRoleSelect(USER_ROLES.RECEPTIONIST)}
             activeOpacity={0.8}

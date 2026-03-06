@@ -5,13 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
@@ -35,7 +35,7 @@ const PhoneAuthScreen = ({ navigation }) => {
           console.error('Failed to initialize reCAPTCHA:', error);
         }
       }, 100);
-      
+
       return () => clearTimeout(timer);
     }
   }, []);
@@ -43,7 +43,7 @@ const PhoneAuthScreen = ({ navigation }) => {
   const formatPhoneNumber = (text) => {
     // Remove all non-digit characters
     const cleaned = text.replace(/\D/g, '');
-    
+
     // Format Iraqi phone number: XXX XXX XXXX (10 digits)
     if (cleaned.length <= 3) {
       return cleaned;
@@ -62,7 +62,7 @@ const PhoneAuthScreen = ({ navigation }) => {
   const handleSendOTP = async () => {
     // Clean phone number (remove formatting)
     const cleanedPhone = phoneNumber.replace(/\D/g, '');
-    
+
     if (cleanedPhone.length !== 10) {
       if (Platform.OS === 'web') {
         window.alert('رقم هاتف غير صالح\nInvalid Phone Number\n\nPlease enter a valid 10-digit Iraqi phone number');
@@ -78,7 +78,7 @@ const PhoneAuthScreen = ({ navigation }) => {
 
     try {
       const result = await sendOTP(fullPhoneNumber);
-      
+
       if (result.success) {
         navigation.navigate('OTPVerification', {
           phoneNumber: fullPhoneNumber,
@@ -106,12 +106,12 @@ const PhoneAuthScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-      
-      <KeyboardAvoidingView 
+
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
@@ -129,13 +129,13 @@ const PhoneAuthScreen = ({ navigation }) => {
 
         <View style={styles.form}>
           <Text style={styles.label}>Phone Number (رقم الهاتف)</Text>
-          
+
           <View style={styles.phoneInputContainer}>
             <View style={styles.countryCodeContainer}>
               <Text style={styles.countryCode}>{countryCode}</Text>
               <Text style={styles.countryFlag}>🇮🇶</Text>
             </View>
-            
+
             <TextInput
               style={styles.phoneInput}
               value={phoneNumber}
