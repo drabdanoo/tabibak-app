@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tabibok.health",
+      "bundleIdentifier": "com.abdullah.reacttabibok",
       "googleServicesFile": "./GoogleService-Info.plist",
       "buildNumber": "1",
       "infoPlist": {
@@ -27,7 +27,7 @@
         "backgroundColor": "#10b981"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.tabibok.health",
+      "package": "com.abdullah.reacttabibok",
       "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "notification": {

@@ -1,84 +1,102 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  StatusBar,
+  StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
-import { firebaseConfig } from '../../config/firebase';
-
-// Map Firebase error codes to Arabic messages
-const mapFirebaseError = (error = '') => {
-  if (error.includes('invalid-phone-number'))
-    return 'رقم الهاتف غير صالح. تأكد من إدخاله بالتنسيق الصحيح.';
-  if (error.includes('too-many-requests'))
-    return 'طلبات كثيرة جداً. يرجى الانتظار قبل المحاولة مجدداً.';
-  if (error.includes('captcha-check-failed') || error.includes('recaptcha'))
-    return 'فشل التحقق. يرجى المحاولة مجدداً.';
-  if (error.includes('quota-exceeded'))
-    return 'تجاوزت الحد المسموح به. حاول لاحقاً.';
-  if (error.includes('App verifier'))
-    return 'تعذّر تهيئة التحقق. يرجى إعادة تشغيل التطبيق.';
-  return 'فشل إرسال الرمز. يرجى المحاولة مجدداً.';
-};
+import { authService } from '../../services/authService';
 
 const PhoneAuthScreen = ({ navigation }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [countryCode] = useState('+964');
+  const [countryCode, setCountryCode] = useState('+964');
   const [loading, setLoading] = useState(false);
-
-  // FirebaseRecaptchaVerifierModal ref — used as ApplicationVerifier by Firebase
-  const recaptchaVerifier = useRef(null);
-
   const { sendOTP } = useAuth();
 
+  // Initialize reCAPTCHA on component mount for web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // Give the DOM time to render the container
+      const timer = setTimeout(() => {
+        try {
+          authService.initRecaptcha('recaptcha-container');
+          console.log('reCAPTCHA initialized successfully');
+        } catch (error) {
+          console.error('Failed to initialize reCAPTCHA:', error);
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   const formatPhoneNumber = (text) => {
+    // Remove all non-digit characters
     const cleaned = text.replace(/\D/g, '');
-    if (cleaned.length <= 3) return cleaned;
-    if (cleaned.length <= 6) return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
-    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 10)}`;
+
+    // Format Iraqi phone number: XXX XXX XXXX (10 digits)
+    if (cleaned.length <= 3) {
+      return cleaned;
+    } else if (cleaned.length <= 6) {
+      return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+    } else {
+      return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 10)}`;
+    }
   };
 
   const handlePhoneChange = (text) => {
-    setPhoneNumber(formatPhoneNumber(text));
+    const formatted = formatPhoneNumber(text);
+    setPhoneNumber(formatted);
   };
 
   const handleSendOTP = async () => {
+    // Clean phone number (remove formatting)
     const cleanedPhone = phoneNumber.replace(/\D/g, '');
 
     if (cleanedPhone.length !== 10) {
-      Alert.alert('رقم غير صالح', 'أدخل رقم هاتف عراقي صحيح مكون من 10 أرقام');
+      if (Platform.OS === 'web') {
+        window.alert('رقم هاتف غير صالح\nInvalid Phone Number\n\nPlease enter a valid 10-digit Iraqi phone number');
+      } else {
+        Alert.alert('Invalid Phone Number', 'Please enter a valid 10-digit Iraqi phone number');
+      }
       return;
     }
 
     const fullPhoneNumber = `${countryCode}${cleanedPhone}`;
+
     setLoading(true);
 
     try {
-      // Pass the recaptcha verifier — works on iOS, Android, and web
-      const result = await sendOTP(fullPhoneNumber, recaptchaVerifier.current);
+      const result = await sendOTP(fullPhoneNumber);
 
       if (result.success) {
         navigation.navigate('OTPVerification', {
           phoneNumber: fullPhoneNumber,
-          confirmation: result.confirmation,
+          confirmation: result.confirmation
         });
       } else {
-        Alert.alert('خطأ', mapFirebaseError(result.error));
+        if (Platform.OS === 'web') {
+          window.alert(`Error: ${result.error || 'Failed to send OTP. Please try again.'}`);
+        } else {
+          Alert.alert('Error', result.error || 'Failed to send OTP. Please try again.');
+        }
       }
     } catch (error) {
-      Alert.alert('خطأ', 'حدث خطأ غير متوقع. يرجى المحاولة مجدداً.');
+      if (Platform.OS === 'web') {
+        window.alert('Error: An unexpected error occurred. Please try again.');
+      } else {
+        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      }
       console.error('Phone auth error:', error);
     } finally {
       setLoading(false);
@@ -88,20 +106,6 @@ const PhoneAuthScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-
-      {/*
-        FirebaseRecaptchaVerifierModal renders as a modal overlay.
-        It implements Firebase's ApplicationVerifier interface using a WebView.
-        With attemptInvisibleVerification=true it tries the invisible challenge first;
-        only shows a visible challenge if the invisible one fails.
-      */}
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification={true}
-        title="تحقق من هويتك"
-        cancelLabel="إلغاء"
-      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -116,19 +120,20 @@ const PhoneAuthScreen = ({ navigation }) => {
 
         <View style={styles.header}>
           <Ionicons name="phone-portrait" size={80} color={Colors.primary} />
-          <Text style={styles.title}>أدخل رقم هاتفك</Text>
+          <Text style={styles.title}>Enter Your Phone Number</Text>
           <Text style={styles.subtitle}>
-            سنرسل لك رمز التحقق على هذا الرقم
+            We'll send you a verification code{'\n'}
+            أدخل رقم هاتفك العراقي
           </Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>رقم الهاتف</Text>
+          <Text style={styles.label}>Phone Number (رقم الهاتف)</Text>
 
           <View style={styles.phoneInputContainer}>
             <View style={styles.countryCodeContainer}>
-              <Text style={styles.countryFlag}>🇮🇶</Text>
               <Text style={styles.countryCode}>{countryCode}</Text>
+              <Text style={styles.countryFlag}>🇮🇶</Text>
             </View>
 
             <TextInput
@@ -143,7 +148,10 @@ const PhoneAuthScreen = ({ navigation }) => {
             />
           </View>
 
-          <Text style={styles.helperText}>رقم عراقي مكون من 10 أرقام</Text>
+          <Text style={styles.helperText}>
+            Iraqi phone number (10 digits){'\n'}
+            رقم عراقي (10 أرقام)
+          </Text>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -154,10 +162,13 @@ const PhoneAuthScreen = ({ navigation }) => {
             {loading ? (
               <ActivityIndicator color={Colors.white} />
             ) : (
-              <Text style={styles.buttonText}>إرسال رمز التحقق</Text>
+              <Text style={styles.buttonText}>Send Verification Code</Text>
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Hidden reCAPTCHA container for web */}
+        <View id="recaptcha-container" style={{ height: 0 }} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -166,46 +177,44 @@ const PhoneAuthScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.white
   },
   content: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.lg
   },
   backButton: {
     marginTop: Spacing.md,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.lg
   },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xxl
   },
   title: {
     fontSize: FontSizes.xl,
     fontWeight: 'bold',
     color: Colors.text,
-    marginTop: Spacing.md,
-    textAlign: 'center',
+    marginTop: Spacing.md
   },
   subtitle: {
     fontSize: FontSizes.md,
     color: Colors.textLight,
     marginTop: Spacing.sm,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   form: {
-    flex: 1,
+    flex: 1
   },
   label: {
     fontSize: FontSizes.md,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: Spacing.sm,
-    textAlign: 'right',
+    marginBottom: Spacing.sm
   },
   phoneInputContainer: {
     flexDirection: 'row',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.lg
   },
   countryCodeContainer: {
     backgroundColor: Colors.backgroundLight,
@@ -218,15 +227,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     flexDirection: 'row',
-    gap: 4,
+    gap: 4
   },
   countryCode: {
     fontSize: FontSizes.md,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.text
   },
   countryFlag: {
-    fontSize: 20,
+    fontSize: 20
   },
   phoneInput: {
     flex: 1,
@@ -237,13 +246,14 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     color: Colors.text,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.border
   },
   helperText: {
     fontSize: FontSizes.sm,
     color: Colors.textLight,
     marginBottom: Spacing.lg,
     textAlign: 'center',
+    lineHeight: 20
   },
   button: {
     backgroundColor: Colors.primary,
@@ -254,16 +264,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 3
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.6
   },
   buttonText: {
     color: Colors.white,
     fontSize: FontSizes.md,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+  }
 });
 
 export default PhoneAuthScreen;

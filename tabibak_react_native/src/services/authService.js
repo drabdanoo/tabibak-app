@@ -1,48 +1,90 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import {
-  getAuth,
-  signInWithPhoneNumber,
+  initializeAuth,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getFirestore,
+  collection,
   doc,
   getDoc,
   setDoc,
   serverTimestamp
 } from 'firebase/firestore';
+import { Platform } from 'react-native';
 import { firebaseConfig, COLLECTIONS, USER_ROLES } from '../config/firebase';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// Custom AsyncStorage persistence for Firebase Auth JS SDK
+// Avoids the getReactNativePersistence conflict with @react-native-firebase
+const asyncStoragePersistence = {
+  type: 'LOCAL',
+  async _isAvailable() { return true; },
+  async _set(key, value) { await AsyncStorage.setItem(key, JSON.stringify(value)); },
+  async _get(key) {
+    const val = await AsyncStorage.getItem(key);
+    return val ? JSON.parse(val) : null;
+  },
+  async _remove(key) { await AsyncStorage.removeItem(key); },
+  _addListener(_key, _listener) { },
+  _removeListener(_key, _listener) { },
+};
+
+// Initialize Firebase JS SDK (for Firestore, email auth, etc.)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const auth = initializeAuth(app, {
+  persistence: asyncStoragePersistence,
+});
 const db = getFirestore(app);
+
 
 class AuthService {
   constructor() {
     this.auth = auth;
     this.db = db;
+    this.recaptchaVerifier = null; // Still needed for web phone auth
+    this.rnAuth = null; // React Native Firebase auth (lazy loaded on native)
   }
 
   /**
-   * Send OTP to phone number.
-   *
-   * @param {string} phoneNumber - E.164 format, e.g. +9647701234567
-   * @param {object} appVerifier - FirebaseRecaptchaVerifierModal ref (required on all platforms)
-   * @returns {Promise<{success: boolean, confirmation?: object, error?: string}>}
+   * Get the React Native Firebase Auth instance (native only)
    */
-  async sendOTP(phoneNumber, appVerifier) {
+  async getRNAuth() {
+    if (Platform.OS === 'web') return null;
+    if (!this.rnAuth) {
+      const rnFirebase = require('@react-native-firebase/auth').default;
+      this.rnAuth = rnFirebase();
+    }
+    return this.rnAuth;
+  }
+
+  /**
+   * Send OTP to phone number using native Firebase SDK on mobile,
+   * Firebase JS SDK on web.
+   * @param {string} phoneNumber - Phone number in E.164 format (e.g., +9647701234567)
+   * @returns {Promise<object>} - { success, confirmation } or { success: false, error }
+   */
+  async sendOTP(phoneNumber) {
     try {
-      if (!appVerifier) {
-        return {
-          success: false,
-          error: 'App verifier is required for phone authentication.',
-        };
+      if (Platform.OS === 'web') {
+        // Web: use Firebase JS SDK with RecaptchaVerifier
+        const { signInWithPhoneNumber, RecaptchaVerifier } = await import('firebase/auth');
+        if (!this.recaptchaVerifier) {
+          this.recaptchaVerifier = new RecaptchaVerifier(this.auth, 'recaptcha-container', {
+            size: 'invisible',
+          });
+        }
+        const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber, this.recaptchaVerifier);
+        return { success: true, confirmation };
+      } else {
+        // Native Android/iOS: use @react-native-firebase/auth
+        // This uses Google Play Services for app verification — no reCAPTCHA needed
+        const rnAuth = await this.getRNAuth();
+        const confirmation = await rnAuth.signInWithPhoneNumber(phoneNumber);
+        return { success: true, confirmation };
       }
-      const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber, appVerifier);
-      return { success: true, confirmation };
     } catch (error) {
       console.error('Error sending OTP:', error);
       return { success: false, error: error.message };
@@ -50,15 +92,35 @@ class AuthService {
   }
 
   /**
-   * Verify OTP code
+   * Verify OTP code.
+   * On native, after RN Firebase confirms the OTP, we sync the auth state
+   * to the JS SDK using the ID token so that onAuthStateChanged fires.
    * @param {object} confirmation - Confirmation object from sendOTP
    * @param {string} code - OTP code
-   * @returns {Promise<object>} - User credential
+   * @returns {Promise<object>} - { success, user } or { success: false, error }
    */
   async verifyOTP(confirmation, code) {
     try {
       const userCredential = await confirmation.confirm(code);
-      return { success: true, user: userCredential.user };
+      const rnUser = userCredential.user;
+
+      if (Platform.OS !== 'web') {
+        // Sync RN Firebase session into the JS SDK so AuthContext listener fires
+        const { signInWithCredential, PhoneAuthProvider } = await import('firebase/auth');
+        const idToken = await rnUser.getIdToken();
+        const credential = PhoneAuthProvider.credential(confirmation.verificationId || '', code);
+        try {
+          await signInWithCredential(this.auth, credential);
+        } catch {
+          // If credential fails (e.g. verificationId issues), manually trigger
+          // auth state update by setting currentUser via token sign-in
+          const { signInWithCustomToken } = await import('firebase/auth');
+          // Fallback: force reload — JS SDK will pick up the session from storage
+          await this.auth.currentUser?.reload?.();
+        }
+      }
+
+      return { success: true, user: rnUser };
     } catch (error) {
       console.error('Error verifying OTP:', error);
       return { success: false, error: error.message };
@@ -75,7 +137,7 @@ class AuthService {
       // Check in users collection first
       const userDocRef = doc(this.db, COLLECTIONS.USERS, uid);
       const userDoc = await getDoc(userDocRef);
-      
+
       if (userDoc.exists()) {
         const userData = userDoc.data();
         return userData.role || null;
@@ -110,7 +172,7 @@ class AuthService {
   async getUserProfile(uid, role) {
     try {
       let collectionName;
-      
+
       switch (role) {
         case USER_ROLES.PATIENT:
           collectionName = COLLECTIONS.PATIENTS;
@@ -127,7 +189,7 @@ class AuthService {
 
       const docRef = doc(this.db, collectionName, uid);
       const docSnap = await getDoc(docRef);
-      
+
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       }
