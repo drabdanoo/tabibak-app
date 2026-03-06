@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tabibok.health",
+      "bundleIdentifier": "com.abdullah.reacttabibok",
       "googleServicesFile": "./GoogleService-Info.plist",
       "buildNumber": "1"
     },
@@ -24,12 +24,17 @@
         "backgroundColor": "#10b981"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.tabibok.health",
-      "googleServicesFile": "./google-services.json",
-      "versionCode": 1
+      "package": "com.abdullah.reacttabibok",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c6e91624-4f76-4b03-90f1-f4f724ab5547"
+      }
+    },
+    "owner": "abdanoo"
   }
 }
