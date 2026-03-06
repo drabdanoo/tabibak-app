@@ -82,38 +82,38 @@ export default function DoctorDashboardScreen({ navigation }) {
 
   const handleLogout = async () => {
     // Use window.confirm for web, Alert.alert for native
-    const confirmed = Platform.OS === 'web' 
+    const confirmed = Platform.OS === 'web'
       ? window.confirm('Are you sure you want to logout?')
       : await new Promise((resolve) => {
-          Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
-            [
-              { 
-                text: 'Cancel', 
-                style: 'cancel',
-                onPress: () => {
-                  resolve(false);
-                }
-              },
-              {
-                text: 'Logout',
-                style: 'destructive',
-                onPress: () => {
-                  resolve(true);
-                }
-              },
-            ]
-          );
-        });
-    
+        Alert.alert(
+          'Logout',
+          'Are you sure you want to logout?',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => {
+                resolve(false);
+              }
+            },
+            {
+              text: 'Logout',
+              style: 'destructive',
+              onPress: () => {
+                resolve(true);
+              }
+            },
+          ]
+        );
+      });
+
     if (!confirmed) {
       return;
     }
-    
+
     try {
       const success = await signOut();
-      
+
       if (!success) {
         if (Platform.OS === 'web') {
           window.alert('Failed to logout. Please try again.');
@@ -145,12 +145,12 @@ export default function DoctorDashboardScreen({ navigation }) {
 
   const renderAppointmentCard = (appointment) => {
     const aptDate = appointment.appointmentDate?.toDate?.() || new Date(appointment.appointmentDate);
-    const statusColor = 
+    const statusColor =
       appointment.status === 'pending' ? colors.warning :
-      appointment.status === 'confirmed' ? colors.success :
-      appointment.status === 'completed' ? colors.info :
-      appointment.status === 'cancelled' ? colors.error :
-      colors.gray;
+        appointment.status === 'confirmed' ? colors.success :
+          appointment.status === 'completed' ? colors.info :
+            appointment.status === 'cancelled' ? colors.error :
+              colors.gray;
 
     return (
       <TouchableOpacity
@@ -172,10 +172,10 @@ export default function DoctorDashboardScreen({ navigation }) {
           <View style={styles.appointmentDetail}>
             <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.appointmentDetailText}>
-              {aptDate.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
+              {aptDate.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
               })}
             </Text>
           </View>
@@ -183,9 +183,9 @@ export default function DoctorDashboardScreen({ navigation }) {
           <View style={styles.appointmentDetail}>
             <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.appointmentDetailText}>
-              {aptDate.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+              {aptDate.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
               })}
             </Text>
           </View>
@@ -208,7 +208,7 @@ export default function DoctorDashboardScreen({ navigation }) {
     today.setHours(0, 0, 0, 0);
     const todayEnd = new Date(today);
     todayEnd.setHours(23, 59, 59, 999);
-    
+
     const aptDate = apt.appointmentDate?.toDate?.() || new Date(apt.appointmentDate);
     return aptDate >= today && aptDate <= todayEnd;
   }).sort((a, b) => {
@@ -255,7 +255,7 @@ export default function DoctorDashboardScreen({ navigation }) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Today's Appointments</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('AllAppointments')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Appointments')}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -274,7 +274,7 @@ export default function DoctorDashboardScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionCard}
               onPress={() => navigation.navigate('Appointments')}
             >
@@ -282,7 +282,7 @@ export default function DoctorDashboardScreen({ navigation }) {
               <Text style={styles.actionText}>View All Appointments</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionCard, { opacity: 0.5 }]}
               disabled={true}
             >
@@ -290,7 +290,7 @@ export default function DoctorDashboardScreen({ navigation }) {
               <Text style={[styles.actionText, { color: colors.gray }]}>Patient Records (Coming Soon)</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionCard, { opacity: 0.5 }]}
               disabled={true}
             >
@@ -298,7 +298,7 @@ export default function DoctorDashboardScreen({ navigation }) {
               <Text style={[styles.actionText, { color: colors.gray }]}>My Schedule (Coming Soon)</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionCard}
               onPress={() => navigation.navigate('Profile')}
             >
@@ -306,7 +306,7 @@ export default function DoctorDashboardScreen({ navigation }) {
               <Text style={styles.actionText}>My Profile</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionCard, { borderColor: colors.error }]}
               onPress={handleLogout}
               activeOpacity={0.7}
