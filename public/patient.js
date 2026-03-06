@@ -7,20 +7,44 @@ const firebaseConfig = window.__MC_ENV__?.FIREBASE_CONFIG;
 const siteKey = window.__MC_ENV__?.APP_CHECK_KEY;
 
 firebase.initializeApp(firebaseConfig);
-// Initialize Firebase app
 
-// Initialize App Check immediately so tokens are attached to initial Firestore requests
-try {
-    const appCheck = firebase.appCheck();
-    if (siteKey) {
-        appCheck.activate(siteKey, true);
+// Initialize App Check and wait for token before creating Firestore instance
+let auth, db;
+
+(async function initializeFirebaseServices() {
+    try {
+        // Initialize App Check first
+        if (siteKey) {
+            const appCheck = firebase.appCheck();
+            appCheck.activate(siteKey, true);
+            // Wait for App Check token to be ready
+            await appCheck.getToken(/* forceRefresh= */ false);
+        }
+    } catch (e) {
+        console.warn('App Check init skipped:', e?.message || e);
     }
-} catch (e) {
-    console.warn('App Check init skipped:', e?.message || e);
-}
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+    // Now initialize auth and Firestore with App Check token ready
+    auth = firebase.auth();
+    db = firebase.firestore();
+
+    // Trigger auth state check after initialization
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            console.log('Auth state changed: User is signed in.', user.uid);
+            db.collection('users').doc(user.uid).get().then(doc => {
+                if (doc.exists) {
+                    updateUserInterface({ uid: user.uid, ...doc.data() });
+                } else {
+                    logout();
+                }
+            });
+        } else {
+            console.log('Auth state changed: User is signed out.');
+            resetUserInterface();
+        }
+    });
+})();
 
 // No emulator connections in production code.
 
@@ -42,105 +66,8 @@ let userAppointments = []; // To store the user's appointments for filtering
 let lastVisibleReview = null; // For reviews pagination
 let recaptchaVerifier = null;
 let recaptchaInitPromise = null;
-let activeChatListener = null; // To hold the active chat listener
-
-// === Chat Functions ===
-async function openChat(appointmentId) {
-    const user = auth.currentUser;
-    if (!user) return showNotification('يرجى تسجيل الدخول لبدء المحادثة', 'error');
-
-    const appointment = userAppointments.find(apt => apt.id === appointmentId);
-    if (!appointment) return showNotification('لم يتم العثور على الحجز', 'error');
-
-    try {
-        // Find the receptionist for the doctor
-        const receptionistQuery = await db.collection('receptionists').where('doctorId', '==', appointment.doctorId).limit(1).get();
-        if (receptionistQuery.empty) {
-            return showNotification('لا يوجد موظف استقبال متاح لهذا الطبيب.', 'error');
-        }
-        const receptionistId = receptionistQuery.docs[0].id;
-
-        // Look for an existing chat or create a new one
-        let chatRef;
-        const appointmentRef = db.collection('appointments').doc(appointmentId);
-        const aptDoc = await appointmentRef.get();
-        const existingChatId = aptDoc.data().chatId;
-
-        if (existingChatId) {
-            chatRef = db.collection('chats').doc(existingChatId);
-        } else {
-            chatRef = db.collection('chats').doc();
-            await chatRef.set({
-                participants: [user.uid, receptionistId],
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                lastMessage: '',
-                appointmentId: appointmentId
-            });
-            await appointmentRef.update({ chatId: chatRef.id });
-        }
-
-        showModal('chatModal');
-        document.getElementById('chatModalTitle').textContent = `محادثة بخصوص حجز د. ${appointment.doctorName}`;
-
-        // Listen for messages
-        if (activeChatListener) activeChatListener(); // Detach old listener
-        activeChatListener = chatRef.collection('messages').orderBy('timestamp').onSnapshot(snapshot => {
-            const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderChatMessages(messages, user.uid);
-        });
-
-        // Handle sending messages
-        const chatForm = document.getElementById('chatForm');
-        chatForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const messageInput = document.getElementById('chatMessageInput');
-            const text = messageInput.value.trim();
-            if (text) {
-                const messageData = {
-                    text: text,
-                    senderId: user.uid,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                await chatRef.collection('messages').add(messageData);
-                await chatRef.update({ lastMessage: text, lastMessageTimestamp: messageData.timestamp });
-                messageInput.value = '';
-            }
-        };
-
-    } catch (error) {
-        console.error('Error opening chat:', error);
-        showNotification('حدث خطأ عند فتح المحادثة', 'error');
-    }
-}
-
-function closeChatModal() {
-    if (activeChatListener) {
-        activeChatListener(); // Stop listening to messages
-        activeChatListener = null;
-    }
-    closeModal('chatModal');
-}
-
-function renderChatMessages(messages, currentUserId) {
-    const messagesContainer = document.getElementById('chatMessages');
-    messagesContainer.innerHTML = messages.map(msg => {
-        const isSender = msg.senderId === currentUserId;
-        const time = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString('ar-IQ') : '';
-        return `
-            <div class="flex ${isSender ? 'justify-end' : 'justify-start'}">
-                <div class="${isSender ? 'bg-blue-500 text-white' : 'bg-white'} rounded-lg p-3 max-w-xs shadow-sm">
-                    <p>${msg.text}</p>
-                    <p class="text-xs ${isSender ? 'text-blue-200' : 'text-gray-500'} mt-1 text-left">${time}</p>
-                </div>
-            </div>
-        `;
-    }).join('');
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
 
 // === OTP Rate Limiting ===
-
 const OTP_RATE_LIMIT = {
     maxAttempts: 3,
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -176,24 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Production: do not expose App Check status in the UI.
-
-    // Monitor Firebase Auth state
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            console.log('Auth state changed: User is signed in.', user.uid);
-            db.collection('users').doc(user.uid).get().then(doc => {
-                if (doc.exists) {
-                    updateUserInterface({ uid: user.uid, ...doc.data() });
-                } else {
-                    // This case might happen if user record was deleted but auth session persists.
-                    logout();
-                }
-            });
-        } else {
-            console.log('Auth state changed: User is signed out.');
-            resetUserInterface();
-        }
-    });
+    // Note: auth.onAuthStateChanged is now set up in the async init function above
     // Auto-hide connection status
     setTimeout(() => {
         if (statusElement) statusElement.style.display = 'none';
@@ -249,26 +159,6 @@ function generateInitials(name) {
     return parts.length >= 2 ? `د.${parts[1].charAt(0)}` : `د.${parts[0].charAt(0)}`;
 }
 
-function convertTo12HourFormat(time24h) {
-    if (!time24h) return 'غير محدد';
-    try {
-        const [hours, minutes] = time24h.split(':');
-        const hour = parseInt(hours);
-        const ampm = hour >= 12 ? 'م' : 'ص';
-        const hour12 = hour % 12 || 12;
-        return `${hour12}:${minutes} ${ampm}`;
-    } catch (e) {
-        return time24h;
-    }
-}
-
-function formatClinicHours(openingTime, closingTime) {
-    if (!openingTime || !closingTime) return 'غير محدد';
-    const opening = convertTo12HourFormat(openingTime);
-    const closing = convertTo12HourFormat(closingTime);
-    return `${opening} - ${closing}`;
-}
-
 async function loadDoctors() {
     if (doctorsLoaded) return;
     const doctorsGrid = document.getElementById('doctorsGrid');
@@ -318,7 +208,6 @@ async function loadDoctors() {
                     email: data.email,
                     fee: `${fee}`,
                     initials: data.initials || generateInitials(data.name),
-                    photoURL: data.photoURL || null,
                     experience: data.experience || '5+ سنوات خبرة',
                     rating: data.rating || '4.5',
                     reviews: data.reviews || '50',
@@ -369,8 +258,8 @@ function updateDoctorGrid() {
         <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
             <div class="p-6">
                 <div class="flex items-center mb-4">
-                    <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4 overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600">
-                        ${doctor.photoURL ? `<img src="${doctor.photoURL}" alt="${sanitizeHtml(doctor.name)}" class="w-full h-full object-cover">` : `<span class="text-white font-bold text-lg">${doctor.initials}</span>`}
+                    <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
+                        <span class="text-white font-bold text-lg">${doctor.initials}</span>
                     </div>
                     <div class="flex-1">
                         <h3 class="text-xl font-bold text-gray-900 mb-1">${sanitizeHtml(doctor.name)}</h3>
@@ -379,7 +268,7 @@ function updateDoctorGrid() {
                 </div>
                 <div class="space-y-3 mb-6">
                     <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-sm">${sanitizeHtml(doctor.location || 'العيادة الطبية')}</span></div>
-                    <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-sm">${sanitizeHtml(formatClinicHours(doctor.openingTime, doctor.closingTime))}</span></div>
+                    <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-sm">${sanitizeHtml(doctor.hours || '9:00 ص - 5:00 م')}</span></div>
                     <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path></svg><span class="text-sm font-medium">${sanitizeHtml(doctor.fee)} ألف د.ع</span></div>
                 </div>
                 <div class="flex items-center justify-between mb-4">
@@ -507,12 +396,17 @@ function showBookingModal(doctorId = null) {
             updateSelectedDoctorInfo(doctors[selectedDoctorId]);
             updateTimeSlots(selectedDoctorId);
         } else {
+            document.getElementById('timeSlots').innerHTML = '<p class="col-span-full text-center text-gray-500">الرجاء اختيار طبيب لعرض الأوقات المتاحة.</p>';
             document.getElementById('selectedDoctorName').textContent = 'يرجى اختيار طبيب';
             document.getElementById('selectedDoctorSpecialty').textContent = 'التخصص';
             document.getElementById('selectedDoctorFee').textContent = '0';
             document.getElementById('selectedDoctorInitials').textContent = 'د.م';
         }
     }
+
+    const dateInput = document.getElementById('appointmentDate');
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.setAttribute('min', today);
 
     showModal('bookingModal');
 }
@@ -525,31 +419,17 @@ function closeBookingModal() {
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => checkbox.checked = false);
 }
 
-async function showDoctorProfile(doctorId) {
+function showDoctorProfile(doctorId) {
     const doctor = doctors[doctorId];
     if (!doctor) {
         window.showNotification('لم يتم العثور على معلومات الطبيب', 'error');
         return;
     }
 
-    // Fetch real clinic hours from Firestore
-    let clinicHours = doctor.hours || 'غير محدد';
-    try {
-        const doctorDoc = await db.collection('doctors').doc(doctorId).get();
-        if (doctorDoc.exists) {
-            const data = doctorDoc.data();
-            const opening = data.openingTime || '08:00';
-            const closing = data.closingTime || '15:00';
-            clinicHours = formatClinicHours(opening, closing);
-        }
-    } catch (error) {
-        console.error('Error fetching clinic hours:', error);
-    }
-
     const profileContent = document.getElementById('doctorProfileContent');
     profileContent.innerHTML = `
         <div class="text-center mb-8">
-            <div class="w-24 h-24 doctor-avatar rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600">${doctor.photoURL ? `<img src="${doctor.photoURL}" alt="${sanitizeHtml(doctor.name)}" class="w-full h-full object-cover">` : `<span class="text-white font-bold text-2xl">${doctor.initials}</span>`}</div>
+            <div class="w-24 h-24 doctor-avatar rounded-full flex items-center justify-center mx-auto mb-4"><span class="text-white font-bold text-2xl">${doctor.initials}</span></div>
             <h2 class="text-3xl font-bold text-gray-900 mb-2">${sanitizeHtml(doctor.name)}</h2>
             <p class="text-xl text-blue-600 font-medium mb-2">${sanitizeHtml(doctor.specialty)}</p>
             <p class="text-gray-600 mb-4">${sanitizeHtml(doctor.experience)}</p>
@@ -558,7 +438,7 @@ async function showDoctorProfile(doctorId) {
         </div>
         <div class="grid md:grid-cols-2 gap-8 mb-8">
             <div class="space-y-6">
-                <div><h4 class="text-lg font-bold text-gray-900 mb-3">معلومات أساسية</h4><div class="space-y-3"><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-gray-700">${sanitizeHtml(doctor.location)}</span></div><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-gray-700">${sanitizeHtml(clinicHours)}</span></div><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg><span class="text-gray-700">${doctor.languages.join(', ')}</span></div></div></div>
+                <div><h4 class="text-lg font-bold text-gray-900 mb-3">معلومات أساسية</h4><div class="space-y-3"><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-gray-700">${sanitizeHtml(doctor.location)}</span></div><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-gray-700">${sanitizeHtml(doctor.hours)}</span></div><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg><span class="text-gray-700">${doctor.languages.join(', ')}</span></div></div></div>
                 <div><h4 class="text-lg font-bold text-gray-900 mb-3">التخصصات</h4><div class="flex flex-wrap gap-2">${doctor.specializations.map(spec => `<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">${spec}</span>`).join('')}</div></div>
             </div>
             <div class="space-y-6">
@@ -583,6 +463,22 @@ async function showDoctorProfile(doctorId) {
 
 function closeDoctorProfileModal() {
     closeModal('doctorProfileModal');
+}
+
+function updateDoctorSelection() {
+    const doctorSelection = document.getElementById('doctorSelection');
+    if (!doctorSelection) return;
+    doctorSelection.innerHTML = Object.values(doctors).map(doctor => `
+        <div class="doctor-option border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-300 transition-colors" onclick="selectDoctor('${doctor.id}', this)">
+            <div class="flex items-center">
+                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${doctor.initials}</span></div>
+                <div class="flex-1">
+                    <h4 class="font-bold text-gray-900">${sanitizeHtml(doctor.name)}</h4>
+                    <p class="text-blue-600 text-sm">${sanitizeHtml(doctor.specialty)}</p>
+                    <p class="text-gray-500 text-xs">${sanitizeHtml(doctor.fee)} ألف د.ع</p>
+                </div>
+            </div>
+        </div>`).join('');
 }
 
 async function loadAndDisplayReviews(doctorId, isFirstPage = false) {
@@ -690,7 +586,22 @@ function updateTimeSlots(doctorId) {
     if (!doctor) return;
 
     const timeSlotsContainer = document.getElementById('timeSlots');
-    if (!timeSlotsContainer) return; // Time slots not needed in new flow
+    const { openingTime = '08:00', closingTime = '15:00', clinicClosed = false, closureEndDate } = doctor;
+
+    if (clinicClosed && closureEndDate && new Date() <= new Date(closureEndDate)) {
+        timeSlotsContainer.innerHTML = `<div class="col-span-full text-center py-4"><p class="text-red-600 font-medium">العيادة مغلقة مؤقتاً حتى ${new Date(closureEndDate).toLocaleDateString('ar-IQ')}</p></div>`;
+        return;
+    }
+
+    const timeSlots = generateTimeSlots(openingTime, closingTime);
+    if (timeSlots.length === 0) {
+        timeSlotsContainer.innerHTML = `<div class="col-span-full text-center py-4"><p class="text-gray-600">لا توجد أوقات متاحة للحجز</p></div>`;
+        return;
+    }
+
+    timeSlotsContainer.innerHTML = timeSlots.map(time => `
+        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '${time}')">${time}</button>
+    `).join('');
 }
 
 function generateTimeSlots(openingTime, closingTime) {
@@ -721,11 +632,12 @@ function selectTimeSlot(slotElement, time) {
 
 async function submitBooking(event) {
     event.preventDefault();
+    if (!selectedTimeSlot) {
+        window.showNotification('يرجى اختيار وقت للموعد', 'error');
+        return;
+    }
     const user = auth.currentUser;
     if (!user) { window.showNotification('يرجى تسجيل الدخول أولاً لحجز موعد', 'error'); closeBookingModal(); showLoginModal(); return; }
-
-    const patientId = document.getElementById('patientSelector').value;
-    const isFamilyMember = patientId !== user.uid;
 
     const chronicConditions = [];
     if (document.getElementById('hypertension').checked) chronicConditions.push('ضغط الدم المرتفع');
@@ -735,6 +647,15 @@ async function submitBooking(event) {
     const otherConditions = document.getElementById('otherConditions').value;
     if (otherConditions) chronicConditions.push(otherConditions);
 
+    const appointmentDate = document.getElementById('appointmentDate').value;
+    const selectedDate = new Date(appointmentDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+        window.showNotification('لا يمكن حجز موعد في الماضي.', 'error');
+        return;
+    }
+
     const appointmentData = {
         doctorId: selectedDoctorId,
         doctorName: doctors[selectedDoctorId].name,
@@ -743,23 +664,21 @@ async function submitBooking(event) {
         patientPhone: document.getElementById('patientPhone').value,
         patientAge: parseInt(document.getElementById('patientAge').value),
         patientGender: document.getElementById('patientGender').value,
-        appointmentDate: null,
-        appointmentTime: null,
+        appointmentDate,
+        appointmentTime: selectedTimeSlot,
         reason: document.getElementById('appointmentReason').value,
         allergies: document.getElementById('allergies').value || '',
         chronicConditions: chronicConditions,
         currentMedications: document.getElementById('currentMedications').value || '',
-        userId: user.uid, // The main user who is booking
-        patientId: patientId, // The actual patient (can be a family member)
-        isFamilyMember: isFamilyMember,
+        userId: user.uid,
+        patientId: user.uid,
         userPhone: user.phoneNumber,
         status: 'awaiting_confirmation',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         appointmentId: generateAppointmentId()
     };
-    console.log('DEBUG: Booking user UID:', user.uid);
-    console.log('DEBUG: appointmentData:', JSON.stringify(appointmentData, null, 2));
+    // Production: booking data validated and ready
 
     const submitBtn = document.getElementById('bookingSubmitBtn');
     submitBtn.disabled = true;
@@ -791,26 +710,25 @@ async function submitBooking(event) {
             return;
         }
 
-        // Skip conflict check - receptionist will handle conflicts when confirming
-        // since date/time are null at this stage
+        const conflictQuery = await db.collection('appointments')
+            .where('doctorId', '==', selectedDoctorId)
+            .where('appointmentDate', '==', appointmentData.appointmentDate)
+            .where('appointmentTime', '==', selectedTimeSlot)
+            .where('status', 'in', ['confirmed', 'awaiting_confirmation'])
+            .get();
 
-        console.log('DEBUG: Attempting to add appointment to Firestore...');
-        console.log('DEBUG: User UID:', user.uid);
-        console.log('DEBUG: Auth token claims:', auth.currentUser?.getIdTokenResult ? 'available' : 'not available');
-        
+        if (!conflictQuery.empty) {
+            window.showNotification('هذا الموعد محجوز بالفعل. يرجى اختيار وقت آخر', 'error');
+            return;
+        }
+
         const docRef = await db.collection('appointments').add(appointmentData);
-        console.log('DEBUG: Appointment added successfully with ID:', docRef.id);
-        
         await docRef.update({ firestoreId: docRef.id });
-        console.log('DEBUG: Appointment updated with firestoreId');
 
         window.showNotification(`✅ تم إرسال طلب الحجز بنجاح!`, 'success');
         closeBookingModal();
     } catch (error) {
         console.error('Booking error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Full error object:', error);
         window.showNotification('حدث خطأ أثناء إرسال طلب الحجز.', 'error');
     } finally {
         submitBtn.disabled = false;
@@ -985,22 +903,6 @@ async function handlePhoneVerification(event) {
         const result = await confirmationResult.confirm(enteredCode);
         const user = result.user;
         const isLogin = localStorage.getItem('medconnect_is_login') === 'true';
-
-        // Ensure patient claim is set and refresh token
-        try {
-            console.log('DEBUG: Attempting to ensure patient claim for user:', user.uid);
-            const ensureClaimsFn = firebase.functions().httpsCallable('ensurePatientClaim');
-            const result = await ensureClaimsFn({});
-            console.log('DEBUG: ensurePatientClaim result:', result);
-            
-            // Force refresh ID token to pick up new claims
-            await user.getIdToken(true);
-            console.log('DEBUG: ID token refreshed with new claims');
-        } catch (claimError) {
-            console.error('ERROR: Could not ensure patient claim:', claimError.code, claimError.message);
-            console.error('Full error:', claimError);
-            // Continue anyway - the onUserCreate trigger should have set it
-        }
 
         if (isLogin) {
             const userDoc = await db.collection('users').doc(user.uid).get();
@@ -1504,141 +1406,4 @@ function filterBySpecialty(specialty) {
     document.getElementById('specialtyFilter').value = specialty;
     filterDoctors();
     switchTab('doctors');
-}
-
-async function loadFamilyMembers() {
-    const familyMembersList = document.getElementById('familyMembersList');
-    if (!familyMembersList) return;
-    
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    familyMembersList.innerHTML = `<div class="text-center py-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div></div>`;
-    showModal('familyManagerModal');
-
-    const snapshot = await db.collection('users').doc(user.uid).collection('familyMembers').get();
-    if (snapshot.empty) {
-        familyMembersList.innerHTML = `<p class="text-center text-gray-500">لا يوجد أفراد عائلة مضافون حالياً.</p>`;
-        return;
-    }
-
-    familyMembersList.innerHTML = snapshot.docs.map(doc => {
-        const member = doc.data();
-        return `
-            <div class="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
-                <div>
-                    <p class="font-bold text-gray-800">${sanitizeHtml(member.name)}</p>
-                    <p class="text-sm text-gray-600">${sanitizeHtml(member.relationship)} - ${member.age} سنة</p>
-                </div>
-                <div class="space-x-2 space-x-reverse">
-                    <button onclick="editFamilyMember('${doc.id}')" class="text-blue-600 hover:text-blue-800">تعديل</button>
-                    <button onclick="deleteFamilyMember('${doc.id}')" class="text-red-600 hover:text-red-800">حذف</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function closeFamilyManager() {
-    closeModal('familyManagerModal');
-}
-
-function showAddFamilyMemberModal() {
-    document.getElementById('familyMemberForm').reset();
-    document.getElementById('familyMemberId').value = '';
-    document.getElementById('familyMemberModalTitle').textContent = 'إضافة فرد جديد';
-    showModal('familyMemberModal');
-}
-
-function closeAddFamilyMemberModal() {
-    closeModal('familyMemberModal');
-}
-
-async function saveFamilyMember(event) {
-    event.preventDefault();
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const memberId = document.getElementById('familyMemberId').value;
-    const memberData = {
-        name: document.getElementById('familyName').value,
-        age: parseInt(document.getElementById('familyAge').value),
-        gender: document.getElementById('familyGender').value,
-        relationship: document.getElementById('familyRelationship').value,
-    };
-
-    const familyCollection = db.collection('users').doc(user.uid).collection('familyMembers');
-
-    try {
-        if (memberId) {
-            await familyCollection.doc(memberId).update(memberData);
-            window.showNotification('تم تحديث بيانات فرد العائلة بنجاح', 'success');
-        } else {
-            await familyCollection.add(memberData);
-            window.showNotification('تمت إضافة فرد العائلة بنجاح', 'success');
-        }
-        closeAddFamilyMemberModal();
-        showFamilyManager(); // Refresh the list
-    } catch (error) {
-        console.error('Error saving family member:', error);
-        window.showNotification('حدث خطأ أثناء حفظ البيانات', 'error');
-    }
-}
-
-async function editFamilyMember(memberId) {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const doc = await db.collection('users').doc(user.uid).collection('familyMembers').doc(memberId).get();
-    if (!doc.exists) return;
-
-    const member = doc.data();
-    document.getElementById('familyMemberId').value = doc.id;
-    document.getElementById('familyName').value = member.name;
-    document.getElementById('familyAge').value = member.age;
-    document.getElementById('familyGender').value = member.gender;
-    document.getElementById('familyRelationship').value = member.relationship;
-    document.getElementById('familyMemberModalTitle').textContent = 'تعديل بيانات فرد العائلة';
-    showModal('familyMemberModal');
-}
-
-async function deleteFamilyMember(memberId) {
-    if (!confirm('هل أنت متأكد من حذف هذا الفرد من العائلة؟')) return;
-
-    const user = auth.currentUser;
-    if (!user) return;
-
-    try {
-        await db.collection('users').doc(user.uid).collection('familyMembers').doc(memberId).delete();
-        window.showNotification('تم حذف فرد العائلة بنجاح', 'success');
-        showFamilyManager(); // Refresh the list
-    } catch (error) {
-        console.error('Error deleting family member:', error);
-        window.showNotification('حدث خطأ أثناء الحذف', 'error');
-    }
-}
-
-async function handlePatientSelection(patientId) {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    if (patientId === user.uid) {
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (userDoc.exists) {
-            const userData = userDoc.data();
-            document.getElementById('patientName').value = userData.name || '';
-            document.getElementById('patientPhone').value = userData.phone || '';
-            document.getElementById('patientAge').value = ''; // Age is not stored for the main user
-            document.getElementById('patientGender').value = '';
-        }
-    } else {
-        const memberDoc = await db.collection('users').doc(user.uid).collection('familyMembers').doc(patientId).get();
-        if (memberDoc.exists) {
-            const memberData = memberDoc.data();
-            document.getElementById('patientName').value = memberData.name || '';
-            document.getElementById('patientPhone').value = user.phoneNumber || ''; // Use main user's phone
-            document.getElementById('patientAge').value = memberData.age || '';
-            document.getElementById('patientGender').value = memberData.gender || '';
-        }
-    }
 }
