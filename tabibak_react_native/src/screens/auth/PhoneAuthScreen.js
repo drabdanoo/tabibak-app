@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,30 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
-import { authService } from '../../services/authService';
 
 const PhoneAuthScreen = ({ navigation }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('+964');
   const [loading, setLoading] = useState(false);
   const { sendOTP } = useAuth();
-
-  // Initialize reCAPTCHA on component mount for web
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      // Give the DOM time to render the container
-      const timer = setTimeout(() => {
-        try {
-          authService.initRecaptcha('recaptcha-container');
-          console.log('reCAPTCHA initialized successfully');
-        } catch (error) {
-          console.error('Failed to initialize reCAPTCHA:', error);
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
-    }
-  }, []);
 
   const formatPhoneNumber = (text) => {
     // Remove all non-digit characters
@@ -167,8 +149,6 @@ const PhoneAuthScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Hidden reCAPTCHA container for web */}
-        <View id="recaptcha-container" style={{ height: 0 }} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -260,10 +240,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md,
     alignItems: 'center',
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
     elevation: 3
   },
   buttonDisabled: {
