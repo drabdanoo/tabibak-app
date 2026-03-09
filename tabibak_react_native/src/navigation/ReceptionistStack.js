@@ -8,6 +8,7 @@ import { Colors } from '../config/theme';
 import ReceptionistDashboardScreen from '../screens/receptionist/ReceptionistDashboardScreen';
 import AppointmentManagementScreen from '../screens/receptionist/AppointmentManagementScreen';
 import PatientRegistrationScreen from '../screens/receptionist/PatientRegistrationScreen';
+import WalkInBookingScreen       from '../screens/receptionist/WalkInBookingScreen';
 import ReceptionistProfileScreen from '../screens/receptionist/ReceptionistProfileScreen';
 import NotificationsScreen from '../screens/receptionist/NotificationsScreen';
 
@@ -63,13 +64,23 @@ const ReceptionistStack = () => {
         component={ReceptionistTabs} 
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="PatientRegistration" 
+      <Stack.Screen
+        name="PatientRegistration"
         component={PatientRegistrationScreen}
-        options={{ 
+        options={{
           title: 'Register Patient',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white
+        }}
+      />
+      <Stack.Screen
+        name="WalkInBooking"
+        component={WalkInBookingScreen}
+        options={{
+          title: 'تسجيل حضور مباشر',
+          headerStyle: { backgroundColor: Colors.primary },
+          headerTintColor: Colors.white,
+          headerTitleAlign: 'center',
         }}
       />
     </Stack.Navigator>

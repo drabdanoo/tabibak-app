@@ -4,6 +4,7 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  browserLocalPersistence,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -17,26 +18,18 @@ import {
 import { Platform } from 'react-native';
 import { firebaseConfig, COLLECTIONS, USER_ROLES } from '../config/firebase';
 
-// Custom AsyncStorage persistence for Firebase Auth JS SDK
-// Avoids the getReactNativePersistence conflict with @react-native-firebase
-const asyncStoragePersistence = {
-  type: 'LOCAL',
-  async _isAvailable() { return true; },
-  async _set(key, value) { await AsyncStorage.setItem(key, JSON.stringify(value)); },
-  async _get(key) {
-    const val = await AsyncStorage.getItem(key);
-    return val ? JSON.parse(val) : null;
-  },
-  async _remove(key) { await AsyncStorage.removeItem(key); },
-  _addListener(_key, _listener) { },
-  _removeListener(_key, _listener) { },
-};
-
 // Initialize Firebase JS SDK (for Firestore, email auth, etc.)
+// Persistence is platform-conditional:
+//   native → @firebase/auth RN bundle has getReactNativePersistence
+//   web    → firebase/auth browser bundle has browserLocalPersistence
+// We use require() so each platform only loads the bundle it needs at runtime.
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = initializeAuth(app, {
-  persistence: asyncStoragePersistence,
-});
+
+const _persistence = Platform.OS === 'web'
+  ? browserLocalPersistence
+  : require('@firebase/auth').getReactNativePersistence(AsyncStorage);
+
+const auth = initializeAuth(app, { persistence: _persistence });
 const db = getFirestore(app);
 
 
@@ -44,7 +37,6 @@ class AuthService {
   constructor() {
     this.auth = auth;
     this.db = db;
-    this.recaptchaVerifier = null; // Still needed for web phone auth
     this.rnAuth = null; // React Native Firebase auth (lazy loaded on native)
   }
 
@@ -69,15 +61,13 @@ class AuthService {
   async sendOTP(phoneNumber) {
     try {
       if (Platform.OS === 'web') {
-        // Web: use Firebase JS SDK with RecaptchaVerifier
-        const { signInWithPhoneNumber, RecaptchaVerifier } = await import('firebase/auth');
-        if (!this.recaptchaVerifier) {
-          this.recaptchaVerifier = new RecaptchaVerifier(this.auth, 'recaptcha-container', {
-            size: 'invisible',
-          });
-        }
-        const confirmation = await signInWithPhoneNumber(this.auth, phoneNumber, this.recaptchaVerifier);
-        return { success: true, confirmation };
+        // Phone auth via OTP is only supported on the mobile app (Android/iOS).
+        // On web, Firebase requires reCAPTCHA which is unreliable in dev/DevTools.
+        // Real users always go through the native app where Play Integrity is used instead.
+        return {
+          success: false,
+          error: 'Phone verification is only available on the mobile app. Please use the Android or iOS app to sign in.',
+        };
       } else {
         // Native Android/iOS: use @react-native-firebase/auth
         // This uses Google Play Services for app verification — no reCAPTCHA needed

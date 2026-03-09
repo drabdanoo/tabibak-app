@@ -1,4 +1,55 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * BookAppointmentScreen — Phase 2: Patient Core
+ *
+ * ── Architecture Notes ─────────────────────────────────────────────────────
+ *
+ * Keyboard Management:
+ *   Root: <KeyboardAvoidingView behavior="padding" (iOS) | "height" (Android)>
+ *   The KAV is the outermost flex container. When the software keyboard
+ *   appears, iOS "padding" mode adds bottom padding equal to keyboard height,
+ *   shrinking the visible area and pushing the sticky footer up into view.
+ *   Android "height" mode reduces the KAV's total height, achieving the same
+ *   result. Both strategies ensure the "Confirm Booking" CTA stays visible
+ *   and tappable without the keyboard covering it.
+ *
+ *   Inner <ScrollView keyboardShouldPersistTaps="handled"> lets taps on
+ *   time-slot chips and date pills dismiss the keyboard AND register as taps
+ *   in a single gesture — critical for a form with many interactive elements.
+ *
+ * Slot-Based Scheduling (no native DateTimePicker):
+ *   • Dates: A 14-day window is generated with useMemo. Rendered as a
+ *     horizontal <FlatList> of two-line pills (weekday abbrev + day number).
+ *     Changing the selected date resets the slot selection and re-fetches.
+ *   • Time Slots: Fetched from appointmentService.getAvailableTimeSlots()
+ *     on each date change. Rendered as a flexWrap flex-row grid of chips.
+ *     Available slots are tappable; booked slots are visually struck-through
+ *     and disabled. Gap-based spacing — no directional margins in the grid.
+ *
+ * Family Member Selection:
+ *   Implemented as an inline two-option segmented control ("For Myself" /
+ *   "For Family Member") using two adjacent TouchableOpacity pills. No Modal
+ *   or Picker required — the full family member name input appears beneath
+ *   the control when "For Family Member" is active. This avoids the
+ *   complexity of a bottom sheet while keeping the UX fully native and RTL-
+ *   safe (the control is built from flex-row LogicalView children).
+ *
+ * State Management:
+ *   All booking fields (date, slot, reason, medical history, etc.) are kept
+ *   in local component state. Nothing is written to Firestore until the user
+ *   presses "Confirm Booking". At that point:
+ *     1. Client-side field validation runs first (fast, no network).
+ *     2. appointmentService.bookAppointment() is called — it internally
+ *        checks clinic closure, duplicate bookings, and slot conflicts before
+ *        invoking the Cloud Function. Errors are surfaced as Alert dialogs.
+ *     3. On success, navigate to the 'Appointments' tab.
+ *
+ * RTL Compliance:
+ *   ⚠️ This app is in Arabic. Zero marginLeft/Right, paddingLeft/Right,
+ *   borderLeftWidth/borderRightWidth, or positional left/right values.
+ *   All directional spacing uses logical properties exclusively.
+ */
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,682 +59,827 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
   Platform,
-  ToastAndroid
+  StatusBar,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import appointmentService from '../../services/appointmentService';
 import { useAuth } from '../../contexts/AuthContext';
-import { colors, spacing, typography } from '../../config/theme';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+
+// Height of sticky footer content — used to compute the scroll spacer.
+const FOOTER_CONTENT_HEIGHT = 72;
+
+// Number of days shown in the date picker strip.
+const DATE_WINDOW = 14;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Generate an array of Date objects starting from today for DATE_WINDOW days. */
+function generateDateWindow() {
+  const dates = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < DATE_WINDOW; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+/** Format a Date as 'YYYY-MM-DD' for Firestore / service calls. */
+function toDateStr(date) {
+  return date.toISOString().split('T')[0];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-components (module-scope for stable identity)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Section wrapper with a title row. */
+const Section = React.memo(({ icon, title, subtitle, children }) => (
+  <View style={S.section}>
+    <View style={S.sectionHeader}>
+      {icon && (
+        <Ionicons name={icon} size={20} color={Colors.primary} style={S.sectionIcon} />
+      )}
+      <Text style={S.sectionTitle}>{title}</Text>
+    </View>
+    {subtitle ? <Text style={S.sectionSubtitle}>{subtitle}</Text> : null}
+    {children}
+  </View>
+));
+
+/** Labelled multiline TextInput. */
+const FormField = React.memo(({ label, required, placeholder, value, onChangeText, lines = 3 }) => (
+  <View style={S.fieldWrap}>
+    <Text style={S.fieldLabel}>
+      {label}
+      {required && <Text style={S.required}> *</Text>}
+    </Text>
+    <TextInput
+      style={[S.textInput, { minHeight: lines * 24 + 24 }]}
+      placeholder={placeholder}
+      placeholderTextColor={Colors.gray}
+      value={value}
+      onChangeText={onChangeText}
+      multiline
+      numberOfLines={lines}
+      textAlignVertical="top"
+    />
+  </View>
+));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Screen
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function BookAppointmentScreen({ route, navigation }) {
-  const { doctor } = route.params;
-  const { user } = useAuth();
-  
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { user, userProfile } = useAuth();
+
+  // Doctor from params (pre-hydrated from DoctorDetails / PatientHome)
+  const { doctor } = route.params ?? {};
+
+  // ── Date strip ───────────────────────────────────────────────────
+  // Stable across re-renders — only computed once.
+  const dates = useMemo(generateDateWindow, []);
+  const [selectedDate, setSelectedDate] = useState(dates[0]);
+
+  // ── Time slots ───────────────────────────────────────────────────
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+
+  // ── Booking fields ───────────────────────────────────────────────
+  const [bookingFor, setBookingFor] = useState('self'); // 'self' | 'family'
+  const [familyMemberName, setFamilyMemberName] = useState('');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
-  
-  // Medical History Fields
   const [allergies, setAllergies] = useState('');
   const [currentMedications, setCurrentMedications] = useState('');
   const [chronicConditions, setChronicConditions] = useState('');
-  
-  const [availableSlots, setAvailableSlots] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [bookingLoading, setBookingLoading] = useState(false);
+
+  // ── Submission ───────────────────────────────────────────────────
+  const [submitting, setSubmitting] = useState(false);
+
+  // ── Load slots on date change ─────────────────────────────────────
+  const loadSlots = useCallback(async (date) => {
+    if (!doctor?.id) return;
+    setSlotsLoading(true);
+    setSelectedSlot(null);
+    try {
+      const result = await appointmentService.getAvailableTimeSlots(doctor.id, date);
+      const list = Array.isArray(result) ? result : (result?.slots ?? []);
+      setSlots(list);
+      // Auto-select the first available slot.
+      const first = list.find(s => s.available);
+      if (first) setSelectedSlot(first);
+    } catch (err) {
+      console.error('Error loading time slots:', err);
+      setSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  }, [doctor?.id]);
 
   useEffect(() => {
-    if (selectedDate) {
-      loadAvailableSlots();
-    }
-  }, [selectedDate]);
+    loadSlots(selectedDate);
+  }, [selectedDate, loadSlots]);
 
-  const loadAvailableSlots = async () => {
-    try {
-      setLoading(true);
-      const slots = await appointmentService.getAvailableTimeSlots(doctor.id, selectedDate);
-      setAvailableSlots(slots);
-      
-      // Auto-select first available slot
-      const firstAvailable = slots.find(slot => slot.available);
-      if (firstAvailable) {
-        setSelectedTime(firstAvailable.time);
-      }
-    } catch (error) {
-      console.error('Error loading slots:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ── Date selection ────────────────────────────────────────────────
+  const handleDateSelect = useCallback((date) => {
+    setSelectedDate(date);
+    // loadSlots fires automatically via useEffect dep on selectedDate
+  }, []);
 
-  const handleDateChange = (event, date) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    
-    if (date) {
-      // Don't allow past dates
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (date < today) {
-        Alert.alert('Invalid Date', 'Please select a future date');
-        return;
-      }
-      
-      setSelectedDate(date);
-      setSelectedTime(null); // Reset time when date changes
+  // ── Slot selection ────────────────────────────────────────────────
+  const handleSlotSelect = useCallback((slot) => {
+    if (!slot.available) {
+      Alert.alert('Slot Unavailable', 'This time slot is already booked. Please choose another.');
+      return;
     }
-  };
+    setSelectedSlot(slot);
+  }, []);
 
-  const handleTimeSlotSelect = (slot) => {
-    if (slot.available) {
-      setSelectedTime(slot.time);
-    } else {
-      Alert.alert('Unavailable', 'This time slot is already booked');
+  // ── Submission ────────────────────────────────────────────────────
+  const handleConfirm = useCallback(async () => {
+    // Client-side validation (fast, no network)
+    if (!selectedSlot) {
+      Alert.alert('Time Required', 'Please select an available time slot.');
+      return;
     }
-  };
-
-  const validateForm = () => {
-    if (!selectedDate) {
-      Alert.alert('Required', 'Please select a date');
-      return false;
-    }
-
-    if (!selectedTime) {
-      Alert.alert('Required', 'Please select a time');
-      return false;
-    }
-
     if (!reason.trim()) {
-      Alert.alert('Required', 'Please provide a reason for visit');
-      return false;
+      Alert.alert('Reason Required', 'Please describe the reason for your visit.');
+      return;
     }
-
-    return true;
-  };
-
-  const handleBookAppointment = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setBookingLoading(true);
-
-      // Step 1: Check clinic closure
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      const closureCheck = await appointmentService.checkClinicClosure(doctor.id, dateStr);
-      
-      if (closureCheck.isClosed) {
-        Alert.alert('Clinic Closed', closureCheck.reason || 'The clinic is closed on this date');
-        setBookingLoading(false);
-        return;
-      }
-
-      // Step 2: Check for duplicate booking
-      const duplicateCheck = await appointmentService.checkDuplicateBooking(
-        user.uid,
-        doctor.id,
-        dateStr
-      );
-
-      if (duplicateCheck.isDuplicate) {
-        Alert.alert(
-          'Duplicate Booking',
-          'You already have a pending or confirmed appointment with this doctor on this date.',
-          [
-            {
-              text: 'View Appointment',
-              onPress: () => {
-                navigation.navigate('Appointments');
-              }
-            },
-            { text: 'Cancel', style: 'cancel' }
-          ]
-        );
-        setBookingLoading(false);
-        return;
-      }
-
-      // Step 3: Prepare appointment data with medical history
-      const appointmentData = {
-        patientId: user.uid,
-        patientName: user.displayName || user.phoneNumber,
-        patientPhone: user.phoneNumber,
-        doctorId: doctor.id,
-        doctorName: doctor.name,
-        appointmentDate: dateStr,
-        appointmentTime: selectedTime,
-        reason: reason.trim(),
-        notes: notes.trim(),
-        status: 'pending',
-        // Medical History
-        medicalHistory: {
-          allergies: allergies.trim() || 'None',
-          currentMedications: currentMedications.trim() || 'None',
-          chronicConditions: chronicConditions.trim() || 'None'
-        }
-      };
-
-      // Step 4: Book appointment
-      const result = await appointmentService.bookAppointment(appointmentData);
-
-      if (result.success) {
-        Alert.alert(
-          'Success',
-          'Your appointment has been booked successfully! You will receive a notification once the doctor confirms.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('Appointments')
-            }
-          ]
-        );
-      } else {
-        Alert.alert('Error', result.error || 'Failed to book appointment');
-      }
-    } catch (error) {
-      console.error('Error booking appointment:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-    } finally {
-      setBookingLoading(false);
-    }
-  };
-
-  const handleRequestAppointment = async () => {
-    if (!selectedDate || !selectedTime) {
-      Alert.alert('Validation Error', 'Please select both a date and a time slot.');
+    if (bookingFor === 'family' && !familyMemberName.trim()) {
+      Alert.alert('Name Required', 'Please enter the family member\'s full name.');
       return;
     }
 
+    setSubmitting(true);
+
     try {
-      setBookingLoading(true);
+      const dateStr = toDateStr(selectedDate);
+      const patientName = bookingFor === 'self'
+        ? (userProfile?.fullName ?? user?.displayName ?? user?.phoneNumber ?? 'Patient')
+        : familyMemberName.trim();
 
-      // Clinic Closure Validation
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      const closureCheck = await appointmentService.checkClinicClosure(doctor.id, dateStr);
-      if (closureCheck.isClosed) {
-        Alert.alert('Clinic Closed', closureCheck.reason || 'The clinic is closed on this date.');
-        setBookingLoading(false);
-        return;
-      }
-
-      // Duplicate Booking Prevention
-      const duplicateCheck = await appointmentService.checkDuplicateBooking(user.uid, doctor.id, dateStr);
-      if (duplicateCheck.isDuplicate) {
-        Alert.alert(
-          'Duplicate Booking',
-          'You already have a pending or confirmed appointment with this doctor on this date.',
-          [
-            {
-              text: 'View Appointment',
-              onPress: () => navigation.navigate('Appointments'),
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
-        setBookingLoading(false);
-        return;
-      }
-
-      // Request Appointment
-      const appointmentData = {
-        doctorId: doctor.id,
-        selectedDate,
-        selectedTime,
-        allergies: allergies.trim() || 'None',
-        medications: currentMedications.trim() || 'None',
+      const payload = {
         patientId: user.uid,
+        patientName,
+        patientPhone: user.phoneNumber ?? '',
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        appointmentDate: dateStr,
+        appointmentTime: selectedSlot.display,
+        reason: reason.trim(),
+        notes: notes.trim(),
+        status: 'pending',
+        medicalHistory: {
+          allergies: allergies.trim() || 'None',
+          currentMedications: currentMedications.trim() || 'None',
+          chronicConditions: chronicConditions.trim() || 'None',
+        },
+        bookingFor,
+        ...(bookingFor === 'family' ? { familyMemberName: familyMemberName.trim() } : {}),
       };
 
-      const result = await appointmentService.bookAppointment(appointmentData);
+      const result = await appointmentService.bookAppointment(payload);
+
       if (result.success) {
-        // Cross-platform success feedback
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Appointment requested successfully!', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Success', 'Appointment requested successfully!');
-        }
-        navigation.navigate('PatientHome');
+        const dateLabel = selectedDate.toLocaleDateString('en-US', {
+          weekday: 'long', month: 'long', day: 'numeric',
+        });
+        Alert.alert(
+          'Appointment Submitted ✓',
+          `Your appointment with ${doctor.name} on ${dateLabel} at ${selectedSlot.display} has been submitted. You will be notified once the doctor confirms.`,
+          [{ text: 'View Appointments', onPress: () => navigation.navigate('Appointments') }],
+        );
       } else {
-        Alert.alert('Error', result.error || 'Failed to request appointment.');
+        const isDuplicate =
+          result.error?.toLowerCase().includes('already have') ||
+          result.error?.toLowerCase().includes('duplicate');
+
+        Alert.alert(
+          isDuplicate ? 'Already Booked' : 'Could Not Book',
+          result.error ?? 'Something went wrong. Please try again.',
+          isDuplicate
+            ? [
+                { text: 'View My Appointments', onPress: () => navigation.navigate('Appointments') },
+                { text: 'OK', style: 'cancel' },
+              ]
+            : [{ text: 'OK' }],
+        );
       }
-    } catch (error) {
-      console.error('Error requesting appointment:', error);
+    } catch (err) {
+      console.error('Booking error:', err);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
-      setBookingLoading(false);
+      setSubmitting(false);
     }
-  };
+  }, [
+    selectedSlot, reason, bookingFor, familyMemberName, selectedDate,
+    user, userProfile, doctor, notes, allergies, currentMedications, chronicConditions,
+    navigation,
+  ]);
 
-  const renderTimeSlots = () => {
-    if (loading) {
-      return (
-        <View style={styles.slotsLoading}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={styles.slotsLoadingText}>Loading available slots...</Text>
-        </View>
-      );
-    }
-
-    if (availableSlots.length === 0) {
-      return (
-        <View style={styles.noSlotsContainer}>
-          <Ionicons name="calendar-outline" size={48} color={colors.gray} />
-          <Text style={styles.noSlotsText}>No available slots for this date</Text>
-          <Text style={styles.noSlotsSubtext}>Please select a different date</Text>
-        </View>
-      );
-    }
-
+  // ── Date pill renderer ────────────────────────────────────────────
+  const renderDatePill = useCallback(({ item: date }) => {
+    const isSelected = date.toDateString() === selectedDate.toDateString();
+    const isToday = date.toDateString() === new Date().toDateString();
     return (
-      <View style={styles.slotsGrid}>
-        {availableSlots.map((slot, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.slotChip,
-              !slot.available && styles.slotChipDisabled,
-              selectedTime && 
-              slot.time.getTime() === selectedTime.getTime() && 
-              styles.slotChipSelected
-            ]}
-            onPress={() => handleTimeSlotSelect(slot)}
-            disabled={!slot.available}
-          >
-            <Text
-              style={[
-                styles.slotChipText,
-                !slot.available && styles.slotChipTextDisabled,
-                selectedTime && 
-                slot.time.getTime() === selectedTime.getTime() && 
-                styles.slotChipTextSelected
-              ]}
-            >
-              {slot.display}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <TouchableOpacity
+        style={[S.datePill, isSelected && S.datePillActive]}
+        onPress={() => handleDateSelect(date)}
+        activeOpacity={0.75}
+      >
+        <Text style={[S.datePillDay, isSelected && S.datePillTextActive]}>
+          {isToday ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' })}
+        </Text>
+        <Text style={[S.datePillNum, isSelected && S.datePillTextActive]}>
+          {date.getDate()}
+        </Text>
+      </TouchableOpacity>
     );
-  };
+  }, [selectedDate, handleDateSelect]);
 
+  const datePillKeyExtractor = useCallback((d) => d.toISOString(), []);
+
+  // ── Footer clearance in scroll content ───────────────────────────
+  const footerClearance = FOOTER_CONTENT_HEIGHT + Math.max(insets.bottom, Spacing.md);
+
+  // ─────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Doctor Info */}
-        <View style={styles.doctorCard}>
-          <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>{doctor.name}</Text>
-            <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
-            {doctor.hospital && (
-              <Text style={styles.doctorHospital}>{doctor.hospital}</Text>
+    <KeyboardAvoidingView
+      style={S.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+
+      {/* ── SCROLLABLE CONTENT ─────────────────────────────────── */}
+      <ScrollView
+        style={S.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={S.scrollContent}
+      >
+        {/* ── Doctor Summary Card ───────────────────────────────── */}
+        <View style={S.doctorCard}>
+          <View style={S.doctorAvatar}>
+            <Text style={S.doctorAvatarText}>
+              {(doctor?.name ?? 'D').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+            </Text>
+          </View>
+          <View style={S.doctorInfo}>
+            <Text style={S.doctorName}>{doctor?.name ?? 'Doctor'}</Text>
+            <Text style={S.doctorSpecialty}>{doctor?.specialty ?? 'General Practice'}</Text>
+            {!!doctor?.hospital && (
+              <Text style={S.doctorHospital}>{doctor.hospital}</Text>
             )}
           </View>
-        </View>
-
-        {/* Date Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Date</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={24} color={colors.primary} />
-            <Text style={styles.dateButtonText}>
-              {selectedDate.toLocaleDateString('en-US', {
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-              })}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color={colors.gray} />
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleDateChange}
-              minimumDate={new Date()}
-            />
+          {!!doctor?.consultationFee && (
+            <View style={S.feeTag}>
+              <Text style={S.feeTagText}>${doctor.consultationFee}</Text>
+            </View>
           )}
         </View>
 
-        {/* Time Slots */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Time</Text>
-          {renderTimeSlots()}
-        </View>
+        {/* ── Date Selection ────────────────────────────────────── */}
+        <Section icon="calendar-outline" title="Select Date">
+          <FlatList
+            horizontal
+            data={dates}
+            keyExtractor={datePillKeyExtractor}
+            renderItem={renderDatePill}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={S.datePillList}
+          />
+        </Section>
 
-        {/* Reason for Visit */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Reason for Visit <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="E.g., Regular checkup, flu symptoms, etc."
+        {/* ── Time Slots ────────────────────────────────────────── */}
+        <Section icon="time-outline" title="Select Time">
+          {slotsLoading ? (
+            <View style={S.slotsLoadingWrap}>
+              <ActivityIndicator color={Colors.primary} size="small" />
+              <Text style={S.slotsLoadingText}>Loading available slots…</Text>
+            </View>
+          ) : slots.length === 0 ? (
+            <View style={S.noSlotsWrap}>
+              <Ionicons name="calendar-outline" size={48} color={Colors.border} />
+              <Text style={S.noSlotsTitle}>No slots available</Text>
+              <Text style={S.noSlotsSub}>This date is closed or fully booked. Try another day.</Text>
+            </View>
+          ) : (
+            <View style={S.slotsGrid}>
+              {slots.map((slot, i) => {
+                const isSelected = selectedSlot?.display === slot.display;
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={[
+                      S.slotChip,
+                      !slot.available && S.slotChipBooked,
+                      isSelected && S.slotChipSelected,
+                    ]}
+                    onPress={() => handleSlotSelect(slot)}
+                    disabled={!slot.available}
+                    activeOpacity={0.75}
+                  >
+                    <Text
+                      style={[
+                        S.slotChipText,
+                        !slot.available && S.slotChipTextBooked,
+                        isSelected && S.slotChipTextSelected,
+                      ]}
+                    >
+                      {slot.display}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </Section>
+
+        {/* ── Booking For ───────────────────────────────────────── */}
+        <Section icon="people-outline" title="Booking For">
+          {/* Inline segmented control — RTL-safe flex-row pills */}
+          <View style={S.segmentedControl}>
+            <TouchableOpacity
+              style={[S.segment, bookingFor === 'self' && S.segmentActive]}
+              onPress={() => setBookingFor('self')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="person-outline"
+                size={16}
+                color={bookingFor === 'self' ? Colors.white : Colors.textSecondary}
+              />
+              <Text style={[S.segmentText, bookingFor === 'self' && S.segmentTextActive]}>
+                For Myself
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[S.segment, bookingFor === 'family' && S.segmentActive]}
+              onPress={() => setBookingFor('family')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="people-outline"
+                size={16}
+                color={bookingFor === 'family' ? Colors.white : Colors.textSecondary}
+              />
+              <Text style={[S.segmentText, bookingFor === 'family' && S.segmentTextActive]}>
+                Family Member
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Family member name input — visible only when 'family' selected */}
+          {bookingFor === 'family' && (
+            <View style={S.familyInputWrap}>
+              <Text style={S.fieldLabel}>
+                Family Member's Full Name <Text style={S.required}>*</Text>
+              </Text>
+              <TextInput
+                style={S.textInputSingle}
+                placeholder="Enter their full name"
+                placeholderTextColor={Colors.gray}
+                value={familyMemberName}
+                onChangeText={setFamilyMemberName}
+                autoFocus
+              />
+            </View>
+          )}
+        </Section>
+
+        {/* ── Reason for Visit ──────────────────────────────────── */}
+        <Section icon="clipboard-outline" title="Reason for Visit">
+          <FormField
+            label="Describe your symptoms or concern"
+            required
+            placeholder="E.g. routine check-up, persistent headache, follow-up on lab results…"
             value={reason}
             onChangeText={setReason}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
+            lines={3}
           />
-        </View>
+        </Section>
 
-        {/* Medical History Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="medical" size={24} color={colors.primary} />
-            <Text style={styles.sectionTitleLarge}>Medical History</Text>
-          </View>
-          <Text style={styles.sectionSubtitle}>
-            Help the doctor prepare for your visit by providing your medical information
-          </Text>
-
-          {/* Allergies */}
-          <Text style={styles.inputLabel}>Allergies</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="E.g., Penicillin, peanuts, latex (or 'None')"
+        {/* ── Medical History ───────────────────────────────────── */}
+        <Section
+          icon="medical-outline"
+          title="Medical History"
+          subtitle="Help the doctor prepare for your visit. All information is confidential."
+        >
+          <FormField
+            label="Allergies"
+            placeholder="E.g. Penicillin, peanuts, latex — or 'None'"
             value={allergies}
             onChangeText={setAllergies}
-            multiline
-            numberOfLines={2}
-            textAlignVertical="top"
+            lines={2}
           />
-
-          {/* Current Medications */}
-          <Text style={styles.inputLabel}>Current Medications</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="List all medications you're currently taking (or 'None')"
+          <FormField
+            label="Current Medications"
+            placeholder="List all medications you are taking — or 'None'"
             value={currentMedications}
             onChangeText={setCurrentMedications}
-            multiline
-            numberOfLines={2}
-            textAlignVertical="top"
+            lines={2}
           />
-
-          {/* Chronic Conditions */}
-          <Text style={styles.inputLabel}>Chronic Conditions</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="E.g., Diabetes, hypertension, asthma (or 'None')"
+          <FormField
+            label="Chronic Conditions"
+            placeholder="E.g. Diabetes, hypertension, asthma — or 'None'"
             value={chronicConditions}
             onChangeText={setChronicConditions}
-            multiline
-            numberOfLines={2}
-            textAlignVertical="top"
+            lines={2}
           />
 
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.infoText}>
-              Your medical information is confidential and will only be shared with your doctor.
+          {/* Privacy note */}
+          <View style={S.infoBox}>
+            <Ionicons name="lock-closed-outline" size={16} color={Colors.primary} />
+            <Text style={S.infoBoxText}>
+              Your medical information is encrypted and will only be visible to your treating doctor.
             </Text>
           </View>
-        </View>
+        </Section>
 
-        {/* Additional Notes */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Notes (Optional)</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Any additional information for the doctor"
+        {/* ── Additional Notes ──────────────────────────────────── */}
+        <Section icon="create-outline" title="Additional Notes (Optional)">
+          <FormField
+            label="Anything else the doctor should know?"
+            placeholder="Any further details, preferred language, accessibility needs, etc."
             value={notes}
             onChangeText={setNotes}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
+            lines={3}
           />
-        </View>
+        </Section>
 
-        <View style={styles.bottomSpacer} />
+        {/* Footer clearance spacer */}
+        <View style={{ height: footerClearance }} />
       </ScrollView>
 
-      {/* Book Button */}
-      <View style={styles.footer}>
+      {/* ── STICKY FOOTER — sibling to ScrollView inside KAV ──── */}
+      {/* KAV "padding"/"height" behaviour pushes this up with the keyboard */}
+      <View style={[S.footer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
+        {/* Selected slot summary */}
+        {selectedSlot && (
+          <View style={S.footerSummary}>
+            <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+            <Text style={S.footerSummaryText}>
+              {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              {'  ·  '}{selectedSlot.display}
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity
-          style={[styles.bookButton, bookingLoading && styles.bookButtonDisabled]}
-          onPress={handleBookAppointment}
-          disabled={bookingLoading}
+          style={[S.confirmBtn, submitting && S.confirmBtnDisabled]}
+          onPress={handleConfirm}
+          disabled={submitting}
+          activeOpacity={0.85}
         >
-          {bookingLoading ? (
-            <ActivityIndicator size="small" color={colors.white} />
+          {submitting ? (
+            <ActivityIndicator color={Colors.white} size="small" />
           ) : (
             <>
-              <Ionicons name="checkmark-circle" size={24} color={colors.white} />
-              <Text style={styles.bookButtonText}>Book Appointment</Text>
+              <Ionicons name="checkmark-circle-outline" size={20} color={Colors.white} />
+              <Text style={S.confirmBtnText}>Confirm Booking</Text>
             </>
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles
+// RTL RULE: Zero marginLeft/Right, paddingLeft/Right, borderLeftWidth,
+// borderRightWidth, or positional left/right. Logical properties only.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const S = StyleSheet.create({
+  root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: Colors.background,
   },
-  scrollView: {
+  scroll: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
+
+  // ── Doctor Card ──────────────────────────────────────────────────
   doctorCard: {
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.md,
+  },
+  doctorAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primary + '18',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  doctorAvatarText: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   doctorInfo: {
-    alignItems: 'center',
+    flex: 1,
   },
   doctorName: {
-    fontSize: typography.sizes.xl,
+    fontSize: FontSizes.md,
     fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.xs,
+    color: Colors.text,
+    marginBottom: 2,
   },
   doctorSpecialty: {
-    fontSize: typography.sizes.md,
-    color: colors.primary,
-    marginBottom: spacing.xs,
+    fontSize: FontSizes.sm,
+    color: Colors.primary,
+    marginBottom: 2,
   },
   doctorHospital: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
   },
+  feeTag: {
+    backgroundColor: Colors.primary + '1A',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    flexShrink: 0,
+  },
+  feeTagText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+
+  // ── Section wrapper ──────────────────────────────────────────────
   section: {
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.md,
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: Spacing.sm,
   },
-  sectionTitleLarge: {
-    fontSize: typography.sizes.xl,
+  sectionIcon: {
+    marginEnd: Spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: FontSizes.md,
     fontWeight: '700',
-    color: colors.text,
-    marginLeft: spacing.sm,
+    color: Colors.text,
   },
   sectionSubtitle: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
     lineHeight: 20,
+    marginBottom: Spacing.md,
   },
-  inputLabel: {
-    fontSize: typography.sizes.md,
-    fontWeight: '500',
-    color: colors.text,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+
+  // ── Date Pills ───────────────────────────────────────────────────
+  datePillList: {
+    paddingVertical: Spacing.xs,
+    gap: Spacing.sm,
   },
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: colors.background,
-    padding: spacing.md,
-    borderRadius: 8,
-    marginTop: spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
-    marginLeft: spacing.sm,
-    lineHeight: 18,
-  },
-  required: {
-    color: colors.error,
-  },
-  dateButton: {
-    flexDirection: 'row',
+  datePill: {
+    width: 56,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.gray,
+    gap: 2,
   },
-  dateButtonText: {
-    flex: 1,
-    fontSize: typography.sizes.md,
-    color: colors.text,
-    marginLeft: spacing.sm,
+  datePillActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  slotsLoading: {
+  datePillDay: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  datePillNum: {
+    fontSize: FontSizes.lg,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  datePillTextActive: {
+    color: Colors.white,
+  },
+
+  // ── Time Slots Grid ──────────────────────────────────────────────
+  slotsLoadingWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.sm,
   },
   slotsLoadingText: {
-    marginLeft: spacing.sm,
-    fontSize: typography.sizes.md,
-    color: colors.textSecondary,
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
   },
-  noSlotsContainer: {
+  noSlotsWrap: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingVertical: Spacing.xl,
+    gap: Spacing.sm,
   },
-  noSlotsText: {
-    fontSize: typography.sizes.md,
+  noSlotsTitle: {
+    fontSize: FontSizes.md,
     fontWeight: '600',
-    color: colors.text,
-    marginTop: spacing.md,
+    color: Colors.text,
   },
-  noSlotsSubtext: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
+  noSlotsSub: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
   },
+  // Gap-based grid — no directional margins needed.
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -spacing.xs,
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   slotChip: {
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    margin: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.gray,
-    minWidth: 80,
+    minWidth: 88,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     alignItems: 'center',
   },
-  slotChipDisabled: {
-    backgroundColor: '#f5f5f5',
-    borderColor: '#e0e0e0',
+  slotChipBooked: {
+    backgroundColor: Colors.borderLight,
+    borderColor: Colors.borderLight,
   },
   slotChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   slotChipText: {
-    fontSize: typography.sizes.sm,
-    color: colors.text,
-    fontWeight: '500',
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: Colors.text,
   },
-  slotChipTextDisabled: {
-    color: colors.gray,
+  slotChipTextBooked: {
+    color: Colors.gray,
     textDecorationLine: 'line-through',
   },
   slotChipTextSelected: {
-    color: colors.white,
+    color: Colors.white,
   },
-  textInput: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: spacing.md,
-    fontSize: typography.sizes.md,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.gray,
-    minHeight: 80,
+
+  // ── Segmented Control (Booking For) ──────────────────────────────
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
+    padding: 3,
+    gap: 3,
+    marginBottom: Spacing.sm,
   },
-  bottomSpacer: {
-    height: 100,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.background,
-  },
-  bookButton: {
-    backgroundColor: colors.primary,
+  segment: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: 12,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
   },
-  bookButtonDisabled: {
-    opacity: 0.6,
+  segmentActive: {
+    backgroundColor: Colors.primary,
   },
-  bookButtonText: {
-    color: colors.white,
-    fontSize: typography.sizes.lg,
+  segmentText: {
+    fontSize: FontSizes.sm,
     fontWeight: '600',
-    marginLeft: spacing.sm,
+    color: Colors.textSecondary,
   },
-  requestButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
+  segmentTextActive: {
+    color: Colors.white,
+  },
+  familyInputWrap: {
+    marginTop: Spacing.sm,
+  },
+
+  // ── Form Fields ──────────────────────────────────────────────────
+  fieldWrap: {
+    marginBottom: Spacing.md,
+  },
+  fieldLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  required: {
+    color: Colors.error,
+  },
+  textInput: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    fontSize: FontSizes.sm,
+    color: Colors.text,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  textInputSingle: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    fontSize: FontSizes.sm,
+    color: Colors.text,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+
+  // ── Privacy Info Box ─────────────────────────────────────────────
+  // Uses borderStartWidth (logical) — renders on the correct edge in RTL.
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.primary + '0D',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.sm,
+    borderStartWidth: 3,
+    borderStartColor: Colors.primary,
+    gap: Spacing.sm,
+  },
+  infoBoxText: {
+    flex: 1,
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+
+  // ── Sticky Footer ────────────────────────────────────────────────
+  footer: {
+    backgroundColor: Colors.white,
+    paddingTop: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  footerSummary: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.md,
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
-  disabledRequestButton: {
-    backgroundColor: colors.gray,
+  footerSummaryText: {
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
-  requestButtonText: {
-    color: colors.white,
-    fontSize: typography.sizes.lg,
-    fontWeight: '600',
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  confirmBtnDisabled: {
+    opacity: 0.6,
+  },
+  confirmBtnText: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+    color: Colors.white,
   },
 });
-
