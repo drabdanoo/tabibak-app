@@ -717,7 +717,7 @@ const WalkInBookingScreen = ({ route, navigation }) => {
       let patientId    = selectedPatient?.id ?? null;
       let patientName  = selectedPatient?.name         ?? newPatientName.trim();
       let patientPhone = selectedPatient?.phoneNumber  ?? newPatientPhone.trim();
-      let patientGender = selectedPatient?.gender      ?? newPatientGender || null;
+      let patientGender = selectedPatient?.gender      ?? (newPatientGender || null);
 
       if (!selectedPatient && showCreateForm) {
         // Create a lightweight patient profile — addDoc auto-generates the ID
