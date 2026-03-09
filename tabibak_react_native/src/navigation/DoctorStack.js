@@ -5,13 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../config/theme';
 
 // Doctor Screens
-import DoctorDashboardScreen from '../screens/doctor/DoctorDashboardScreen';
+import DoctorDashboardScreen    from '../screens/doctor/DoctorDashboardScreen';
 import DoctorAppointmentsScreen from '../screens/doctor/DoctorAppointmentsScreen';
-import PatientDetailsScreen from '../screens/doctor/PatientDetailsScreen';
-import EMRScreen from '../screens/doctor/EMRScreen';
-import PrescriptionScreen from '../screens/doctor/PrescriptionScreen';
-import DoctorProfileScreen from '../screens/doctor/DoctorProfileScreen';
-import DoctorSettingsScreen from '../screens/doctor/DoctorSettingsScreen';
+import PatientDetailsScreen     from '../screens/doctor/PatientDetailsScreen';
+import EMRScreen                from '../screens/doctor/EMRScreen';
+import PrescriptionScreen       from '../screens/doctor/PrescriptionScreen';
+import DoctorProfileScreen      from '../screens/doctor/DoctorProfileScreen';
+import DoctorSettingsScreen     from '../screens/doctor/DoctorSettingsScreen';
+
+// Shared Screens
+import ChatScreen from '../screens/chat/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -91,14 +94,29 @@ const DoctorStack = () => {
           headerTintColor: Colors.white
         }}
       />
-      <Stack.Screen 
-        name="Settings" 
+      <Stack.Screen
+        name="Settings"
         component={DoctorSettingsScreen}
-        options={{ 
+        options={{
           title: 'Settings',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white
         }}
+      />
+      {/*
+        * Chat screen — headerShown: false because ChatScreen renders its own
+        * custom header (needed for the custom avatar + online indicator).
+        * Navigate from any doctor screen via:
+        *   navigation.navigate('Chat', {
+        *     recipientId:     patientUid,
+        *     recipientName:   'اسم المريض',
+        *     recipientAvatar: null,
+        *   });
+        */}
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

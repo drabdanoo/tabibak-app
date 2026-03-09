@@ -5,14 +5,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../config/theme';
 
 // Patient Screens
-import PatientHomeScreen from '../screens/patient/PatientHomeScreen';
-import DoctorListScreen from '../screens/patient/DoctorListScreen';
-import DoctorDetailsScreen from '../screens/patient/DoctorDetailsScreen';
-import DoctorProfileScreen from '../screens/patient/DoctorProfileScreen';
+import PatientHomeScreen     from '../screens/patient/PatientHomeScreen';
+import DoctorListScreen      from '../screens/patient/DoctorListScreen';
+import DoctorDetailsScreen   from '../screens/patient/DoctorDetailsScreen';
+import DoctorProfileScreen   from '../screens/patient/DoctorProfileScreen';
 import BookAppointmentScreen from '../screens/patient/BookAppointmentScreen';
-import MyAppointmentsScreen from '../screens/patient/MyAppointmentsScreen';
+import MyAppointmentsScreen  from '../screens/patient/MyAppointmentsScreen';
 import MedicalDocumentsScreen from '../screens/patient/MedicalDocumentsScreen';
-import PatientProfileScreen from '../screens/patient/PatientProfileScreen';
+import PatientProfileScreen  from '../screens/patient/PatientProfileScreen';
+
+// Shared Screens
+import ChatScreen from '../screens/chat/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -75,14 +78,10 @@ const PatientStack = () => {
           headerTintColor: Colors.white
         }}
       />
-      <Stack.Screen 
-        name="DoctorDetails" 
+      <Stack.Screen
+        name="DoctorDetails"
         component={DoctorDetailsScreen}
-        options={{ 
-          title: 'Doctor Details',
-          headerStyle: { backgroundColor: Colors.primary },
-          headerTintColor: Colors.white
-        }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="DoctorProfile" 
@@ -93,14 +92,29 @@ const PatientStack = () => {
           headerTintColor: Colors.white
         }}
       />
-      <Stack.Screen 
-        name="BookAppointment" 
+      <Stack.Screen
+        name="BookAppointment"
         component={BookAppointmentScreen}
-        options={{ 
+        options={{
           title: 'Book Appointment',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white
         }}
+      />
+      {/*
+        * Chat screen — headerShown: false because ChatScreen renders its own
+        * custom header (needed for the custom avatar + online indicator).
+        * Navigate from any patient screen via:
+        *   navigation.navigate('Chat', {
+        *     recipientId:     doctorUid,
+        *     recipientName:   'د. اسم الطبيب',
+        *     recipientAvatar: null,
+        *   });
+        */}
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
