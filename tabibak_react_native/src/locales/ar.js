@@ -144,19 +144,53 @@ export default {
 
   // ─── Doctor ────────────────────────────────────────────────────────────────
   doctor: {
-    dashboard:       'لوحة التحكم',
-    todaySchedule:   'جدول اليوم',
-    pendingRequests: 'الطلبات المعلقة',
+    dashboard:          'لوحة التحكم',
+    todaySchedule:      'جدول اليوم',
+    pendingRequests:    'الطلبات المعلقة',
     stats: {
-      today:         'مرضى اليوم',
-      pending:       'معلق',
-      completed:     'مكتمل',
-      remaining:     'متبقي',
+      today:            'مرضى اليوم',
+      pending:          'معلق',
+      completed:        'مكتمل',
+      remaining:        'متبقي',
     },
-    patientDetails:  'تفاصيل المريض',
-    visitNotes:      'ملاحظات الزيارة',
-    noSchedule:      'لا توجد مواعيد اليوم',
-    noPending:       'لا توجد طلبات معلقة',
+    patientDetails:     'تفاصيل المريض',
+    visitNotes:         'ملاحظات الزيارة',
+    noSchedule:         'لا توجد مواعيد اليوم',
+    noScheduleSub:      'استمتع بيومك أو تحقق من الطلبات المعلقة أعلاه.',
+    noPending:          'لا توجد طلبات معلقة',
+
+    // Greetings
+    greetingMorning:    'صباح الخير',
+    greetingAfternoon:  'مساء الخير',
+    greetingEvening:    'مساء الخير',
+    drPrefix:           'د.',
+
+    // Pending carousel empty state
+    allCaughtUp:        'أنت في الموعد!',
+    allCaughtUpSub:     'لا توجد طلبات حجز معلقة.',
+
+    // Section links
+    seeAll:             'عرض الكل',
+
+    // Actions
+    accept:             'قبول',
+    decline:            'رفض',
+    markDone:           'تم الانتهاء',
+    done:               'تم',
+    updating:           'جاري التحديث…',
+    forFamily:          'لـ: {{name}}',
+
+    // Decline confirmation alert
+    declineTitle:       'رفض الطلب',
+    declineMessage:     'هل تريد رفض طلب {{patient}} بتاريخ {{date}}؟\n\nسيتم إشعار المريض.',
+    declineKeep:        'إبقاء',
+    declineConfirm:     'نعم، رفض',
+
+    // Error messages
+    acceptError:        'تعذّر قبول الموعد. يرجى المحاولة مجدداً.',
+    declineError:       'تعذّر رفض الموعد. يرجى المحاولة مجدداً.',
+    markDoneError:      'تعذّر تحديث الموعد. يرجى المحاولة مجدداً.',
+    loadError:          'فشل تحميل لوحة التحكم. يرجى المحاولة مجدداً.',
   },
 
   // ─── Receptionist ──────────────────────────────────────────────────────────
