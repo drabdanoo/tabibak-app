@@ -429,15 +429,15 @@ export function usePushNotifications(options = {}) {
       isMounted = false;
 
       if (tokenListenerRef.current) {
-        Notifications.removeNotificationSubscription(tokenListenerRef.current);
+        tokenListenerRef.current.remove();
         tokenListenerRef.current = null;
       }
       if (receivedListenerRef.current) {
-        Notifications.removeNotificationSubscription(receivedListenerRef.current);
+        receivedListenerRef.current.remove();
         receivedListenerRef.current = null;
       }
       if (responseListenerRef.current) {
-        Notifications.removeNotificationSubscription(responseListenerRef.current);
+        responseListenerRef.current.remove();
         responseListenerRef.current = null;
       }
     };
