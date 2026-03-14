@@ -542,6 +542,103 @@ class AppointmentService {
     }
   }
 
+  // ─── Slot engine (used by BookAppointmentScreen) ───────────────────────────
+
+  /**
+   * Get available 30-minute time slots for a doctor on a given date.
+   *
+   * Algorithm:
+   *   1. Fetch doctor's workingHours for the weekday.
+   *      If closed or config missing → return [].
+   *   2. Fetch all pending + confirmed appointments on that date.
+   *      Build a Set<'HH:MM'> of occupied time keys.
+   *   3. Generate 30-min slots from start→end.
+   *      Mark each slot available = !occupied && !past (for today).
+   *
+   * This is a pure data function — zero UI side-effects.
+   *
+   * @param {string} doctorId — Firestore doctor document ID
+   * @param {string} dateStr  — 'YYYY-MM-DD' in local time
+   * @returns {Promise<Array<{ display: string, time: string, available: boolean }>>}
+   *   display:   '9:00 AM' — human-readable for the slot chip
+   *   time:      '09:00'   — HH:MM stored in appointmentTime field
+   *   available: boolean   — false if booked or in the past (today only)
+   */
+  async getAvailableSlots(doctorId, dateStr) {
+    try {
+      // 1. Doctor working hours
+      const doctorSnap = await getDoc(doc(this.db, COLLECTIONS.DOCTORS, doctorId));
+      if (!doctorSnap.exists()) return [];
+
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dayName = new Date(y, m - 1, d)
+        .toLocaleDateString('en-US', { weekday: 'long' }); // e.g. 'Monday'
+
+      const dayHours = doctorSnap.data().workingHours?.[dayName];
+      // Doctor not working this day
+      if (!dayHours?.open || !dayHours.start || !dayHours.end) return [];
+
+      // Parse 'HH:MM' → total minutes
+      const toMins = (str) => {
+        const parts = str.split(':').map(Number);
+        return Number.isFinite(parts[0]) && Number.isFinite(parts[1])
+          ? parts[0] * 60 + parts[1]
+          : null;
+      };
+      const startMins = toMins(dayHours.start);
+      const endMins   = toMins(dayHours.end);
+      if (startMins === null || endMins === null || startMins >= endMins) return [];
+
+      // 2. Booked appointments → occupied Set<'HH:MM'>
+      const apptSnap = await getDocs(query(
+        collection(this.db, COLLECTIONS.APPOINTMENTS),
+        where('doctorId', '==', doctorId),
+        where('appointmentDate', '==', dateStr),
+        where('status', 'in', ['pending', 'confirmed']),
+      ));
+
+      const occupied = new Set();
+      apptSnap.forEach(docSnap => {
+        const raw = docSnap.data().appointmentTime; // '09:00' or '9:00 AM'
+        if (!raw) return;
+        let hh, mm;
+        if (/[AP]M/i.test(raw)) {
+          const [timePart, period] = raw.trim().split(/\s+/);
+          [hh, mm] = timePart.split(':').map(Number);
+          if (period.toUpperCase() === 'PM' && hh !== 12) hh += 12;
+          if (period.toUpperCase() === 'AM' && hh === 12) hh = 0;
+        } else {
+          [hh, mm] = raw.split(':').map(Number);
+        }
+        if (Number.isFinite(hh) && Number.isFinite(mm)) {
+          occupied.add(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+        }
+      });
+
+      // 3. Generate slots; mark past slots on today as unavailable
+      const now     = new Date();
+      const nowMins = now.getFullYear() === y && (now.getMonth() + 1) === m && now.getDate() === d
+        ? now.getHours() * 60 + now.getMinutes()
+        : -1; // not today — never filter by time
+
+      const slots = [];
+      for (let mins = startMins; mins < endMins; mins += 30) {
+        const hh  = Math.floor(mins / 60);
+        const mm  = mins % 60;
+        const key = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+        const period = hh >= 12 ? 'PM' : 'AM';
+        const h12    = hh % 12 || 12;
+        const display = `${h12}:${String(mm).padStart(2, '0')} ${period}`;
+        const isPast  = nowMins >= 0 && mins <= nowMins;
+        slots.push({ display, time: key, available: !occupied.has(key) && !isPast });
+      }
+      return slots;
+    } catch (err) {
+      console.error('[appointmentService.getAvailableSlots]', err);
+      return [];
+    }
+  }
+
   // ─── Real-time subscriptions (used by DoctorDashboardScreen) ───────────────
 
   /**
