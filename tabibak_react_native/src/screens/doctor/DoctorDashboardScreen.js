@@ -1,81 +1,42 @@
 /**
- * DoctorDashboardScreen — Phase 3: Doctor Core
- * (The Doctor's main dashboard / home tab)
+ * DoctorDashboardScreen — Phase 4: Surgical Rebuild
  *
- * ── Architecture Notes ──────────────────────────────────────────────────────
+ * ── Architectural contracts enforced ─────────────────────────────────────────
  *
- * COMPOUND FIRESTORE QUERIES (two real-time listeners)
- * ─────────────────────────────────────────────────────
+ * DESIGN SYSTEM   — ScreenContainer wraps the entire screen. PrimaryButton for
+ *                   every action. Colors/sizes from theme.js only; zero inline
+ *                   hex values or raw numbers for colour/font.
  *
- * LISTENER 1 — useTodaySchedule  →  "Today's Schedule" section
- *   Compound query:
- *     where('doctorId', '==', uid)
- *     where('appointmentDate', '==', todayStr)   ← 'YYYY-MM-DD'
- *     where('status', 'in', ['confirmed', 'completed'])
- *     orderBy('appointmentTime', 'asc')
+ * RTL             — Logical properties exclusively (marginStart/End,
+ *                   paddingStart/End, alignItems: 'flex-start'/'flex-end').
+ *                   Zero use of left, right, marginLeft, paddingRight.
  *
- *   Rationale: Shows the doctor their confirmed appointments for today in
- *   chronological order. Completed appointments stay visible (greyed out)
- *   so the doctor has a full picture of the day. Using onSnapshot means
- *   any status change (e.g., a nurse marking an appointment complete from
- *   another device) propagates instantly without a manual refresh.
+ * LOCALIZATION    — useTranslation() for every visible string; zero hardcoded
+ *                   text in JSX.
  *
- * LISTENER 2 — usePendingRequests  →  "Pending Requests" horizontal carousel
- *   Compound query:
- *     where('doctorId', '==', uid)
- *     where('status', '==', 'pending')
- *     orderBy('appointmentDate', 'asc')
- *     orderBy('appointmentTime', 'asc')
+ * SERVICE LAYER   — No Firestore imports in this file. All reads/writes go
+ *                   through appointmentService. The UI owns state; the service
+ *                   owns queries.
  *
- *   Rationale: Surfaces ALL pending appointment requests across all future
- *   dates, ordered earliest-first (most urgent = first card). onSnapshot
- *   ensures that when the doctor accepts a request the card vanishes from
- *   the carousel immediately — no stale UI. Pending requests are kept
- *   separate from the schedule because an unconfirmed appointment is not
- *   yet "on the schedule"; it only enters the schedule view once accepted.
+ * 3-STATE UI      — Loading → Error (with retry) → Success. Every async path
+ *                   is explicitly handled and visible to the user.
  *
- * UI LAYOUT STRATEGY
- * ──────────────────
- * Root container: <ScrollView> (vertical)
+ * ── Data flow ────────────────────────────────────────────────────────────────
  *
- * 1. HEADER (static)
- *    Greeting + doctor name + today's date.
+ * Two real-time Firestore listeners are established via appointmentService:
  *
- * 2. STATS ROW (horizontal ScrollView, 4 StatCards)
- *    Derived from live listener data — no extra Firestore reads.
- *    Cards: Today's Patients | Pending | Completed | Remaining.
+ *   subscribeTodaySchedule   → today's confirmed + completed appointments
+ *   subscribePendingRequests → all pending requests across future dates
  *
- * 3. PENDING REQUESTS (horizontal FlatList of action cards)
- *    A horizontal FlatList inside a vertical ScrollView is safe — they
- *    scroll on different axes, so there is no VirtualizedList nesting
- *    violation. Each card is fixed-width (PENDING_CARD_WIDTH = 280) with
- *    a visible peek of the next card to hint scrollability.
- *    Cards expose "Accept" (green) and "Decline" (red) actions.
+ * Both are managed inside a single useEffect keyed on `uid + retryKey`.
+ * Incrementing `retryKey` from the error state re-subscribes both listeners.
  *
- * 4. TODAY'S SCHEDULE (vertical timeline rendered with .map())
- *    Rendered via Array.map() — NOT a nested FlatList — to avoid the
- *    VirtualizedList-inside-ScrollView warning. Each ScheduleItem is a
- *    three-column flex row: [time | dot+connector | content card].
- *    The dot+connector column uses only gap and flex — no directional
- *    positioning — so the timeline line correctly flips to the Arabic
- *    (RTL) side automatically.
+ * ── VirtualizedList note ─────────────────────────────────────────────────────
  *
- * ACTION HANDLERS + PER-CARD LOADING
- * ─────────────────────────────────────
- * `processingId` state holds the Firestore ID of the appointment currently
- * being updated. PendingRequestCard reads this prop and replaces the
- * Accept/Decline button row with <ActivityIndicator> while the write is
- * in flight. Decline triggers Alert.alert() for confirmation before
- * executing the destructive write. MarkDone on schedule items uses the
- * same processingId channel.
- *
- * RTL COMPLIANCE
- * ──────────────
- * ⚠️  This app is in Arabic. Zero marginLeft/Right, paddingLeft/Right,
- * borderLeftWidth/Right, or positional left/right values. Logical
- * properties exclusively: marginStart/End, paddingStart/End,
- * borderStartWidth/EndWidth, start/end positioning.
- * The timeline renders correctly in both LTR and RTL via flex row reversal.
+ * The pending requests horizontal FlatList lives inside a vertical ScrollView.
+ * This is safe because they scroll on different axes (no nesting violation).
+ * The schedule timeline uses Array.map() (not a nested FlatList) to avoid
+ * the VirtualizedList-inside-ScrollView warning.
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -85,89 +46,46 @@ import {
   ScrollView,
   FlatList,
   StyleSheet,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
   StatusBar,
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  doc,
-  updateDoc,
-  serverTimestamp,
-  getFirestore,
-} from 'firebase/firestore';
+
 import { useAuth } from '../../contexts/AuthContext';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import appointmentService from '../../services/appointmentService';
+import { ScreenContainer, PrimaryButton } from '../../components/ui';
+import {
+  colors,
+  spacing,
+  typography,
+  BorderRadius,
+  shadows,
+} from '../../config/theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-/**
- * Fixed width for each pending request card.
- * The visible peek of the next card tells the doctor the list is scrollable.
- */
 const PENDING_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 300);
 
-/** Accent colours for the four stat tiles. */
+/** Accent colours for the four stat tiles — sourced from theme. */
 const STAT_ACCENTS = {
-  today:     Colors.primary,
-  pending:   Colors.warning,
-  completed: '#22C55E',
-  remaining: '#8B5CF6',
+  today:     colors.primary,
+  pending:   colors.warning,
+  completed: colors.success,
+  remaining: colors.info,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Pure helpers  (no hooks, no imports — safe to call anywhere)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Returns time-appropriate greeting string. */
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
-}
-
-/** Returns today's date as 'YYYY-MM-DD' for Firestore equality queries. */
-function getTodayStr() {
-  return new Date().toISOString().split('T')[0];
-}
-
-/** 'YYYY-MM-DD' → 'Mon, Jan 15, 2026' */
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-/**
- * '14:30' → '2:30 PM'
- * Handles strings already containing AM/PM gracefully.
- */
-function formatTime12(timeStr) {
-  if (!timeStr) return '—';
-  if (/[AP]M/i.test(timeStr)) return timeStr;
-  const [h, m] = timeStr.split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  return `${h % 12 || 12}:${String(m ?? 0).padStart(2, '0')} ${ampm}`;
-}
-
-/** Returns first two uppercase initials from a name. */
+/** Returns first two uppercase initials from a display name. */
 function getInitials(name) {
   return (name ?? '')
     .split(' ')
@@ -178,9 +96,29 @@ function getInitials(name) {
     .slice(0, 2) || '?';
 }
 
-/** Friendly long date for the dashboard header. */
+/** '14:30' → '2:30 PM'  (handles strings already containing AM/PM) */
+function formatTime12(timeStr) {
+  if (!timeStr) return '—';
+  if (/[AP]M/i.test(timeStr)) return timeStr;
+  const [h, m] = timeStr.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m ?? 0).padStart(2, '0')} ${period}`;
+}
+
+/** 'YYYY-MM-DD' → locale short date string */
+function formatDateShort(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/** Locale-aware long date for the header (e.g. "Sunday, March 15, 2026") */
 function formatTodayLong() {
-  return new Date().toLocaleDateString('en-US', {
+  return new Date().toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -189,99 +127,20 @@ function formatTodayLong() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Custom Hooks
+// Sub-components  (stable module-scope identity; no anonymous arrow components)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * useTodaySchedule
- *
- * Real-time listener for the doctor's confirmed + completed appointments
- * today, ordered by appointmentTime ASC.
- */
-function useTodaySchedule(uid) {
-  const [schedule, setSchedule] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const db = getFirestore();
-
-  useEffect(() => {
-    if (!uid) { setLoading(false); return; }
-
-    const today = getTodayStr();
-    const q = query(
-      collection(db, 'appointments'),
-      where('doctorId', '==', uid),
-      where('appointmentDate', '==', today),
-      where('status', 'in', ['confirmed', 'completed']),
-      orderBy('appointmentTime', 'asc'),
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setSchedule(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        setLoading(false);
-      },
-      (err) => {
-        console.error('[useTodaySchedule]', err);
-        setLoading(false);
-      },
-    );
-
-    return unsub;
-  }, [uid]);
-
-  return { schedule, loading };
-}
-
-/**
- * usePendingRequests
- *
- * Real-time listener for ALL pending appointment requests assigned to this
- * doctor, ordered by date and time (earliest first = most urgent).
- */
-function usePendingRequests(uid) {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const db = getFirestore();
-
-  useEffect(() => {
-    if (!uid) { setLoading(false); return; }
-
-    const q = query(
-      collection(db, 'appointments'),
-      where('doctorId', '==', uid),
-      where('status', '==', 'pending'),
-      orderBy('appointmentDate', 'asc'),
-      orderBy('appointmentTime', 'asc'),
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        setLoading(false);
-      },
-      (err) => {
-        console.error('[usePendingRequests]', err);
-        setLoading(false);
-      },
-    );
-
-    return unsub;
-  }, [uid]);
-
-  return { requests, loading };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-components  (module-scope for stable identity)
-// ─────────────────────────────────────────────────────────────────────────────
+/** Initials-based avatar circle. */
+const PatientAvatar = React.memo(({ name, size = 44 }) => (
+  <View style={[S.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+    <Text style={S.avatarText}>{getInitials(name)}</Text>
+  </View>
+));
 
 /**
  * StatCard
- *
- * Individual dashboard stat tile. `accent` colours the top border stripe,
- * icon, and value text so each tile is visually distinct at a glance.
+ * Individual stat tile. `accent` drives the top border stripe, icon, and
+ * value text so each tile is visually distinct at a glance.
  */
 const StatCard = React.memo(({ icon, label, value, accent }) => (
   <View style={[S.statCard, { borderTopColor: accent }]}>
@@ -293,104 +152,85 @@ const StatCard = React.memo(({ icon, label, value, accent }) => (
 
 /**
  * SectionHeader
- *
- * Reusable section title row with an optional "See All" action on the end.
+ * Title row with an optional "See all" PrimaryButton (text variant) on the end.
  */
-const SectionHeader = React.memo(({ title, onSeeAll }) => (
+const SectionHeader = React.memo(({ title, onSeeAll, seeAllLabel }) => (
   <View style={S.sectionHeader}>
     <Text style={S.sectionTitle}>{title}</Text>
     {!!onSeeAll && (
-      <TouchableOpacity onPress={onSeeAll} activeOpacity={0.7} hitSlop={12}>
-        <Text style={S.seeAll}>See all</Text>
-      </TouchableOpacity>
+      <PrimaryButton
+        label={seeAllLabel}
+        onPress={onSeeAll}
+        variant="text"
+        style={S.seeAllBtn}
+        textStyle={S.seeAllBtnText}
+      />
     )}
-  </View>
-));
-
-/**
- * PatientAvatar
- *
- * Initials fallback circle.
- */
-const PatientAvatar = React.memo(({ name, size = 44 }) => (
-  <View style={[S.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
-    <Text style={S.avatarText}>{getInitials(name)}</Text>
   </View>
 ));
 
 /**
  * PendingRequestCard
  *
- * Fixed-width card shown in the horizontal pending requests carousel.
- *
- * Loading state: when `processingId === item.id`, the Accept/Decline row
- * is replaced by an ActivityIndicator so the doctor gets clear visual
- * feedback that the specific card is being updated.
+ * Fixed-width card in the horizontal pending carousel.
+ * When `processingId === item.id` the Accept/Decline row is replaced by a
+ * loading spinner via PrimaryButton's built-in loading state.
  */
-const PendingRequestCard = React.memo(({ item, processingId, onAccept, onDecline }) => {
+const PendingRequestCard = React.memo(({ item, processingId, onAccept, onDecline, t }) => {
   const isProcessing = processingId === item.id;
 
   return (
-    <View style={S.pendingCard}>
+    <View style={[S.pendingCard, shadows.md]}>
       {/* Patient row */}
       <View style={S.pendingCardHeader}>
         <PatientAvatar name={item.patientName} />
         <View style={S.pendingCardInfo}>
           <Text style={S.pendingPatientName} numberOfLines={1}>
-            {item.patientName ?? 'Patient'}
+            {item.patientName ?? '—'}
           </Text>
           <View style={S.pendingMeta}>
-            <Ionicons name="calendar-outline" size={12} color={Colors.textSecondary} />
-            <Text style={S.pendingMetaText}>{formatDate(item.appointmentDate)}</Text>
+            <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
+            <Text style={S.pendingMetaText}>{formatDateShort(item.appointmentDate)}</Text>
             <View style={S.metaDot} />
-            <Ionicons name="time-outline" size={12} color={Colors.textSecondary} />
+            <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
             <Text style={S.pendingMetaText}>{formatTime12(item.appointmentTime)}</Text>
           </View>
         </View>
       </View>
 
-      {/* Reason */}
+      {/* Visit reason */}
       {!!item.reason && (
         <Text style={S.pendingReason} numberOfLines={2}>{item.reason}</Text>
       )}
 
-      {/* Family member */}
+      {/* Family member sub-line */}
       {item.bookingFor === 'family' && !!item.familyMemberName && (
         <View style={S.familyRow}>
-          <Ionicons name="people-outline" size={12} color={Colors.textSecondary} />
-          <Text style={S.familyText}>For: {item.familyMemberName}</Text>
+          <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+          <Text style={S.familyText}>{t('doctor.forFamily', { name: item.familyMemberName })}</Text>
         </View>
       )}
 
       <View style={S.pendingDivider} />
 
-      {/* Action row / loading state */}
-      {isProcessing ? (
-        <View style={S.processingRow}>
-          <ActivityIndicator size="small" color={Colors.primary} />
-          <Text style={S.processingText}>Updating…</Text>
-        </View>
-      ) : (
-        <View style={S.actionRow}>
-          <TouchableOpacity
-            style={S.acceptBtn}
-            onPress={() => onAccept(item)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="checkmark" size={15} color={Colors.white} />
-            <Text style={S.acceptBtnText}>Accept</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={S.declineBtn}
-            onPress={() => onDecline(item)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="close" size={15} color={Colors.error} />
-            <Text style={S.declineBtnText}>Decline</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Action row */}
+      <View style={S.actionRow}>
+        <PrimaryButton
+          label={t('doctor.accept')}
+          onPress={() => onAccept(item)}
+          variant="filled"
+          loading={isProcessing}
+          disabled={isProcessing}
+          style={S.actionBtnHalf}
+        />
+        <PrimaryButton
+          label={t('doctor.decline')}
+          onPress={() => onDecline(item)}
+          variant="outline"
+          disabled={isProcessing}
+          style={S.actionBtnHalf}
+        />
+      </View>
     </View>
   );
 });
@@ -398,82 +238,74 @@ const PendingRequestCard = React.memo(({ item, processingId, onAccept, onDecline
 /**
  * ScheduleItem
  *
- * Single row in the today's schedule timeline.
+ * Single row in the today's timeline.
+ * Three-column layout: [Time (68 px)] [Dot + connector (20 px)] [Card (flex:1)]
  *
- * Three-column layout:
- *   [Time (68px)] [Dot + Connector (24px)] [Content Card (flex:1)]
- *
- * RTL behaviour: flexDirection:'row' auto-reverses in Arabic —
- *   LTR visual: Time | Dot | Content
- *   RTL visual: Content | Dot | Time
- * The dot and connecting line stay centred in their column on both sides.
- * No absolute left/right positioning needed.
- *
- * The connector (vertical line) uses flex:1 inside its column, so it
- * naturally extends to match the content card height regardless of the
- * number of lines of text. The last item hides its connector.
+ * RTL: flexDirection:'row' auto-reverses in Arabic so the timeline dot
+ * appears on the correct reading-direction side with no explicit mirroring.
+ * No left/right values anywhere in these styles.
  */
-const ScheduleItem = React.memo(({ item, isLast, processingId, onMarkDone }) => {
+const ScheduleItem = React.memo(({ item, isLast, processingId, onMarkDone, t }) => {
   const isCompleted  = item.status === 'completed';
   const isProcessing = processingId === item.id;
-  const dotColor     = isCompleted ? '#6B7280' : Colors.primary;
+  const dotColor     = isCompleted ? colors.textSecondary : colors.primary;
 
   return (
     <View style={S.scheduleRow}>
-
-      {/* ── Time column ─────────────────────────────────────────── */}
+      {/* Time column */}
       <View style={S.timeCol}>
         <Text style={[S.timeStr, isCompleted && S.timeMuted]}>
           {formatTime12(item.appointmentTime)}
         </Text>
       </View>
 
-      {/* ── Dot + connector column ──────────────────────────────── */}
-      {/* flex column — dot at top, connector line fills remainder */}
+      {/* Dot + vertical connector */}
       <View style={S.timelineCol}>
         <View style={[S.dot, { backgroundColor: dotColor }]} />
         {!isLast && <View style={S.connector} />}
       </View>
 
-      {/* ── Content card ────────────────────────────────────────── */}
+      {/* Content card */}
       <View style={[S.scheduleCard, isCompleted && S.scheduleCardMuted, !isLast && S.scheduleCardGap]}>
         <View style={S.scheduleCardRow}>
           <PatientAvatar name={item.patientName} size={36} />
           <View style={S.scheduleCardInfo}>
             <Text style={S.schedulePatientName} numberOfLines={1}>
-              {item.patientName ?? 'Patient'}
+              {item.patientName ?? '—'}
             </Text>
             {!!item.reason && (
               <Text style={S.scheduleReason} numberOfLines={1}>{item.reason}</Text>
             )}
           </View>
 
-          {/* Completed badge or Mark Done button */}
+          {/* Done badge or Mark Done button */}
           {isCompleted ? (
             <View style={S.doneBadge}>
-              <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-              <Text style={S.doneBadgeText}>Done</Text>
+              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+              <Text style={[S.doneBadgeText, { color: colors.success }]}>
+                {t('doctor.done')}
+              </Text>
             </View>
           ) : (
-            <TouchableOpacity
-              style={[S.markDoneBtn, isProcessing && S.markDoneBtnDisabled]}
+            <PrimaryButton
+              label={t('doctor.markDone')}
               onPress={() => onMarkDone(item)}
+              variant="outline"
+              loading={isProcessing}
               disabled={isProcessing}
-              activeOpacity={0.8}
-            >
-              {isProcessing
-                ? <ActivityIndicator size="small" color={Colors.primary} />
-                : <Text style={S.markDoneBtnText}>Mark Done</Text>
-              }
-            </TouchableOpacity>
+              style={S.markDoneBtn}
+              textStyle={S.markDoneBtnText}
+            />
           )}
         </View>
 
-        {/* Family member sub-line */}
+        {/* Family sub-line */}
         {item.bookingFor === 'family' && !!item.familyMemberName && (
           <View style={S.scheduleFamilyRow}>
-            <Ionicons name="people-outline" size={12} color={Colors.textSecondary} />
-            <Text style={S.familyText}>For: {item.familyMemberName}</Text>
+            <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+            <Text style={S.familyText}>
+              {t('doctor.forFamily', { name: item.familyMemberName })}
+            </Text>
           </View>
         )}
       </View>
@@ -481,23 +313,21 @@ const ScheduleItem = React.memo(({ item, isLast, processingId, onMarkDone }) => 
   );
 });
 
-/** Shown inside the pending carousel when there are no pending requests. */
-const PendingEmptyCard = React.memo(() => (
-  <View style={S.emptyCard}>
-    <Ionicons name="checkmark-circle-outline" size={40} color={Colors.primary} />
-    <Text style={S.emptyCardTitle}>All caught up!</Text>
-    <Text style={S.emptyCardSub}>No pending appointment requests.</Text>
+/** Shown in the pending carousel when there are no pending requests. */
+const PendingEmptyCard = React.memo(({ t }) => (
+  <View style={[S.emptyCard, shadows.sm]}>
+    <Ionicons name="checkmark-circle-outline" size={40} color={colors.primary} />
+    <Text style={S.emptyCardTitle}>{t('doctor.allCaughtUp')}</Text>
+    <Text style={S.emptyCardSub}>{t('doctor.allCaughtUpSub')}</Text>
   </View>
 ));
 
-/** Shown in the schedule section when there are no appointments today. */
-const ScheduleEmpty = React.memo(() => (
+/** Shown in the schedule section when there are no confirmed appointments today. */
+const ScheduleEmpty = React.memo(({ t }) => (
   <View style={S.scheduleEmpty}>
-    <Ionicons name="calendar-outline" size={48} color={Colors.border} />
-    <Text style={S.scheduleEmptyTitle}>No appointments today</Text>
-    <Text style={S.scheduleEmptySub}>
-      Enjoy the day or check pending requests above.
-    </Text>
+    <Ionicons name="calendar-outline" size={48} color={colors.border} />
+    <Text style={S.scheduleEmptyTitle}>{t('doctor.noSchedule')}</Text>
+    <Text style={S.scheduleEmptySub}>{t('doctor.noScheduleSub')}</Text>
   </View>
 ));
 
@@ -506,22 +336,74 @@ const ScheduleEmpty = React.memo(() => (
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DoctorDashboardScreen({ navigation }) {
-  const db     = getFirestore();
-  const insets = useSafeAreaInsets();
-  const { user, userProfile } = useAuth();
-  const uid = user?.uid;
+  const { t }                       = useTranslation();
+  const insets                      = useSafeAreaInsets();
+  const { user, userProfile }       = useAuth();
+  const uid                         = user?.uid;
 
-  // ── Data ──────────────────────────────────────────────────────────────────
-  const { schedule, loading: scheduleLoading } = useTodaySchedule(uid);
-  const { requests, loading: requestsLoading } = usePendingRequests(uid);
+  // ── Data state ─────────────────────────────────────────────────────────────
+  const [schedule, setSchedule]     = useState([]);
+  const [requests, setRequests]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
 
-  // ── Per-card action loading state ─────────────────────────────────────────
-  // Holds the Firestore ID of the appointment currently being written.
-  // PendingRequestCard and ScheduleItem both read this to show their
-  // individual ActivityIndicator without affecting other cards.
+  // ── Per-card write loading ──────────────────────────────────────────────────
+  // Holds the appointment ID currently being written to Firestore.
+  // Sub-components read this to show their individual spinner.
   const [processingId, setProcessingId] = useState(null);
 
-  // ── Derived stats ─────────────────────────────────────────────────────────
+  // ── Retry trigger ──────────────────────────────────────────────────────────
+  // Incrementing this integer re-subscribes both Firestore listeners.
+  const [retryKey, setRetryKey] = useState(0);
+
+  // ── Subscribe to real-time data ────────────────────────────────────────────
+  useEffect(() => {
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    let scheduleReady  = false;
+    let requestsReady  = false;
+
+    const markReady = () => {
+      if (scheduleReady && requestsReady) setLoading(false);
+    };
+
+    const handleError = (err) => {
+      console.error('[DoctorDashboard] listener error:', err);
+      setError(t('doctor.loadError'));
+    };
+
+    const unsubSchedule = appointmentService.subscribeTodaySchedule(
+      uid,
+      (data) => {
+        setSchedule(data);
+        setError(null);
+        scheduleReady = true;
+        markReady();
+      },
+      (err) => { handleError(err); scheduleReady = true; markReady(); },
+    );
+
+    const unsubRequests = appointmentService.subscribePendingRequests(
+      uid,
+      (data) => {
+        setRequests(data);
+        setError(null);
+        requestsReady = true;
+        markReady();
+      },
+      (err) => { handleError(err); requestsReady = true; markReady(); },
+    );
+
+    return () => { unsubSchedule(); unsubRequests(); };
+  }, [uid, retryKey]);
+
+  // ── Derived stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => ({
     today:     schedule.length,
     pending:   requests.length,
@@ -529,85 +411,66 @@ export default function DoctorDashboardScreen({ navigation }) {
     remaining: schedule.filter(a => a.status === 'confirmed').length,
   }), [schedule, requests]);
 
-  // ── Greeting ──────────────────────────────────────────────────────────────
-  const greeting  = getGreeting();
-  const firstName = (userProfile?.fullName ?? user?.displayName ?? '').split(' ')[0] || 'Doctor';
+  // ── Greeting ───────────────────────────────────────────────────────────────
+  const greetingKey = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'doctor.greetingMorning';
+    if (h < 18) return 'doctor.greetingAfternoon';
+    return 'doctor.greetingEvening';
+  }, []);
 
-  // ── Action: Accept pending request ────────────────────────────────────────
-  // Executes updateDoc immediately — no confirmation needed for acceptance.
-  // The onSnapshot listener removes the card from the pending carousel
-  // and (if today) the newly confirmed appointment appears in the schedule.
+  const firstName = (userProfile?.fullName ?? user?.displayName ?? '')
+    .split(' ')[0] || t('auth.doctor');
+
+  // ── Action: Accept ─────────────────────────────────────────────────────────
   const handleAccept = useCallback(async (appointment) => {
-    if (processingId) return; // block concurrent writes
+    if (processingId) return;
     setProcessingId(appointment.id);
-    try {
-      await updateDoc(doc(db, 'appointments', appointment.id), {
-        status: 'confirmed',
-        confirmedAt: serverTimestamp(),
-        confirmedBy: 'doctor',
-      });
-    } catch (err) {
-      console.error('[DoctorDashboard] accept error:', err);
-      Alert.alert('Error', 'Could not accept the appointment. Please try again.');
-    } finally {
-      setProcessingId(null);
+    const result = await appointmentService.acceptAppointment(appointment.id, uid);
+    if (!result.success) {
+      Alert.alert(t('errors.generic'), t('doctor.acceptError'));
     }
-  }, [processingId]);
+    setProcessingId(null);
+  }, [processingId, uid, t]);
 
-  // ── Action: Decline pending request ───────────────────────────────────────
-  // Shows a confirmation Alert before executing the destructive write.
-  // processingId is only set AFTER the user confirms — no loading flicker
-  // if the doctor taps "Keep" in the alert.
+  // ── Action: Decline ────────────────────────────────────────────────────────
   const handleDecline = useCallback((appointment) => {
     Alert.alert(
-      'Decline Request',
-      `Decline ${appointment.patientName ?? 'this patient'}'s appointment ` +
-      `request on ${formatDate(appointment.appointmentDate)}?\n\n` +
-      'The patient will be notified.',
+      t('doctor.declineTitle'),
+      t('doctor.declineMessage', {
+        patient: appointment.patientName ?? '—',
+        date:    formatDateShort(appointment.appointmentDate),
+      }),
       [
-        { text: 'Keep', style: 'cancel' },
+        { text: t('doctor.declineKeep'), style: 'cancel' },
         {
-          text: 'Yes, Decline',
+          text:  t('doctor.declineConfirm'),
           style: 'destructive',
           onPress: async () => {
             setProcessingId(appointment.id);
-            try {
-              await updateDoc(doc(db, 'appointments', appointment.id), {
-                status: 'cancelled',
-                cancelledAt: serverTimestamp(),
-                cancelledBy: 'doctor',
-              });
-            } catch (err) {
-              console.error('[DoctorDashboard] decline error:', err);
-              Alert.alert('Error', 'Could not decline the appointment. Please try again.');
-            } finally {
-              setProcessingId(null);
+            const result = await appointmentService.declineAppointment(appointment.id, uid);
+            if (!result.success) {
+              Alert.alert(t('errors.generic'), t('doctor.declineError'));
             }
+            setProcessingId(null);
           },
         },
       ],
     );
-  }, []);
+  }, [uid, t]);
 
-  // ── Action: Mark appointment as done ──────────────────────────────────────
+  // ── Action: Mark Done ──────────────────────────────────────────────────────
   const handleMarkDone = useCallback(async (appointment) => {
     if (processingId) return;
     setProcessingId(appointment.id);
-    try {
-      await updateDoc(doc(db, 'appointments', appointment.id), {
-        status: 'completed',
-        completedAt: serverTimestamp(),
-      });
-      // onSnapshot updates the schedule item status instantly
-    } catch (err) {
-      console.error('[DoctorDashboard] markDone error:', err);
-      Alert.alert('Error', 'Could not update the appointment.');
-    } finally {
-      setProcessingId(null);
+    const result = await appointmentService.markAppointmentDone(appointment.id);
+    if (!result.success) {
+      Alert.alert(t('errors.generic'), t('doctor.markDoneError'));
     }
-  }, [processingId]);
+    setProcessingId(null);
+  }, [processingId, t]);
 
-  // ── Pending FlatList callbacks ─────────────────────────────────────────────
+  // ── FlatList callbacks ─────────────────────────────────────────────────────
   const pendingKeyExtractor = useCallback((item) => item.id, []);
 
   const renderPendingItem = useCallback(
@@ -617,47 +480,75 @@ export default function DoctorDashboardScreen({ navigation }) {
         processingId={processingId}
         onAccept={handleAccept}
         onDecline={handleDecline}
+        t={t}
       />
     ),
-    [processingId, handleAccept, handleDecline],
+    [processingId, handleAccept, handleDecline, t],
   );
 
-  // ── Navigation helpers ─────────────────────────────────────────────────────
-  const handleSeeAllAppointments = useCallback(() => {
-    navigation.navigate('DoctorAppointments');
-  }, [navigation]);
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  const goToAppointments = useCallback(
+    () => navigation.navigate('Appointments'),
+    [navigation],
+  );
 
-  // ── Full-screen initial loading ────────────────────────────────────────────
-  if (scheduleLoading && requestsLoading) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // STATE 1: Loading
+  // ─────────────────────────────────────────────────────────────────────────
+  if (loading) {
     return (
-      <View style={[S.loadingScreen, { paddingTop: insets.top }]}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
-        <ActivityIndicator size="large" color={Colors.white} />
-        <Text style={S.loadingScreenText}>Loading dashboard…</Text>
-      </View>
+      <ScreenContainer>
+        <StatusBar barStyle="dark-content" />
+        <View style={S.centeredFill}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={S.loadingText}>{t('common.loading')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // STATE 2: Error (no data received at all)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (error !== null && schedule.length === 0 && requests.length === 0) {
+    return (
+      <ScreenContainer>
+        <StatusBar barStyle="dark-content" />
+        <View style={S.centeredFill}>
+          <Ionicons name="cloud-offline-outline" size={56} color={colors.error} />
+          <Text style={S.errorTitle}>{t('errors.generic')}</Text>
+          <Text style={S.errorSub}>{error}</Text>
+          <PrimaryButton
+            label={t('common.retry')}
+            onPress={() => setRetryKey(k => k + 1)}
+            style={S.retryBtn}
+          />
+        </View>
+      </ScreenContainer>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // STATE 3: Success
+  // edges={['bottom']} — SafeAreaView handles only the bottom inset.
+  // The green header View uses useSafeAreaInsets() to absorb the top inset,
+  // so it correctly bleeds under the status bar on both platforms.
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <View style={S.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+    <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          S.scrollContent,
-          { paddingBottom: insets.bottom + Spacing.xl },
-        ]}
+        contentContainerStyle={S.scrollContent}
       >
-        {/* ── HEADER ───────────────────────────────────────────────────────── */}
-        <View style={[S.header, { paddingTop: insets.top + Spacing.md }]}>
+        {/* ── HEADER ─────────────────────────────────────────────────────── */}
+        <View style={[S.header, { paddingTop: insets.top + spacing.md }]}>
           <View style={S.headerText}>
-            <Text style={S.greeting}>{greeting},</Text>
-            <Text style={S.doctorFirstName}>Dr. {firstName}</Text>
+            <Text style={S.greeting}>{t(greetingKey)},</Text>
+            <Text style={S.doctorName}>{t('doctor.drPrefix')} {firstName}</Text>
             <Text style={S.headerDate}>{formatTodayLong()}</Text>
           </View>
-          {/* Doctor avatar */}
           <View style={S.headerAvatar}>
             <Text style={S.headerAvatarText}>
               {getInitials(userProfile?.fullName ?? user?.displayName)}
@@ -665,8 +556,7 @@ export default function DoctorDashboardScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── STATS ROW ────────────────────────────────────────────────────── */}
-        {/* Horizontal ScrollView — simple, no pagination needed for 4 tiles */}
+        {/* ── STATS ROW ──────────────────────────────────────────────────── */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -674,42 +564,39 @@ export default function DoctorDashboardScreen({ navigation }) {
         >
           <StatCard
             icon="people-outline"
-            label="Today's Patients"
+            label={t('doctor.stats.today')}
             value={stats.today}
             accent={STAT_ACCENTS.today}
           />
           <StatCard
             icon="time-outline"
-            label="Pending Requests"
+            label={t('doctor.stats.pending')}
             value={stats.pending}
             accent={STAT_ACCENTS.pending}
           />
           <StatCard
             icon="checkmark-circle-outline"
-            label="Completed"
+            label={t('doctor.stats.completed')}
             value={stats.completed}
             accent={STAT_ACCENTS.completed}
           />
           <StatCard
             icon="calendar-outline"
-            label="Remaining"
+            label={t('doctor.stats.remaining')}
             value={stats.remaining}
             accent={STAT_ACCENTS.remaining}
           />
         </ScrollView>
 
-        {/* ── PENDING REQUESTS ─────────────────────────────────────────────── */}
+        {/* ── PENDING REQUESTS ───────────────────────────────────────────── */}
         <SectionHeader
-          title="Pending Requests"
-          onSeeAll={requests.length > 0 ? handleSeeAllAppointments : undefined}
+          title={t('doctor.pendingRequests')}
+          seeAllLabel={t('doctor.seeAll')}
+          onSeeAll={requests.length > 0 ? goToAppointments : undefined}
         />
 
-        {requestsLoading ? (
-          <View style={S.sectionLoadingWrap}>
-            <ActivityIndicator color={Colors.primary} />
-          </View>
-        ) : requests.length === 0 ? (
-          <PendingEmptyCard />
+        {requests.length === 0 ? (
+          <PendingEmptyCard t={t} />
         ) : (
           /*
            * Horizontal FlatList inside vertical ScrollView — safe because
@@ -722,33 +609,28 @@ export default function DoctorDashboardScreen({ navigation }) {
             renderItem={renderPendingItem}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={S.pendingList}
-            snapToInterval={PENDING_CARD_WIDTH + Spacing.md}
+            snapToInterval={PENDING_CARD_WIDTH + spacing.md}
             decelerationRate="fast"
-            // FlatList performance props
             initialNumToRender={3}
             maxToRenderPerBatch={3}
             windowSize={5}
           />
         )}
 
-        {/* ── TODAY'S SCHEDULE ─────────────────────────────────────────────── */}
+        {/* ── TODAY'S SCHEDULE ───────────────────────────────────────────── */}
         <SectionHeader
-          title="Today's Schedule"
-          onSeeAll={handleSeeAllAppointments}
+          title={t('doctor.todaySchedule')}
+          seeAllLabel={t('doctor.seeAll')}
+          onSeeAll={goToAppointments}
         />
 
         <View style={S.scheduleWrap}>
-          {scheduleLoading ? (
-            <View style={S.sectionLoadingWrap}>
-              <ActivityIndicator color={Colors.primary} />
-            </View>
-          ) : schedule.length === 0 ? (
-            <ScheduleEmpty />
+          {schedule.length === 0 ? (
+            <ScheduleEmpty t={t} />
           ) : (
             /*
-             * .map() instead of a nested FlatList to avoid VirtualizedList-
-             * inside-ScrollView warning. The list is bounded (max ~20 items
-             * per day), so the performance trade-off is acceptable.
+             * Array.map() avoids VirtualizedList-inside-ScrollView warning.
+             * Bounded to ~20 items/day — rendering cost is negligible.
              */
             schedule.map((item, index) => (
               <ScheduleItem
@@ -757,184 +639,185 @@ export default function DoctorDashboardScreen({ navigation }) {
                 isLast={index === schedule.length - 1}
                 processingId={processingId}
                 onMarkDone={handleMarkDone}
+                t={t}
               />
             ))
           )}
         </View>
       </ScrollView>
-    </View>
+    </ScreenContainer>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
+//
 // RTL RULE: Zero marginLeft/Right, paddingLeft/Right, borderLeftWidth/Right,
-// or positional left/right. Logical properties exclusively.
+// or positional left/right. Logical properties (Start/End) exclusively.
+// Colors from theme.js only. Font sizes from typography.sizes only.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
 
-  // ── Root ────────────────────────────────────────────────────────────────────
-  root: {
+  // ── Loading / Error shared centred layout ────────────────────────────────
+  centeredFill: {
     flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-
-  // ── Initial loading screen ──────────────────────────────────────────────────
-  loadingScreen: {
-    flex: 1,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.md,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
   },
-  loadingScreenText: {
-    color: Colors.white,
-    fontSize: FontSizes.md,
-    fontWeight: '500',
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+  },
+  errorTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  errorSub: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  retryBtn: {
+    minWidth: 160,
+    marginTop: spacing.sm,
   },
 
-  // ── Header ──────────────────────────────────────────────────────────────────
-  // Green band that contains the greeting and doctor avatar.
+  // ── ScrollView ───────────────────────────────────────────────────────────
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: spacing.xl,
+  },
+
+  // ── Header (green band) ──────────────────────────────────────────────────
   header: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
-    gap: Spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   headerText: {
     flex: 1,
     gap: 2,
   },
   greeting: {
-    fontSize: FontSizes.sm,
-    color: Colors.white + 'CC',
+    fontSize: typography.sizes.sm,
+    color: colors.white + 'CC',
     fontWeight: '500',
   },
-  doctorFirstName: {
-    fontSize: FontSizes.xl,
+  doctorName: {
+    fontSize: typography.sizes.xl,
     fontWeight: '800',
-    color: Colors.white,
+    color: colors.white,
   },
   headerDate: {
-    fontSize: FontSizes.xs,
-    color: Colors.white + 'AA',
+    fontSize: typography.sizes.xs,
+    color: colors.white + 'AA',
     marginTop: 2,
   },
   headerAvatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: Colors.white + '30',
+    backgroundColor: colors.white + '30',
     borderWidth: 2,
-    borderColor: Colors.white + '60',
+    borderColor: colors.white + '60',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   headerAvatarText: {
-    fontSize: FontSizes.lg,
+    fontSize: typography.sizes.lg,
     fontWeight: '700',
-    color: Colors.white,
+    color: colors.white,
   },
 
-  // ── Stats Row ────────────────────────────────────────────────────────────────
+  // ── Stats Row ────────────────────────────────────────────────────────────
   statsRow: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
-    // Pull cards up into the green header band for a layered look
-    marginTop: -Spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    marginTop: -spacing.lg,        // pulls cards up into the green header band
   },
   statCard: {
     width: 110,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     borderTopWidth: 4,
-    padding: Spacing.md,
-    gap: Spacing.xs,
+    padding: spacing.md,
+    gap: spacing.xs,
     alignItems: 'flex-start',
-    // Elevation
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    ...shadows.md,
   },
   statValue: {
-    fontSize: FontSizes.xl,
+    fontSize: typography.sizes.xl,
     fontWeight: '800',
   },
   statLabel: {
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
     lineHeight: 16,
   },
 
-  // ── Section Header ───────────────────────────────────────────────────────────
+  // ── Section Header ───────────────────────────────────────────────────────
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   sectionTitle: {
     flex: 1,
-    fontSize: FontSizes.lg,
+    fontSize: typography.sizes.lg,
     fontWeight: '700',
-    color: Colors.text,
+    color: colors.text,
   },
-  seeAll: {
-    fontSize: FontSizes.sm,
+  // PrimaryButton overrides — shrink the text-variant button to label size
+  seeAllBtn: {
+    height: 'auto',
+    paddingHorizontal: 0,
+    paddingVertical: spacing.xs,
+    minWidth: 0,
+  },
+  seeAllBtnText: {
+    fontSize: typography.sizes.sm,
     fontWeight: '600',
-    color: Colors.primary,
   },
 
-  // ── Section loading placeholder ──────────────────────────────────────────────
-  sectionLoadingWrap: {
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // ── Pending Request Cards ────────────────────────────────────────────────────
+  // ── Pending Carousel ─────────────────────────────────────────────────────
   pendingList: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.md,
   },
   pendingCard: {
     width: PENDING_CARD_WIDTH,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    // Elevation
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 4,
+    padding: spacing.md,
   },
   pendingCardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   pendingCardInfo: {
     flex: 1,
     gap: 4,
   },
   pendingPatientName: {
-    fontSize: FontSizes.md,
+    fontSize: typography.sizes.md,
     fontWeight: '700',
-    color: Colors.text,
+    color: colors.text,
   },
   pendingMeta: {
     flexDirection: 'row',
@@ -943,198 +826,139 @@ const S = StyleSheet.create({
     flexWrap: 'wrap',
   },
   pendingMetaText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
   },
   metaDot: {
     width: 3,
     height: 3,
-    borderRadius: 1.5,
-    backgroundColor: Colors.border,
+    borderRadius: 2,
+    backgroundColor: colors.border,
   },
   pendingReason: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
     lineHeight: 20,
-    marginBottom: Spacing.xs,
+    marginBottom: spacing.xs,
   },
   familyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: Spacing.xs,
+    marginBottom: spacing.xs,
   },
   familyText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   pendingDivider: {
     height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: Spacing.sm,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
   },
-
-  // Processing row — replaces action buttons while write is in flight
-  processingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.sm,
-  },
-  processingText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-  },
-
-  // Accept / Decline action row
   actionRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: spacing.sm,
   },
-  acceptBtn: {
+  // Each action button fills half the card width
+  actionBtnHalf: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-  },
-  acceptBtnText: {
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  declineBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    backgroundColor: Colors.error + '10',
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.error + '40',
-  },
-  declineBtnText: {
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-    color: Colors.error,
+    height: 40,
   },
 
-  // Pending empty card (when no requests)
+  // Pending empty card
   emptyCard: {
-    marginHorizontal: Spacing.md,
-    backgroundColor: Colors.white,
+    marginHorizontal: spacing.md,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
+    padding: spacing.xl,
     alignItems: 'center',
-    gap: Spacing.sm,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    gap: spacing.sm,
   },
   emptyCardTitle: {
-    fontSize: FontSizes.md,
+    fontSize: typography.sizes.md,
     fontWeight: '700',
-    color: Colors.text,
+    color: colors.text,
   },
   emptyCardSub: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 
-  // ── Patient Avatar ───────────────────────────────────────────────────────────
+  // ── Patient Avatar ───────────────────────────────────────────────────────
   avatar: {
-    backgroundColor: Colors.primary + '18',
+    backgroundColor: colors.primary + '18',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   avatarText: {
-    fontSize: FontSizes.sm,
+    fontSize: typography.sizes.sm,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
 
-  // ── Today's Schedule Timeline ────────────────────────────────────────────────
+  // ── Schedule Timeline ────────────────────────────────────────────────────
   scheduleWrap: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
   },
-
-  // Each timeline row: [Time] [Dot+Line] [Card]
+  // Each timeline row: [Time 68px] [Dot+Line 20px] [Card flex:1]
   scheduleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     minHeight: 64,
   },
-
-  // Time column — fixed width so all dots align on the same axis
+  // Time column — fixed width; text flush toward the connector
   timeCol: {
     width: 64,
-    paddingTop: 10,          // vertically aligns the time with the dot
-    alignItems: 'flex-end', // text flush to the connector column
-    paddingEnd: Spacing.sm,
+    paddingTop: 10,
+    alignItems: 'flex-end',
+    paddingEnd: spacing.sm,
   },
   timeStr: {
-    fontSize: FontSizes.xs,
+    fontSize: typography.sizes.xs,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
     textAlign: 'center',
   },
   timeMuted: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
-
-  // Dot + connector column — centred between time and content
+  // Dot + connector column
   timelineCol: {
     width: 20,
     alignItems: 'center',
-    // Stretch to full height of the row so the connector fills it
   },
   dot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginTop: 10, // aligns with the time text baseline
+    marginTop: 10,
     zIndex: 1,
-    // White ring to separate dot from connector line
     borderWidth: 2,
-    borderColor: Colors.white,
+    borderColor: colors.white,
   },
-  // Vertical connecting line from this dot to the next — flex:1 makes it
-  // grow to exactly the content card height, connecting dots cleanly.
+  // Vertical line — flex:1 grows to match content card height
   connector: {
     flex: 1,
     width: 2,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     marginTop: 2,
   },
-
-  // Content card — fills remaining width; bottom gap aligns with connector
+  // Content card
   scheduleCard: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    marginStart: Spacing.sm,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    padding: spacing.sm,
+    marginStart: spacing.sm,
+    ...shadows.sm,
   },
-  // Bottom gap so the connector line has visible space between cards
   scheduleCardGap: {
-    marginBottom: Spacing.sm,
+    marginBottom: spacing.sm,
   },
   scheduleCardMuted: {
     opacity: 0.6,
@@ -1142,30 +966,29 @@ const S = StyleSheet.create({
   scheduleCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: spacing.sm,
   },
   scheduleCardInfo: {
     flex: 1,
     gap: 2,
   },
   schedulePatientName: {
-    fontSize: FontSizes.sm,
+    fontSize: typography.sizes.sm,
     fontWeight: '700',
-    color: Colors.text,
+    color: colors.text,
   },
   scheduleReason: {
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
   },
   scheduleFamilyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginTop: 4,
-    paddingStart: 44, // aligns under patient name (avatar width + gap)
+    paddingStart: 44,              // aligns under patient name (avatar w + gap)
   },
-
-  // "Done" badge — shown on completed schedule items
+  // Completed badge
   doneBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1173,47 +996,34 @@ const S = StyleSheet.create({
     flexShrink: 0,
   },
   doneBadgeText: {
-    fontSize: 11,
+    fontSize: typography.sizes.xs,
     fontWeight: '600',
-    color: '#22C55E',
   },
-
-  // "Mark Done" button — shown on confirmed schedule items
+  // Mark Done inline button — compact height
   markDoneBtn: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.primary + '50',
-    backgroundColor: Colors.primary + '0C',
-    minWidth: 80,
-    alignItems: 'center',
+    height: 36,
+    paddingHorizontal: spacing.sm,
+    minWidth: 90,
     flexShrink: 0,
   },
-  markDoneBtnDisabled: {
-    opacity: 0.5,
-  },
   markDoneBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.primary,
+    fontSize: typography.sizes.xs,
   },
-
   // Schedule empty state
   scheduleEmpty: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    gap: Spacing.sm,
+    paddingVertical: spacing.xl,
+    gap: spacing.sm,
   },
   scheduleEmptyTitle: {
-    fontSize: FontSizes.md,
+    fontSize: typography.sizes.md,
     fontWeight: '700',
-    color: Colors.text,
+    color: colors.text,
   },
   scheduleEmptySub: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
 });
