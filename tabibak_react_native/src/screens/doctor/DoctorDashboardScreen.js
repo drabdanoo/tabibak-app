@@ -102,8 +102,8 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  getFirestore,
 } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
 
@@ -201,6 +201,7 @@ function formatTodayLong() {
 function useTodaySchedule(uid) {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
+  const db = getFirestore();
 
   useEffect(() => {
     if (!uid) { setLoading(false); return; }
@@ -241,6 +242,7 @@ function useTodaySchedule(uid) {
 function usePendingRequests(uid) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const db = getFirestore();
 
   useEffect(() => {
     if (!uid) { setLoading(false); return; }
@@ -504,6 +506,7 @@ const ScheduleEmpty = React.memo(() => (
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DoctorDashboardScreen({ navigation }) {
+  const db     = getFirestore();
   const insets = useSafeAreaInsets();
   const { user, userProfile } = useAuth();
   const uid = user?.uid;
