@@ -144,19 +144,53 @@ export default {
 
   // ─── Doctor ────────────────────────────────────────────────────────────────
   doctor: {
-    dashboard:       'Dashboard',
-    todaySchedule:   "Today's Schedule",
-    pendingRequests: 'Pending Requests',
+    dashboard:          'Dashboard',
+    todaySchedule:      "Today's Schedule",
+    pendingRequests:    'Pending Requests',
     stats: {
-      today:         "Today's Patients",
-      pending:       'Pending',
-      completed:     'Completed',
-      remaining:     'Remaining',
+      today:            "Today's Patients",
+      pending:          'Pending',
+      completed:        'Completed',
+      remaining:        'Remaining',
     },
-    patientDetails:  'Patient Details',
-    visitNotes:      'Visit Notes',
-    noSchedule:      'No appointments today',
-    noPending:       'No pending requests',
+    patientDetails:     'Patient Details',
+    visitNotes:         'Visit Notes',
+    noSchedule:         'No appointments today',
+    noScheduleSub:      'Enjoy the day or check pending requests above.',
+    noPending:          'No pending requests',
+
+    // Greetings
+    greetingMorning:    'Good morning',
+    greetingAfternoon:  'Good afternoon',
+    greetingEvening:    'Good evening',
+    drPrefix:           'Dr.',
+
+    // Pending carousel empty state
+    allCaughtUp:        'All caught up!',
+    allCaughtUpSub:     'No pending appointment requests.',
+
+    // Section links
+    seeAll:             'See all',
+
+    // Actions
+    accept:             'Accept',
+    decline:            'Decline',
+    markDone:           'Mark Done',
+    done:               'Done',
+    updating:           'Updating…',
+    forFamily:          'For: {{name}}',
+
+    // Decline confirmation alert
+    declineTitle:       'Decline Request',
+    declineMessage:     "Decline {{patient}}'s request on {{date}}?\n\nThe patient will be notified.",
+    declineKeep:        'Keep',
+    declineConfirm:     'Yes, Decline',
+
+    // Error messages
+    acceptError:        'Could not accept the appointment. Please try again.',
+    declineError:       'Could not decline the appointment. Please try again.',
+    markDoneError:      'Could not update the appointment. Please try again.',
+    loadError:          'Failed to load dashboard. Please try again.',
   },
 
   // ─── Receptionist ──────────────────────────────────────────────────────────

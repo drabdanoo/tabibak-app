@@ -1,14 +1,15 @@
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
+import {
+  getFirestore,
+  collection,
+  doc,
   getDoc,
   getDocs,
-  addDoc, 
+  addDoc,
   updateDoc,
-  query, 
-  where, 
+  query,
+  where,
   orderBy,
+  onSnapshot,
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
@@ -540,6 +541,120 @@ class AppointmentService {
       return { success: false, error: error.message };
     }
   }
+
+  // ─── Real-time subscriptions (used by DoctorDashboardScreen) ───────────────
+
+  /**
+   * Real-time listener: today's confirmed + completed appointments for a doctor.
+   * Ordered by appointmentTime ASC.
+   *
+   * @param {string}   uid      — Doctor UID
+   * @param {function} onChange — Receives array of appointment objects on each update
+   * @param {function} onError  — Receives Firestore error on listener failure
+   * @returns {function} unsubscribe — call in component cleanup
+   */
+  subscribeTodaySchedule(uid, onChange, onError) {
+    const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    const q = query(
+      collection(this.db, COLLECTIONS.APPOINTMENTS),
+      where('doctorId', '==', uid),
+      where('appointmentDate', '==', today),
+      where('status', 'in', ['confirmed', 'completed']),
+      orderBy('appointmentTime', 'asc'),
+    );
+    return onSnapshot(
+      q,
+      (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      onError,
+    );
+  }
+
+  /**
+   * Real-time listener: all pending appointment requests for a doctor,
+   * ordered earliest-first (most urgent first).
+   *
+   * @param {string}   uid      — Doctor UID
+   * @param {function} onChange — Receives array of appointment objects on each update
+   * @param {function} onError  — Receives Firestore error on listener failure
+   * @returns {function} unsubscribe — call in component cleanup
+   */
+  subscribePendingRequests(uid, onChange, onError) {
+    const q = query(
+      collection(this.db, COLLECTIONS.APPOINTMENTS),
+      where('doctorId', '==', uid),
+      where('status', '==', 'pending'),
+      orderBy('appointmentDate', 'asc'),
+      orderBy('appointmentTime', 'asc'),
+    );
+    return onSnapshot(
+      q,
+      (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      onError,
+    );
+  }
+
+  /**
+   * Accept a pending appointment request.
+   *
+   * @param {string} appointmentId
+   * @param {string} doctorUid — Written to confirmedBy field
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async acceptAppointment(appointmentId, doctorUid) {
+    try {
+      await updateDoc(doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId), {
+        status: 'confirmed',
+        confirmedAt: serverTimestamp(),
+        confirmedBy: doctorUid ?? 'doctor',
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[appointmentService.acceptAppointment]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Decline (cancel) a pending appointment request.
+   *
+   * @param {string} appointmentId
+   * @param {string} doctorUid — Written to cancelledBy field
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async declineAppointment(appointmentId, doctorUid) {
+    try {
+      await updateDoc(doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId), {
+        status: 'cancelled',
+        cancelledAt: serverTimestamp(),
+        cancelledBy: doctorUid ?? 'doctor',
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[appointmentService.declineAppointment]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Mark a confirmed appointment as completed (visit finished).
+   *
+   * @param {string} appointmentId
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async markAppointmentDone(appointmentId) {
+    try {
+      await updateDoc(doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId), {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[appointmentService.markAppointmentDone]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ─── Legacy: direct status update ──────────────────────────────────────────
 
   /**
    * Update appointment status
