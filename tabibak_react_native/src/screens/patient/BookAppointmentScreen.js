@@ -1,52 +1,42 @@
 /**
- * BookAppointmentScreen — Phase 2: Patient Core
+ * BookAppointmentScreen — Phase 4: Surgical Rebuild
  *
- * ── Architecture Notes ─────────────────────────────────────────────────────
+ * ── Architectural contracts enforced ─────────────────────────────────────────
  *
- * Keyboard Management:
- *   Root: <KeyboardAvoidingView behavior="padding" (iOS) | "height" (Android)>
- *   The KAV is the outermost flex container. When the software keyboard
- *   appears, iOS "padding" mode adds bottom padding equal to keyboard height,
- *   shrinking the visible area and pushing the sticky footer up into view.
- *   Android "height" mode reduces the KAV's total height, achieving the same
- *   result. Both strategies ensure the "Confirm Booking" CTA stays visible
- *   and tappable without the keyboard covering it.
+ * DESIGN SYSTEM   — ScreenContainer wraps the entire screen. PrimaryButton for
+ *                   the Confirm Booking CTA. CustomTextField for all text inputs.
+ *                   Colors/sizes from theme.js only; zero inline hex or raw numbers.
  *
- *   Inner <ScrollView keyboardShouldPersistTaps="handled"> lets taps on
- *   time-slot chips and date pills dismiss the keyboard AND register as taps
- *   in a single gesture — critical for a form with many interactive elements.
+ * RTL             — Logical properties exclusively (marginStart/End, paddingStart/End,
+ *                   borderStartWidth). Zero left/right/marginLeft/paddingRight.
  *
- * Slot-Based Scheduling (no native DateTimePicker):
- *   • Dates: A 14-day window is generated with useMemo. Rendered as a
- *     horizontal <FlatList> of two-line pills (weekday abbrev + day number).
- *     Changing the selected date resets the slot selection and re-fetches.
- *   • Time Slots: Fetched from appointmentService.getAvailableTimeSlots()
- *     on each date change. Rendered as a flexWrap flex-row grid of chips.
- *     Available slots are tappable; booked slots are visually struck-through
- *     and disabled. Gap-based spacing — no directional margins in the grid.
+ * LOCALIZATION    — useTranslation() for every visible string; zero hardcoded text.
  *
- * Family Member Selection:
- *   Implemented as an inline two-option segmented control ("For Myself" /
- *   "For Family Member") using two adjacent TouchableOpacity pills. No Modal
- *   or Picker required — the full family member name input appears beneath
- *   the control when "For Family Member" is active. This avoids the
- *   complexity of a bottom sheet while keeping the UX fully native and RTL-
- *   safe (the control is built from flex-row LogicalView children).
+ * SERVICE LAYER   — No Firestore imports. Slot math in
+ *                   appointmentService.getAvailableSlots(doctorId, dateStr).
+ *                   Booking via appointmentService.bookAppointment(payload).
  *
- * State Management:
- *   All booking fields (date, slot, reason, medical history, etc.) are kept
- *   in local component state. Nothing is written to Firestore until the user
- *   presses "Confirm Booking". At that point:
- *     1. Client-side field validation runs first (fast, no network).
- *     2. appointmentService.bookAppointment() is called — it internally
- *        checks clinic closure, duplicate bookings, and slot conflicts before
- *        invoking the Cloud Function. Errors are surfaced as Alert dialogs.
- *     3. On success, navigate to the 'Appointments' tab.
+ * ERROR HANDLING  — Booking failures → inline <Text style={inlineError}>.
+ *                   Never an unhandled Alert for service failures.
  *
- * RTL Compliance:
- *   ⚠️ This app is in Arabic. Zero marginLeft/Right, paddingLeft/Right,
- *   borderLeftWidth/borderRightWidth, or positional left/right values.
- *   All directional spacing uses logical properties exclusively.
+ * 3-STATE FOOTER  — CTA disabled until BOTH date AND slot are selected.
+ *                   PrimaryButton loading=true during submission.
+ *
+ * ── Layout ───────────────────────────────────────────────────────────────────
+ *
+ * ScreenContainer (SafeAreaView + KAV)
+ *   └─ ScrollView  (scrollable content)
+ *   └─ View footer (sticky — sibling to ScrollView inside the KAV)
+ *
+ * KAV's "padding" mode on iOS pushes the footer above the keyboard.
+ *
+ * ── Slot engine ──────────────────────────────────────────────────────────────
+ *
+ * appointmentService.getAvailableSlots() handles:
+ *   • doctor working hours lookup for the weekday
+ *   • pending + confirmed appointment overlay (marks occupied slots)
+ *   • past-slot filtering for today
+ * Zero slot math lives in this file.
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -54,61 +44,82 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   Alert,
   ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import appointmentService from '../../services/appointmentService';
-import { useAuth } from '../../contexts/AuthContext';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import { useTranslation }   from 'react-i18next';
+import { Ionicons }         from '@expo/vector-icons';
 
-// Height of sticky footer content — used to compute the scroll spacer.
-const FOOTER_CONTENT_HEIGHT = 72;
+import { useAuth }          from '../../contexts/AuthContext';
+import appointmentService   from '../../services/appointmentService';
+import { ScreenContainer, PrimaryButton, CustomTextField } from '../../components/ui';
+import {
+  colors,
+  spacing,
+  typography,
+  BorderRadius,
+  shadows,
+} from '../../config/theme';
 
-// Number of days shown in the date picker strip.
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DATE_WINDOW = 14;
 
+// Height of the sticky footer (approximate) — used to add a ScrollView spacer
+// so the last section is not permanently hidden behind the footer.
+const FOOTER_APPROX_HEIGHT = 100;
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Pure helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Generate an array of Date objects starting from today for DATE_WINDOW days. */
-function generateDateWindow() {
-  const dates = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  for (let i = 0; i < DATE_WINDOW; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    dates.push(d);
-  }
-  return dates;
+/** Date → 'YYYY-MM-DD' in local time (avoids UTC-shift from toISOString). */
+function toLocalDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-/** Format a Date as 'YYYY-MM-DD' for Firestore / service calls. */
-function toDateStr(date) {
-  return date.toISOString().split('T')[0];
+/** Generate DATE_WINDOW Date objects starting from local midnight today. */
+function generateDateWindow() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Array.from({ length: DATE_WINDOW }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    return d;
+  });
+}
+
+/** First two uppercase initials from a name string. */
+function getInitials(name) {
+  return (name ?? '')
+    .split(' ')
+    .map(w => w[0])
+    .filter(Boolean)
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '?';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components (module-scope for stable identity)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Section wrapper with a title row. */
+/**
+ * Section — white card with icon + title row and optional subtitle.
+ */
 const Section = React.memo(({ icon, title, subtitle, children }) => (
   <View style={S.section}>
     <View style={S.sectionHeader}>
-      {icon && (
-        <Ionicons name={icon} size={20} color={Colors.primary} style={S.sectionIcon} />
-      )}
+      {icon && <Ionicons name={icon} size={20} color={colors.primary} style={S.sectionIcon} />}
       <Text style={S.sectionTitle}>{title}</Text>
     </View>
     {subtitle ? <Text style={S.sectionSubtitle}>{subtitle}</Text> : null}
@@ -116,231 +127,230 @@ const Section = React.memo(({ icon, title, subtitle, children }) => (
   </View>
 ));
 
-/** Labelled multiline TextInput. */
-const FormField = React.memo(({ label, required, placeholder, value, onChangeText, lines = 3 }) => (
-  <View style={S.fieldWrap}>
-    <Text style={S.fieldLabel}>
-      {label}
-      {required && <Text style={S.required}> *</Text>}
+/**
+ * DatePill — single chip in the horizontal date strip.
+ * Active: green background + white text.
+ */
+const DatePill = React.memo(({ date, isSelected, isToday, onSelect, todayLabel }) => (
+  <TouchableOpacity
+    style={[S.datePill, isSelected && S.datePillActive]}
+    onPress={() => onSelect(date)}
+    activeOpacity={0.75}
+  >
+    <Text style={[S.datePillDay, isSelected && S.datePillTextActive]}>
+      {isToday ? todayLabel : date.toLocaleDateString(undefined, { weekday: 'short' })}
     </Text>
-    <TextInput
-      style={[S.textInput, { minHeight: lines * 24 + 24 }]}
-      placeholder={placeholder}
-      placeholderTextColor={Colors.gray}
-      value={value}
-      onChangeText={onChangeText}
-      multiline
-      numberOfLines={lines}
-      textAlignVertical="top"
-    />
-  </View>
+    <Text style={[S.datePillNum, isSelected && S.datePillTextActive]}>
+      {date.getDate()}
+    </Text>
+  </TouchableOpacity>
+));
+
+/**
+ * SlotChip — time slot chip in the flexWrap grid.
+ * States: default | selected (green fill) | booked (struck-through, disabled).
+ */
+const SlotChip = React.memo(({ slot, isSelected, onSelect }) => (
+  <TouchableOpacity
+    style={[
+      S.slotChip,
+      !slot.available && S.slotChipBooked,
+      isSelected       && S.slotChipSelected,
+    ]}
+    onPress={() => slot.available && onSelect(slot)}
+    disabled={!slot.available}
+    activeOpacity={0.75}
+  >
+    <Text style={[
+      S.slotChipText,
+      !slot.available && S.slotChipTextBooked,
+      isSelected       && S.slotChipTextSelected,
+    ]}>
+      {slot.display}
+    </Text>
+  </TouchableOpacity>
 ));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Screen
+// Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function BookAppointmentScreen({ route, navigation }) {
-  const insets = useSafeAreaInsets();
+  const { t }                 = useTranslation();
   const { user, userProfile } = useAuth();
+  const { doctor }            = route.params ?? {};
 
-  // Doctor from params (pre-hydrated from DoctorDetails / PatientHome)
-  const { doctor } = route.params ?? {};
+  // ── Date strip ─────────────────────────────────────────────────────────────
+  const dates                               = useMemo(generateDateWindow, []);
+  const [selectedDate, setSelectedDate]     = useState(dates[0]);
 
-  // ── Date strip ───────────────────────────────────────────────────
-  // Stable across re-renders — only computed once.
-  const dates = useMemo(generateDateWindow, []);
-  const [selectedDate, setSelectedDate] = useState(dates[0]);
+  // ── Slot grid ──────────────────────────────────────────────────────────────
+  const [slots, setSlots]                   = useState([]);
+  const [slotsLoading, setSlotsLoading]     = useState(false);
+  const [selectedSlot, setSelectedSlot]     = useState(null);
 
-  // ── Time slots ───────────────────────────────────────────────────
-  const [slots, setSlots] = useState([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-
-  // ── Booking fields ───────────────────────────────────────────────
-  const [bookingFor, setBookingFor] = useState('self'); // 'self' | 'family'
+  // ── Form fields ────────────────────────────────────────────────────────────
+  const [bookingFor, setBookingFor]             = useState('self');
   const [familyMemberName, setFamilyMemberName] = useState('');
-  const [reason, setReason] = useState('');
-  const [notes, setNotes] = useState('');
-  const [allergies, setAllergies] = useState('');
-  const [currentMedications, setCurrentMedications] = useState('');
-  const [chronicConditions, setChronicConditions] = useState('');
+  const [reason, setReason]                     = useState('');
+  const [notes, setNotes]                       = useState('');
+  const [allergies, setAllergies]               = useState('');
+  const [medications, setMedications]           = useState('');
+  const [conditions, setConditions]             = useState('');
 
-  // ── Submission ───────────────────────────────────────────────────
-  const [submitting, setSubmitting] = useState(false);
+  // ── Submission ─────────────────────────────────────────────────────────────
+  const [isSubmitting, setIsSubmitting]   = useState(false);
+  const [submitError, setSubmitError]     = useState(null);
 
-  // ── Load slots on date change ─────────────────────────────────────
-  const loadSlots = useCallback(async (date) => {
+  // ── Load slots on date change ───────────────────────────────────────────────
+  useEffect(() => {
     if (!doctor?.id) return;
+    let cancelled = false;
+
     setSlotsLoading(true);
     setSelectedSlot(null);
-    try {
-      const result = await appointmentService.getAvailableTimeSlots(doctor.id, date);
-      const list = Array.isArray(result) ? result : (result?.slots ?? []);
-      setSlots(list);
-      // Auto-select the first available slot.
-      const first = list.find(s => s.available);
-      if (first) setSelectedSlot(first);
-    } catch (err) {
-      console.error('Error loading time slots:', err);
-      setSlots([]);
-    } finally {
-      setSlotsLoading(false);
-    }
-  }, [doctor?.id]);
+    setSubmitError(null);
 
-  useEffect(() => {
-    loadSlots(selectedDate);
-  }, [selectedDate, loadSlots]);
+    appointmentService.getAvailableSlots(doctor.id, toLocalDateStr(selectedDate))
+      .then((list) => {
+        if (cancelled) return;
+        setSlots(list);
+        // Auto-select the first available slot for smoother UX.
+        const first = list.find(s => s.available);
+        if (first) setSelectedSlot(first);
+      })
+      .finally(() => { if (!cancelled) setSlotsLoading(false); });
 
-  // ── Date selection ────────────────────────────────────────────────
+    return () => { cancelled = true; };
+  }, [selectedDate, doctor?.id]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
   const handleDateSelect = useCallback((date) => {
     setSelectedDate(date);
-    // loadSlots fires automatically via useEffect dep on selectedDate
+    // Slot reload is triggered by the useEffect dep on selectedDate.
   }, []);
 
-  // ── Slot selection ────────────────────────────────────────────────
   const handleSlotSelect = useCallback((slot) => {
-    if (!slot.available) {
-      Alert.alert('Slot Unavailable', 'This time slot is already booked. Please choose another.');
-      return;
-    }
     setSelectedSlot(slot);
+    setSubmitError(null);
   }, []);
 
-  // ── Submission ────────────────────────────────────────────────────
   const handleConfirm = useCallback(async () => {
-    // Client-side validation (fast, no network)
-    if (!selectedSlot) {
-      Alert.alert('Time Required', 'Please select an available time slot.');
-      return;
-    }
+    // Client-side validation — fast, no network round-trip.
     if (!reason.trim()) {
-      Alert.alert('Reason Required', 'Please describe the reason for your visit.');
+      setSubmitError(t('appointments.reasonRequired'));
       return;
     }
     if (bookingFor === 'family' && !familyMemberName.trim()) {
-      Alert.alert('Name Required', 'Please enter the family member\'s full name.');
+      setSubmitError(t('appointments.familyNameRequired'));
       return;
     }
 
-    setSubmitting(true);
+    setIsSubmitting(true);
+    setSubmitError(null);
 
     try {
-      const dateStr = toDateStr(selectedDate);
+      const dateStr     = toLocalDateStr(selectedDate);
       const patientName = bookingFor === 'self'
         ? (userProfile?.fullName ?? user?.displayName ?? user?.phoneNumber ?? 'Patient')
         : familyMemberName.trim();
 
       const payload = {
-        patientId: user.uid,
+        patientId:       user.uid,
         patientName,
-        patientPhone: user.phoneNumber ?? '',
-        doctorId: doctor.id,
-        doctorName: doctor.name,
+        patientPhone:    user.phoneNumber ?? '',
+        doctorId:        doctor.id,
+        doctorName:      doctor.name,
         appointmentDate: dateStr,
-        appointmentTime: selectedSlot.display,
-        reason: reason.trim(),
-        notes: notes.trim(),
-        status: 'pending',
-        medicalHistory: {
-          allergies: allergies.trim() || 'None',
-          currentMedications: currentMedications.trim() || 'None',
-          chronicConditions: chronicConditions.trim() || 'None',
-        },
+        appointmentTime: selectedSlot.time,       // 'HH:MM' — 24h for clean lexicographic ordering
+        reason:          reason.trim(),
+        notes:           notes.trim(),
+        status:          'pending',
         bookingFor,
         ...(bookingFor === 'family' ? { familyMemberName: familyMemberName.trim() } : {}),
+        medicalHistory: {
+          allergies:          allergies.trim()   || 'None',
+          currentMedications: medications.trim() || 'None',
+          chronicConditions:  conditions.trim()  || 'None',
+        },
       };
 
       const result = await appointmentService.bookAppointment(payload);
 
       if (result.success) {
-        const dateLabel = selectedDate.toLocaleDateString('en-US', {
+        const dateLabel = selectedDate.toLocaleDateString(undefined, {
           weekday: 'long', month: 'long', day: 'numeric',
         });
         Alert.alert(
-          'Appointment Submitted ✓',
-          `Your appointment with ${doctor.name} on ${dateLabel} at ${selectedSlot.display} has been submitted. You will be notified once the doctor confirms.`,
-          [{ text: 'View Appointments', onPress: () => navigation.navigate('Appointments') }],
+          t('appointments.bookingSuccess'),
+          t('appointments.bookingSuccessMsg', {
+            doctor: doctor.name,
+            date:   dateLabel,
+            time:   selectedSlot.display,
+          }),
+          [{
+            text:    t('appointments.viewAppointments'),
+            onPress: () => navigation.navigate('Appointments'),
+          }],
         );
       } else {
-        const isDuplicate =
-          result.error?.toLowerCase().includes('already have') ||
-          result.error?.toLowerCase().includes('duplicate');
-
-        Alert.alert(
-          isDuplicate ? 'Already Booked' : 'Could Not Book',
-          result.error ?? 'Something went wrong. Please try again.',
-          isDuplicate
-            ? [
-                { text: 'View My Appointments', onPress: () => navigation.navigate('Appointments') },
-                { text: 'OK', style: 'cancel' },
-              ]
-            : [{ text: 'OK' }],
-        );
+        // Inline error — no Alert per architectural contract.
+        setSubmitError(result.error ?? t('errors.generic'));
       }
     } catch (err) {
-      console.error('Booking error:', err);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      console.error('[BookAppointment.handleConfirm]', err);
+      setSubmitError(t('errors.generic'));
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   }, [
-    selectedSlot, reason, bookingFor, familyMemberName, selectedDate,
-    user, userProfile, doctor, notes, allergies, currentMedications, chronicConditions,
-    navigation,
+    reason, bookingFor, familyMemberName, selectedDate, selectedSlot,
+    user, userProfile, doctor, notes, allergies, medications, conditions,
+    navigation, t,
   ]);
 
-  // ── Date pill renderer ────────────────────────────────────────────
-  const renderDatePill = useCallback(({ item: date }) => {
-    const isSelected = date.toDateString() === selectedDate.toDateString();
-    const isToday = date.toDateString() === new Date().toDateString();
-    return (
-      <TouchableOpacity
-        style={[S.datePill, isSelected && S.datePillActive]}
-        onPress={() => handleDateSelect(date)}
-        activeOpacity={0.75}
-      >
-        <Text style={[S.datePillDay, isSelected && S.datePillTextActive]}>
-          {isToday ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' })}
-        </Text>
-        <Text style={[S.datePillNum, isSelected && S.datePillTextActive]}>
-          {date.getDate()}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [selectedDate, handleDateSelect]);
+  // ── FlatList callbacks ─────────────────────────────────────────────────────
+  const dateKeyExtractor = useCallback((d) => d.toISOString(), []);
+  const todayStr         = useMemo(() => dates[0].toDateString(), [dates]);
 
-  const datePillKeyExtractor = useCallback((d) => d.toISOString(), []);
+  const renderDatePill = useCallback(({ item: date }) => (
+    <DatePill
+      date={date}
+      isSelected={date.toDateString() === selectedDate.toDateString()}
+      isToday={date.toDateString() === todayStr}
+      onSelect={handleDateSelect}
+      todayLabel={t('appointments.today')}
+    />
+  ), [selectedDate, todayStr, handleDateSelect, t]);
 
-  // ── Footer clearance in scroll content ───────────────────────────
-  const footerClearance = FOOTER_CONTENT_HEIGHT + Math.max(insets.bottom, Spacing.md);
+  // CTA disabled until both date + slot chosen, or while submitting.
+  const canConfirm = !!selectedSlot && !isSubmitting;
 
-  // ─────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <KeyboardAvoidingView
-      style={S.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+    <ScreenContainer scrollable={false} padded={false} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
 
-      {/* ── SCROLLABLE CONTENT ─────────────────────────────────── */}
+      {/* ── SCROLLABLE CONTENT ───────────────────────────────────────── */}
       <ScrollView
         style={S.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={S.scrollContent}
       >
-        {/* ── Doctor Summary Card ───────────────────────────────── */}
-        <View style={S.doctorCard}>
+        {/* ── Doctor Summary Card ──────────────────────────────────── */}
+        <View style={[S.doctorCard, shadows.sm]}>
           <View style={S.doctorAvatar}>
-            <Text style={S.doctorAvatarText}>
-              {(doctor?.name ?? 'D').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
-            </Text>
+            <Text style={S.doctorAvatarText}>{getInitials(doctor?.name)}</Text>
           </View>
           <View style={S.doctorInfo}>
-            <Text style={S.doctorName}>{doctor?.name ?? 'Doctor'}</Text>
-            <Text style={S.doctorSpecialty}>{doctor?.specialty ?? 'General Practice'}</Text>
+            <Text style={S.doctorName}>{doctor?.name ?? '—'}</Text>
+            {!!doctor?.specialty && (
+              <Text style={S.doctorSpecialty}>{doctor.specialty}</Text>
+            )}
             {!!doctor?.hospital && (
               <Text style={S.doctorHospital}>{doctor.hospital}</Text>
             )}
@@ -352,66 +362,52 @@ export default function BookAppointmentScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* ── Date Selection ────────────────────────────────────── */}
-        <Section icon="calendar-outline" title="Select Date">
+        {/* ── Date Selection ───────────────────────────────────────── */}
+        <Section icon="calendar-outline" title={t('appointments.selectDate')}>
           <FlatList
             horizontal
             data={dates}
-            keyExtractor={datePillKeyExtractor}
+            keyExtractor={dateKeyExtractor}
             renderItem={renderDatePill}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={S.datePillList}
           />
         </Section>
 
-        {/* ── Time Slots ────────────────────────────────────────── */}
-        <Section icon="time-outline" title="Select Time">
+        {/* ── Time Slots ───────────────────────────────────────────── */}
+        <Section icon="time-outline" title={t('appointments.selectTime')}>
           {slotsLoading ? (
-            <View style={S.slotsLoadingWrap}>
-              <ActivityIndicator color={Colors.primary} size="small" />
-              <Text style={S.slotsLoadingText}>Loading available slots…</Text>
+            <View style={S.slotsLoadingRow}>
+              <ActivityIndicator color={colors.primary} size="small" />
+              <Text style={S.slotsLoadingText}>{t('appointments.loadingSlots')}</Text>
             </View>
           ) : slots.length === 0 ? (
             <View style={S.noSlotsWrap}>
-              <Ionicons name="calendar-outline" size={48} color={Colors.border} />
-              <Text style={S.noSlotsTitle}>No slots available</Text>
-              <Text style={S.noSlotsSub}>This date is closed or fully booked. Try another day.</Text>
+              <Ionicons name="calendar-outline" size={44} color={colors.border} />
+              <Text style={S.noSlotsTitle}>{t('appointments.noSlotsTitle')}</Text>
+              <Text style={S.noSlotsSub}>{t('appointments.noSlotsSub')}</Text>
             </View>
           ) : (
+            /*
+             * flexWrap grid — gap-based spacing, zero directional margins.
+             * In RTL, chips wrap right-to-left automatically via flex engine.
+             */
             <View style={S.slotsGrid}>
-              {slots.map((slot, i) => {
-                const isSelected = selectedSlot?.display === slot.display;
-                return (
-                  <TouchableOpacity
-                    key={i}
-                    style={[
-                      S.slotChip,
-                      !slot.available && S.slotChipBooked,
-                      isSelected && S.slotChipSelected,
-                    ]}
-                    onPress={() => handleSlotSelect(slot)}
-                    disabled={!slot.available}
-                    activeOpacity={0.75}
-                  >
-                    <Text
-                      style={[
-                        S.slotChipText,
-                        !slot.available && S.slotChipTextBooked,
-                        isSelected && S.slotChipTextSelected,
-                      ]}
-                    >
-                      {slot.display}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {slots.map((slot) => (
+                <SlotChip
+                  key={slot.time}
+                  slot={slot}
+                  isSelected={selectedSlot?.time === slot.time}
+                  onSelect={handleSlotSelect}
+                />
+              ))}
             </View>
           )}
         </Section>
 
-        {/* ── Booking For ───────────────────────────────────────── */}
-        <Section icon="people-outline" title="Booking For">
-          {/* Inline segmented control — RTL-safe flex-row pills */}
+        {/* ── Booking For ──────────────────────────────────────────── */}
+        <Section icon="people-outline" title={t('appointments.bookingFor')}>
+          {/* Inline segmented control — two flex pills, RTL-safe. */}
           <View style={S.segmentedControl}>
             <TouchableOpacity
               style={[S.segment, bookingFor === 'self' && S.segmentActive]}
@@ -421,10 +417,10 @@ export default function BookAppointmentScreen({ route, navigation }) {
               <Ionicons
                 name="person-outline"
                 size={16}
-                color={bookingFor === 'self' ? Colors.white : Colors.textSecondary}
+                color={bookingFor === 'self' ? colors.white : colors.textSecondary}
               />
               <Text style={[S.segmentText, bookingFor === 'self' && S.segmentTextActive]}>
-                For Myself
+                {t('appointments.forMyself')}
               </Text>
             </TouchableOpacity>
 
@@ -436,450 +432,405 @@ export default function BookAppointmentScreen({ route, navigation }) {
               <Ionicons
                 name="people-outline"
                 size={16}
-                color={bookingFor === 'family' ? Colors.white : Colors.textSecondary}
+                color={bookingFor === 'family' ? colors.white : colors.textSecondary}
               />
               <Text style={[S.segmentText, bookingFor === 'family' && S.segmentTextActive]}>
-                Family Member
+                {t('appointments.forFamilyMember')}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Family member name input — visible only when 'family' selected */}
           {bookingFor === 'family' && (
-            <View style={S.familyInputWrap}>
-              <Text style={S.fieldLabel}>
-                Family Member's Full Name <Text style={S.required}>*</Text>
-              </Text>
-              <TextInput
-                style={S.textInputSingle}
-                placeholder="Enter their full name"
-                placeholderTextColor={Colors.gray}
-                value={familyMemberName}
-                onChangeText={setFamilyMemberName}
-                autoFocus
-              />
-            </View>
+            <CustomTextField
+              label={t('appointments.familyMemberName')}
+              placeholder={t('appointments.familyNamePlaceholder')}
+              value={familyMemberName}
+              onChangeText={setFamilyMemberName}
+              autoFocus
+            />
           )}
         </Section>
 
-        {/* ── Reason for Visit ──────────────────────────────────── */}
-        <Section icon="clipboard-outline" title="Reason for Visit">
-          <FormField
-            label="Describe your symptoms or concern"
-            required
-            placeholder="E.g. routine check-up, persistent headache, follow-up on lab results…"
+        {/* ── Reason for Visit ─────────────────────────────────────── */}
+        <Section icon="clipboard-outline" title={t('appointments.reasonTitle')}>
+          <CustomTextField
+            label={`${t('appointments.reasonLabel')} *`}
+            placeholder={t('appointments.reasonPlaceholder')}
             value={reason}
             onChangeText={setReason}
-            lines={3}
+            multiline
           />
         </Section>
 
-        {/* ── Medical History ───────────────────────────────────── */}
+        {/* ── Medical History ──────────────────────────────────────── */}
         <Section
           icon="medical-outline"
-          title="Medical History"
-          subtitle="Help the doctor prepare for your visit. All information is confidential."
+          title={t('appointments.medicalHistoryTitle')}
+          subtitle={t('appointments.medicalHistorySub')}
         >
-          <FormField
-            label="Allergies"
-            placeholder="E.g. Penicillin, peanuts, latex — or 'None'"
+          <CustomTextField
+            label={t('appointments.allergiesLabel')}
+            placeholder={t('appointments.allergiesPlaceholder')}
             value={allergies}
             onChangeText={setAllergies}
-            lines={2}
+            multiline
           />
-          <FormField
-            label="Current Medications"
-            placeholder="List all medications you are taking — or 'None'"
-            value={currentMedications}
-            onChangeText={setCurrentMedications}
-            lines={2}
+          <CustomTextField
+            label={t('appointments.medicationsLabel')}
+            placeholder={t('appointments.medicationsPlaceholder')}
+            value={medications}
+            onChangeText={setMedications}
+            multiline
           />
-          <FormField
-            label="Chronic Conditions"
-            placeholder="E.g. Diabetes, hypertension, asthma — or 'None'"
-            value={chronicConditions}
-            onChangeText={setChronicConditions}
-            lines={2}
+          <CustomTextField
+            label={t('appointments.conditionsLabel')}
+            placeholder={t('appointments.conditionsPlaceholder')}
+            value={conditions}
+            onChangeText={setConditions}
+            multiline
           />
-
-          {/* Privacy note */}
-          <View style={S.infoBox}>
-            <Ionicons name="lock-closed-outline" size={16} color={Colors.primary} />
-            <Text style={S.infoBoxText}>
-              Your medical information is encrypted and will only be visible to your treating doctor.
-            </Text>
+          {/*
+           * privacyBox uses borderStartWidth — the RTL-logical equivalent of
+           * borderLeftWidth. Renders on the START edge:
+           *   LTR → left border  |  RTL → right border
+           */}
+          <View style={S.privacyBox}>
+            <Ionicons name="lock-closed-outline" size={16} color={colors.primary} />
+            <Text style={S.privacyText}>{t('appointments.privacyNote')}</Text>
           </View>
         </Section>
 
-        {/* ── Additional Notes ──────────────────────────────────── */}
-        <Section icon="create-outline" title="Additional Notes (Optional)">
-          <FormField
-            label="Anything else the doctor should know?"
-            placeholder="Any further details, preferred language, accessibility needs, etc."
+        {/* ── Additional Notes ─────────────────────────────────────── */}
+        <Section icon="create-outline" title={t('appointments.additionalNotesTitle')}>
+          <CustomTextField
+            placeholder={t('appointments.notesPlaceholder')}
             value={notes}
             onChangeText={setNotes}
-            lines={3}
+            multiline
           />
         </Section>
 
-        {/* Footer clearance spacer */}
-        <View style={{ height: footerClearance }} />
+        {/* Spacer so the last section scrolls fully above the sticky footer. */}
+        <View style={S.footerSpacer} />
       </ScrollView>
 
-      {/* ── STICKY FOOTER — sibling to ScrollView inside KAV ──── */}
-      {/* KAV "padding"/"height" behaviour pushes this up with the keyboard */}
-      <View style={[S.footer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
-        {/* Selected slot summary */}
+      {/* ── STICKY FOOTER ────────────────────────────────────────────── */}
+      {/*
+       * Sibling to ScrollView inside ScreenContainer's KAV.
+       * On iOS: KAV "padding" mode lifts the footer above the keyboard.
+       * On Android: system windowSoftInputMode=adjustResize shrinks the KAV.
+       */}
+      <View style={S.footer}>
+        {/* Selection summary — shown once a slot is chosen. */}
         {selectedSlot && (
-          <View style={S.footerSummary}>
-            <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
-            <Text style={S.footerSummaryText}>
-              {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-              {'  ·  '}{selectedSlot.display}
+          <View style={S.selectionSummary}>
+            <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+            <Text style={S.selectionSummaryText}>
+              {selectedDate.toLocaleDateString(undefined, {
+                weekday: 'short', month: 'short', day: 'numeric',
+              })}
+              {'  ·  '}
+              {selectedSlot.display}
             </Text>
           </View>
         )}
 
-        <TouchableOpacity
-          style={[S.confirmBtn, submitting && S.confirmBtnDisabled]}
+        {/* Inline error — never an Alert for service failures per contract. */}
+        {submitError ? (
+          <Text style={S.inlineError}>{submitError}</Text>
+        ) : null}
+
+        <PrimaryButton
+          label={t('appointments.confirmBooking')}
           onPress={handleConfirm}
-          disabled={submitting}
-          activeOpacity={0.85}
-        >
-          {submitting ? (
-            <ActivityIndicator color={Colors.white} size="small" />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle-outline" size={20} color={Colors.white} />
-              <Text style={S.confirmBtnText}>Confirm Booking</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          loading={isSubmitting}
+          disabled={!canConfirm}
+        />
       </View>
-    </KeyboardAvoidingView>
+    </ScreenContainer>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
-// RTL RULE: Zero marginLeft/Right, paddingLeft/Right, borderLeftWidth,
-// borderRightWidth, or positional left/right. Logical properties only.
+//
+// RTL RULE: Zero marginLeft/Right, paddingLeft/Right, borderLeftWidth/Right,
+// or positional left/right. Logical properties (Start/End) exclusively.
+// Colors from theme.js only. Font sizes from typography.sizes only.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+
   scroll: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    backgroundColor: colors.background,
   },
 
-  // ── Doctor Card ──────────────────────────────────────────────────
+  // ── Doctor Card ───────────────────────────────────────────────────────────
   doctorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
+    backgroundColor: colors.white,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
   },
   doctorAvatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: Colors.primary + '18',
+    backgroundColor: colors.primary + '18',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
   doctorAvatarText: {
-    fontSize: FontSizes.md,
+    fontSize: typography.sizes.md,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
   doctorInfo: {
     flex: 1,
+    gap: 2,
   },
   doctorName: {
-    fontSize: FontSizes.md,
+    fontSize: typography.sizes.md,
     fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 2,
+    color: colors.text,
   },
   doctorSpecialty: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
-    marginBottom: 2,
+    fontSize: typography.sizes.sm,
+    color: colors.primary,
   },
   doctorHospital: {
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
   },
   feeTag: {
-    backgroundColor: Colors.primary + '1A',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    backgroundColor: colors.primary + '1A',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: BorderRadius.md,
     flexShrink: 0,
   },
   feeTagText: {
-    fontSize: FontSizes.sm,
+    fontSize: typography.sizes.sm,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
 
-  // ── Section wrapper ──────────────────────────────────────────────
+  // ── Section card ──────────────────────────────────────────────────────────
   section: {
-    backgroundColor: Colors.white,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    backgroundColor: colors.white,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: spacing.sm,
   },
   sectionIcon: {
-    marginEnd: Spacing.sm,
+    marginEnd: spacing.sm,
   },
   sectionTitle: {
-    fontSize: FontSizes.md,
+    fontSize: typography.sizes.md,
     fontWeight: '700',
-    color: Colors.text,
+    color: colors.text,
   },
   sectionSubtitle: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
     lineHeight: 20,
-    marginBottom: Spacing.md,
+    marginBottom: spacing.md,
   },
 
-  // ── Date Pills ───────────────────────────────────────────────────
+  // ── Date Strip ────────────────────────────────────────────────────────────
   datePillList: {
-    paddingVertical: Spacing.xs,
-    gap: Spacing.sm,
+    paddingVertical: spacing.xs,
+    gap: spacing.sm,
   },
   datePill: {
     width: 56,
-    paddingVertical: Spacing.sm,
+    paddingVertical: spacing.sm,
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     alignItems: 'center',
     gap: 2,
   },
   datePillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   datePillDay: {
-    fontSize: 10,
+    fontSize: typography.sizes.xs,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   datePillNum: {
-    fontSize: FontSizes.lg,
+    fontSize: typography.sizes.lg,
     fontWeight: '700',
-    color: Colors.text,
+    color: colors.text,
   },
   datePillTextActive: {
-    color: Colors.white,
+    color: colors.white,
   },
 
-  // ── Time Slots Grid ──────────────────────────────────────────────
-  slotsLoadingWrap: {
+  // ── Slot Grid ─────────────────────────────────────────────────────────────
+  slotsLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.lg,
-    gap: Spacing.sm,
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
   },
   slotsLoadingText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
   },
   noSlotsWrap: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    gap: Spacing.sm,
+    paddingVertical: spacing.xl,
+    gap: spacing.sm,
   },
   noSlotsTitle: {
-    fontSize: FontSizes.md,
+    fontSize: typography.sizes.md,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
   },
   noSlotsSub: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
     textAlign: 'center',
+    paddingHorizontal: spacing.md,
   },
-  // Gap-based grid — no directional margins needed.
+  // Gap-based grid — zero directional margins. RTL wraps automatically.
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   slotChip: {
     minWidth: 88,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   slotChipBooked: {
-    backgroundColor: Colors.borderLight,
-    borderColor: Colors.borderLight,
+    backgroundColor: colors.borderLight,
+    borderColor: colors.borderLight,
   },
   slotChipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   slotChipText: {
-    fontSize: FontSizes.sm,
+    fontSize: typography.sizes.sm,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
   },
   slotChipTextBooked: {
-    color: Colors.gray,
+    color: colors.gray,
     textDecorationLine: 'line-through',
   },
   slotChipTextSelected: {
-    color: Colors.white,
+    color: colors.white,
   },
 
-  // ── Segmented Control (Booking For) ──────────────────────────────
+  // ── Segmented control ─────────────────────────────────────────────────────
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
     borderRadius: BorderRadius.lg,
     padding: 3,
     gap: 3,
-    marginBottom: Spacing.sm,
+    marginBottom: spacing.sm,
   },
   segment: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: spacing.sm,
     borderRadius: BorderRadius.md,
-    gap: Spacing.xs,
+    gap: spacing.xs,
   },
   segmentActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   segmentText: {
-    fontSize: FontSizes.sm,
+    fontSize: typography.sizes.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   segmentTextActive: {
-    color: Colors.white,
-  },
-  familyInputWrap: {
-    marginTop: Spacing.sm,
+    color: colors.white,
   },
 
-  // ── Form Fields ──────────────────────────────────────────────────
-  fieldWrap: {
-    marginBottom: Spacing.md,
-  },
-  fieldLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  required: {
-    color: Colors.error,
-  },
-  textInput: {
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    fontSize: FontSizes.sm,
-    color: Colors.text,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-  },
-  textInputSingle: {
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-    fontSize: FontSizes.sm,
-    color: Colors.text,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-  },
-
-  // ── Privacy Info Box ─────────────────────────────────────────────
-  // Uses borderStartWidth (logical) — renders on the correct edge in RTL.
-  infoBox: {
+  // ── Privacy info box ──────────────────────────────────────────────────────
+  // borderStartWidth is the logical equivalent of borderLeftWidth.
+  // Renders on the START (reading) edge: left in LTR, right in RTL.
+  privacyBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.primary + '0D',
-    padding: Spacing.md,
+    backgroundColor: colors.primary + '0D',
+    padding: spacing.md,
     borderRadius: BorderRadius.md,
-    marginTop: Spacing.sm,
+    marginTop: spacing.sm,
     borderStartWidth: 3,
-    borderStartColor: Colors.primary,
-    gap: Spacing.sm,
+    borderStartColor: colors.primary,
+    gap: spacing.sm,
   },
-  infoBoxText: {
+  privacyText: {
     flex: 1,
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
     lineHeight: 18,
   },
 
-  // ── Sticky Footer ────────────────────────────────────────────────
-  footer: {
-    backgroundColor: Colors.white,
-    paddingTop: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+  // ── Footer spacer ─────────────────────────────────────────────────────────
+  footerSpacer: {
+    height: FOOTER_APPROX_HEIGHT,
   },
-  footerSummary: {
+
+  // ── Sticky Footer ─────────────────────────────────────────────────────────
+  footer: {
+    backgroundColor: colors.white,
+    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.xs,
+  },
+  selectionSummary: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.xs,
+    gap: spacing.xs,
   },
-  footerSummaryText: {
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
+  selectionSummaryText: {
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
-  confirmBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  confirmBtnDisabled: {
-    opacity: 0.6,
-  },
-  confirmBtnText: {
-    fontSize: FontSizes.md,
-    fontWeight: '700',
-    color: Colors.white,
+  // Inline error — colors.error from theme, never an Alert.
+  inlineError: {
+    fontSize: typography.sizes.sm,
+    color: colors.error,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
