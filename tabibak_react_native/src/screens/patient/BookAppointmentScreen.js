@@ -39,7 +39,7 @@
  * Zero slot math lives in this file.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -48,7 +48,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   StatusBar,
 } from 'react-native';
 import { useTranslation }   from 'react-i18next';
@@ -146,30 +145,6 @@ const DatePill = React.memo(({ date, isSelected, isToday, onSelect, todayLabel }
   </TouchableOpacity>
 ));
 
-/**
- * SlotChip — time slot chip in the flexWrap grid.
- * States: default | selected (green fill) | booked (struck-through, disabled).
- */
-const SlotChip = React.memo(({ slot, isSelected, onSelect }) => (
-  <TouchableOpacity
-    style={[
-      S.slotChip,
-      !slot.available && S.slotChipBooked,
-      isSelected       && S.slotChipSelected,
-    ]}
-    onPress={() => slot.available && onSelect(slot)}
-    disabled={!slot.available}
-    activeOpacity={0.75}
-  >
-    <Text style={[
-      S.slotChipText,
-      !slot.available && S.slotChipTextBooked,
-      isSelected       && S.slotChipTextSelected,
-    ]}>
-      {slot.display}
-    </Text>
-  </TouchableOpacity>
-));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -184,11 +159,6 @@ export default function BookAppointmentScreen({ route, navigation }) {
   const dates                               = useMemo(generateDateWindow, []);
   const [selectedDate, setSelectedDate]     = useState(dates[0]);
 
-  // ── Slot grid ──────────────────────────────────────────────────────────────
-  const [slots, setSlots]                   = useState([]);
-  const [slotsLoading, setSlotsLoading]     = useState(false);
-  const [selectedSlot, setSelectedSlot]     = useState(null);
-
   // ── Form fields ────────────────────────────────────────────────────────────
   const [bookingFor, setBookingFor]             = useState('self');
   const [familyMemberName, setFamilyMemberName] = useState('');
@@ -202,38 +172,11 @@ export default function BookAppointmentScreen({ route, navigation }) {
   const [isSubmitting, setIsSubmitting]   = useState(false);
   const [submitError, setSubmitError]     = useState(null);
 
-  // ── Load slots on date change ───────────────────────────────────────────────
-  useEffect(() => {
-    if (!doctor?.id) return;
-    let cancelled = false;
-
-    setSlotsLoading(true);
-    setSelectedSlot(null);
-    setSubmitError(null);
-
-    appointmentService.getAvailableSlots(doctor.id, toLocalDateStr(selectedDate))
-      .then((list) => {
-        if (cancelled) return;
-        setSlots(list);
-        // Auto-select the first available slot for smoother UX.
-        const first = list.find(s => s.available);
-        if (first) setSelectedSlot(first);
-      })
-      .finally(() => { if (!cancelled) setSlotsLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [selectedDate, doctor?.id]);
-
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleDateSelect = useCallback((date) => {
     setSelectedDate(date);
     // Slot reload is triggered by the useEffect dep on selectedDate.
-  }, []);
-
-  const handleSlotSelect = useCallback((slot) => {
-    setSelectedSlot(slot);
-    setSubmitError(null);
   }, []);
 
   const handleConfirm = useCallback(async () => {
@@ -263,7 +206,7 @@ export default function BookAppointmentScreen({ route, navigation }) {
         doctorId:        doctor.id,
         doctorName:      doctor.name,
         appointmentDate: dateStr,
-        appointmentTime: selectedSlot.time,       // 'HH:MM' — 24h for clean lexicographic ordering
+        appointmentTime: '',       // Receptionist assigns the actual time
         reason:          reason.trim(),
         notes:           notes.trim(),
         status:          'pending',
@@ -287,11 +230,10 @@ export default function BookAppointmentScreen({ route, navigation }) {
           t('appointments.bookingSuccessMsg', {
             doctor: doctor.name,
             date:   dateLabel,
-            time:   selectedSlot.display,
           }),
           [{
             text:    t('appointments.viewAppointments'),
-            onPress: () => navigation.navigate('Appointments'),
+            onPress: () => navigation.navigate('PatientTabs', { screen: 'Appointments' }),
           }],
         );
       } else {
@@ -305,7 +247,7 @@ export default function BookAppointmentScreen({ route, navigation }) {
       setIsSubmitting(false);
     }
   }, [
-    reason, bookingFor, familyMemberName, selectedDate, selectedSlot,
+    reason, bookingFor, familyMemberName, selectedDate,
     user, userProfile, doctor, notes, allergies, medications, conditions,
     navigation, t,
   ]);
@@ -324,8 +266,8 @@ export default function BookAppointmentScreen({ route, navigation }) {
     />
   ), [selectedDate, todayStr, handleDateSelect, t]);
 
-  // CTA disabled until both date + slot chosen, or while submitting.
-  const canConfirm = !!selectedSlot && !isSubmitting;
+  // CTA enabled as long as we are not submitting (date is always pre-selected).
+  const canConfirm = !isSubmitting;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Render
@@ -372,37 +314,6 @@ export default function BookAppointmentScreen({ route, navigation }) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={S.datePillList}
           />
-        </Section>
-
-        {/* ── Time Slots ───────────────────────────────────────────── */}
-        <Section icon="time-outline" title={t('appointments.selectTime')}>
-          {slotsLoading ? (
-            <View style={S.slotsLoadingRow}>
-              <ActivityIndicator color={colors.primary} size="small" />
-              <Text style={S.slotsLoadingText}>{t('appointments.loadingSlots')}</Text>
-            </View>
-          ) : slots.length === 0 ? (
-            <View style={S.noSlotsWrap}>
-              <Ionicons name="calendar-outline" size={44} color={colors.border} />
-              <Text style={S.noSlotsTitle}>{t('appointments.noSlotsTitle')}</Text>
-              <Text style={S.noSlotsSub}>{t('appointments.noSlotsSub')}</Text>
-            </View>
-          ) : (
-            /*
-             * flexWrap grid — gap-based spacing, zero directional margins.
-             * In RTL, chips wrap right-to-left automatically via flex engine.
-             */
-            <View style={S.slotsGrid}>
-              {slots.map((slot) => (
-                <SlotChip
-                  key={slot.time}
-                  slot={slot}
-                  isSelected={selectedSlot?.time === slot.time}
-                  onSelect={handleSlotSelect}
-                />
-              ))}
-            </View>
-          )}
         </Section>
 
         {/* ── Booking For ──────────────────────────────────────────── */}
@@ -515,25 +426,18 @@ export default function BookAppointmentScreen({ route, navigation }) {
       </ScrollView>
 
       {/* ── STICKY FOOTER ────────────────────────────────────────────── */}
-      {/*
-       * Sibling to ScrollView inside ScreenContainer's KAV.
-       * On iOS: KAV "padding" mode lifts the footer above the keyboard.
-       * On Android: system windowSoftInputMode=adjustResize shrinks the KAV.
-       */}
       <View style={S.footer}>
-        {/* Selection summary — shown once a slot is chosen. */}
-        {selectedSlot && (
-          <View style={S.selectionSummary}>
-            <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-            <Text style={S.selectionSummaryText}>
-              {selectedDate.toLocaleDateString(undefined, {
-                weekday: 'short', month: 'short', day: 'numeric',
-              })}
-              {'  ·  '}
-              {selectedSlot.display}
-            </Text>
-          </View>
-        )}
+        {/* Date summary in footer */}
+        <View style={S.selectionSummary}>
+          <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+          <Text style={S.selectionSummaryText}>
+            {selectedDate.toLocaleDateString(undefined, {
+              weekday: 'short', month: 'short', day: 'numeric',
+            })}
+            {'  ·  '}
+            {t('appointments.timeAssignedByReceptionist', 'Time to be assigned by receptionist')}
+          </Text>
+        </View>
 
         {/* Inline error — never an Alert for service failures per contract. */}
         {submitError ? (

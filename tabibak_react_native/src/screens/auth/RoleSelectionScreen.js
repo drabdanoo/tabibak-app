@@ -3,140 +3,161 @@ import {
   View,
   Text,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
-  StatusBar
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import { useTranslation } from 'react-i18next';
+import { ScreenContainer } from '../../components/ui';
+import { colors, spacing, typography, BorderRadius, shadows } from '../../config/theme';
 import { USER_ROLES } from '../../config/firebase';
 
+// ─── Role card data ────────────────────────────────────────────────────────────
+// Icons and accent colours are static; labels/descriptions come from i18n.
+const ROLE_CARDS = [
+  {
+    role:       USER_ROLES.PATIENT,
+    icon:       'person-outline',
+    accentColor: colors.primary,
+    titleKey:   'roles.patient',
+    descKey:    'roles.patientDesc',
+  },
+  {
+    role:       USER_ROLES.DOCTOR,
+    icon:       'medkit-outline',
+    accentColor: colors.secondary,
+    titleKey:   'roles.doctor',
+    descKey:    'roles.doctorDesc',
+  },
+  {
+    role:       USER_ROLES.RECEPTIONIST,
+    icon:       'desktop-outline',
+    accentColor: colors.info,
+    titleKey:   'roles.receptionist',
+    descKey:    'roles.receptionistDesc',
+  },
+];
+
 const RoleSelectionScreen = ({ navigation }) => {
+  const { t } = useTranslation();
+
   const handleRoleSelect = (role) => {
     if (role === USER_ROLES.PATIENT) {
       navigation.navigate('PhoneAuth');
     } else {
-      // For doctors and receptionists, navigate to email login
       navigation.navigate('EmailLogin', { role });
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+    <ScreenContainer scrollable={false} padded={false} edges={['top', 'bottom']}>
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Ionicons name="medical" size={80} color={Colors.primary} />
-          <Text style={styles.title}>Tabibok</Text>
-          <Text style={styles.subtitle}>Choose your role to continue</Text>
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <View style={styles.logoCircle}>
+          <Ionicons name="medical" size={44} color={colors.white} />
         </View>
-
-        <View style={styles.rolesContainer}>
-          <TouchableOpacity
-            style={[styles.roleCard, styles.patientCard]}
-            onPress={() => handleRoleSelect(USER_ROLES.PATIENT)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="person" size={48} color={Colors.primary} />
-            <Text style={styles.roleTitle}>Patient</Text>
-            <Text style={styles.roleDescription}>
-              Book appointments, view medical records
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.roleCard, styles.doctorCard]}
-            onPress={() => handleRoleSelect(USER_ROLES.DOCTOR)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="medkit" size={48} color={Colors.secondary} />
-            <Text style={styles.roleTitle}>Doctor</Text>
-            <Text style={styles.roleDescription}>
-              Manage appointments, patient records
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.roleCard, styles.receptionistCard]}
-            onPress={() => handleRoleSelect(USER_ROLES.RECEPTIONIST)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="desktop" size={48} color={Colors.info} />
-            <Text style={styles.roleTitle}>Receptionist</Text>
-            <Text style={styles.roleDescription}>
-              Confirm appointments, manage schedule
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.appName}>Tabibok</Text>
+        <Text style={styles.selectRoleLabel}>{t('auth.selectRole')}</Text>
       </View>
-    </SafeAreaView>
+
+      {/* ── Role cards in a ScrollView so the third card is never clipped ──── */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {ROLE_CARDS.map(({ role, icon, accentColor, titleKey, descKey }) => (
+          <TouchableOpacity
+            key={role}
+            style={[styles.roleCard, { borderColor: accentColor + '30' }]}
+            onPress={() => handleRoleSelect(role)}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: accentColor + '18' }]}>
+              <Ionicons name={icon} size={36} color={accentColor} />
+            </View>
+            <View style={styles.cardText}>
+              <Text style={styles.roleTitle}>{t(titleKey)}</Text>
+              <Text style={styles.roleDesc}>{t(descKey)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.gray} />
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+    </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.white
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xxl
-  },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
-  title: {
-    fontSize: FontSizes.xxl,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    marginTop: Spacing.md
-  },
-  subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.textLight,
-    marginTop: Spacing.sm
-  },
-  rolesContainer: {
-    flex: 1
-  },
-  roleCard: {
-    backgroundColor: Colors.backgroundLight,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    ...shadows.md,
   },
-  patientCard: {
-    borderColor: Colors.primary + '20'
+  appName: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 0.5,
   },
-  doctorCard: {
-    borderColor: Colors.secondary + '20'
+  selectRoleLabel: {
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
-  receptionistCard: {
-    borderColor: Colors.info + '20'
+
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 40,
+  },
+
+  roleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginEnd: spacing.md,
+  },
+  cardText: {
+    flex: 1,
   },
   roleTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '600',
-    color: Colors.text,
-    marginTop: Spacing.sm
+    fontSize: typography.sizes.lg,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
-  roleDescription: {
-    fontSize: FontSizes.sm,
-    color: Colors.textLight,
-    textAlign: 'center',
-    marginTop: Spacing.xs
-  }
+  roleDesc: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
 });
 
 export default RoleSelectionScreen;

@@ -2,327 +2,293 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  StatusBar
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import { ScreenContainer, PrimaryButton, CustomTextField } from '../../components/ui';
+import { colors, spacing, typography, BorderRadius, shadows } from '../../config/theme';
 
-const ProfileSetupScreen = ({ navigation }) => {
-  const [fullName, setFullName] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [dateObject, setDateObject] = useState(new Date());
-  const [gender, setGender] = useState('');
-  const [loading, setLoading] = useState(false);
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const formatDate = (date) => {
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;   // DD/MM/YYYY — Iraqi convention
+};
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
+const ProfileSetupScreen = () => {
+  const { t }             = useTranslation();
   const { createProfile } = useAuth();
-  
-  const formatDate = (date) => {
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${month}/${day}/${year}`;
-  };
-  
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    
-    if (selectedDate) {
-      const today = new Date();
-      if (selectedDate > today) {
-        Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
-        return;
-      }
-      setDateObject(selectedDate);
-      setDateOfBirth(formatDate(selectedDate));
+
+  const [fullName, setFullName]         = useState('');
+  const [dateObject, setDateObject]     = useState(new Date(2000, 0, 1));
+  const [dateOfBirth, setDateOfBirth]   = useState('');
+  const [showPicker, setShowPicker]     = useState(false);
+  const [gender, setGender]             = useState('');   // 'male' | 'female'
+  const [isLoading, setIsLoading]       = useState(false);
+  const [formError, setFormError]       = useState('');
+
+  const canSubmit = fullName.trim().length > 0 && dateOfBirth.length > 0 && gender !== '';
+
+  const handleDateChange = (_event, selected) => {
+    // On Android the picker closes itself; on iOS we keep it open
+    if (Platform.OS !== 'ios') setShowPicker(false);
+
+    if (!selected) return;
+
+    if (selected > new Date()) {
+      setFormError(t('auth.dobFuture'));
+      return;
     }
+    setFormError('');
+    setDateObject(selected);
+    setDateOfBirth(formatDate(selected));
   };
 
   const handleSubmit = async () => {
-    if (!fullName.trim()) {
-      Alert.alert('Required Field', 'Please enter your full name');
+    if (!canSubmit) {
+      setFormError(t('auth.profileRequired'));
       return;
     }
 
-    if (!dateOfBirth.trim()) {
-      Alert.alert('Required Field', 'Please enter your date of birth');
-      return;
+    setFormError('');
+    setIsLoading(true);
+
+    const success = await createProfile({
+      fullName:    fullName.trim(),
+      dateOfBirth,
+      gender,
+    });
+
+    setIsLoading(false);
+
+    if (!success) {
+      setFormError(t('errors.generic'));
     }
-
-    if (!gender) {
-      Alert.alert('Required Field', 'Please select your gender');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const success = await createProfile({
-        fullName: fullName.trim(),
-        dateOfBirth,
-        gender
-      });
-
-      if (success) {
-        // Navigation will be handled by AuthContext
-        // User will be redirected to Patient stack
-      } else {
-        Alert.alert('Error', 'Failed to create profile. Please try again.');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-      console.error('Profile creation error:', error);
-    } finally {
-      setLoading(false);
-    }
+    // On success AuthContext onAuthStateChanged fires → PatientStack mounts automatically
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-      
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <Ionicons name="person-add" size={80} color={Colors.primary} />
-            <Text style={styles.title}>Complete Your Profile</Text>
-            <Text style={styles.subtitle}>
-              Please provide your information
-            </Text>
-          </View>
+    <ScreenContainer scrollable={true} padded={true} edges={['top', 'bottom']}>
 
-          <View style={styles.form}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Enter your full name"
-              placeholderTextColor={Colors.gray}
-              autoCapitalize="words"
-            />
+      {/* Hero */}
+      <View style={styles.header}>
+        <View style={styles.iconCircle}>
+          <Ionicons name="person-add-outline" size={48} color={colors.primary} />
+        </View>
+        <Text style={styles.title}>{t('auth.profileSetup')}</Text>
+        <Text style={styles.subtitle}>{t('auth.profileSubtitle')}</Text>
+        <Text style={styles.requiredNote}>{t('auth.profileDoctorNote')}</Text>
+      </View>
 
-            <Text style={styles.label}>Date of Birth</Text>
+      {/* Full name */}
+      <CustomTextField
+        label={t('auth.fullName')}
+        value={fullName}
+        onChangeText={(v) => { setFullName(v); setFormError(''); }}
+        placeholder={t('auth.fullNamePlaceholder')}
+        autoCapitalize="words"
+        autoCorrect={false}
+      />
+
+      {/* Date of birth — tappable field that opens DateTimePicker */}
+      <View style={styles.dobWrapper}>
+        <Text style={styles.dobLabel}>{t('auth.dateOfBirth')}</Text>
+        <TouchableOpacity
+          style={styles.dobField}
+          onPress={() => setShowPicker(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={dateOfBirth ? styles.dobValue : styles.dobPlaceholder}>
+            {dateOfBirth || t('auth.dobHint')}
+          </Text>
+          <Ionicons name="calendar-outline" size={20} color={colors.gray} />
+        </TouchableOpacity>
+      </View>
+
+      {showPicker && (
+        <DateTimePicker
+          value={dateObject}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateChange}
+          maximumDate={new Date()}
+        />
+      )}
+
+      {/* Gender */}
+      <Text style={styles.genderLabel}>{t('auth.gender')}</Text>
+      <View style={styles.genderRow}>
+        {[
+          { value: 'male',   icon: 'male',   labelKey: 'auth.male'   },
+          { value: 'female', icon: 'female', labelKey: 'auth.female' },
+        ].map(({ value, icon, labelKey }) => {
+          const selected = gender === value;
+          return (
             <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowDatePicker(true)}
+              key={value}
+              style={[styles.genderBtn, selected && styles.genderBtnSelected]}
+              onPress={() => { setGender(value); setFormError(''); }}
+              activeOpacity={0.75}
             >
-              <Text style={dateOfBirth ? styles.inputText : styles.placeholderText}>
-                {dateOfBirth || 'MM/DD/YYYY'}
-              </Text>
-              <Ionicons name="calendar-outline" size={20} color={Colors.gray} />
-            </TouchableOpacity>
-            
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateObject}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDateChange}
-                maximumDate={new Date()}
+              <Ionicons
+                name={icon}
+                size={26}
+                color={selected ? colors.white : colors.primary}
               />
-            )}
-
-            <Text style={styles.label}>Gender</Text>
-            <View style={styles.genderContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.genderButton,
-                  gender === 'male' && styles.genderButtonSelected
-                ]}
-                onPress={() => setGender('male')}
-              >
-                <Ionicons 
-                  name="male" 
-                  size={24} 
-                  color={gender === 'male' ? Colors.white : Colors.primary} 
-                />
-                <Text style={[
-                  styles.genderText,
-                  gender === 'male' && styles.genderTextSelected
-                ]}>
-                  Male
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.genderButton,
-                  gender === 'female' && styles.genderButtonSelected
-                ]}
-                onPress={() => setGender('female')}
-              >
-                <Ionicons 
-                  name="female" 
-                  size={24} 
-                  color={gender === 'female' ? Colors.white : Colors.primary} 
-                />
-                <Text style={[
-                  styles.genderText,
-                  gender === 'female' && styles.genderTextSelected
-                ]}>
-                  Female
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.genderButton,
-                  gender === 'other' && styles.genderButtonSelected
-                ]}
-                onPress={() => setGender('other')}
-              >
-                <Ionicons 
-                  name="person" 
-                  size={24} 
-                  color={gender === 'other' ? Colors.white : Colors.primary} 
-                />
-                <Text style={[
-                  styles.genderText,
-                  gender === 'other' && styles.genderTextSelected
-                ]}>
-                  Other
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color={Colors.white} />
-              ) : (
-                <Text style={styles.buttonText}>Complete Setup</Text>
-              )}
+              <Text style={[styles.genderText, selected && styles.genderTextSelected]}>
+                {t(labelKey)}
+              </Text>
             </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          );
+        })}
+      </View>
+
+      {/* Inline error */}
+      {!!formError && (
+        <Text style={styles.errorText}>{formError}</Text>
+      )}
+
+      {/* CTA */}
+      <PrimaryButton
+        label={t('auth.completeProfile')}
+        onPress={handleSubmit}
+        disabled={!canSubmit}
+        loading={isLoading}
+        style={styles.button}
+      />
+
+    </ScreenContainer>
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.white
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg
-  },
   header: {
     alignItems: 'center',
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.xl
+    marginBottom: spacing.xl,
+  },
+  iconCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.primary + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
   title: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginTop: Spacing.md
+    fontSize: typography.sizes.xl,
+    fontWeight: '700',
+    color: colors.text,
   },
   subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.textLight,
-    marginTop: Spacing.sm,
-    textAlign: 'center'
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    lineHeight: 22,
   },
-  form: {
-    flex: 1
-  },
-  label: {
-    fontSize: FontSizes.md,
+  requiredNote: {
+    fontSize: typography.sizes.sm,
+    color: colors.primary,
     fontWeight: '600',
-    color: Colors.text,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    backgroundColor: colors.primary + '12',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
-  input: {
-    backgroundColor: Colors.backgroundLight,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.md,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
+
+  // Date of birth
+  dobWrapper: {
+    marginBottom: spacing.md,
+  },
+  dobLabel: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  dobField: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
-  },
-  inputText: {
-    fontSize: FontSizes.md,
-    color: Colors.text
-  },
-  placeholderText: {
-    fontSize: FontSizes.md,
-    color: Colors.gray
-  },
-  genderContainer: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xl
-  },
-  genderButton: {
-    flex: 1,
-    backgroundColor: Colors.backgroundLight,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginHorizontal: Spacing.xs,
-    borderWidth: 2,
-    borderColor: Colors.border
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.md,
+    minHeight: 48,
   },
-  genderButtonSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary
+  dobValue: {
+    fontSize: typography.sizes.md,
+    color: colors.text,
+    flex: 1,
+  },
+  dobPlaceholder: {
+    fontSize: typography.sizes.md,
+    color: colors.gray,
+    flex: 1,
+  },
+
+  // Gender
+  genderLabel: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  genderRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  genderBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    gap: spacing.xs,
+    ...shadows.sm,
+  },
+  genderBtnSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   genderText: {
-    fontSize: FontSizes.sm,
-    color: Colors.text,
-    marginTop: Spacing.xs,
-    fontWeight: '600'
+    fontSize: typography.sizes.sm,
+    fontWeight: '600',
+    color: colors.primary,
   },
   genderTextSelected: {
-    color: Colors.white
+    color: colors.white,
   },
+
+  errorText: {
+    fontSize: typography.sizes.sm,
+    color: colors.error,
+    marginBottom: spacing.md,
+  },
+
   button: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3
+    marginTop: spacing.sm,
   },
-  buttonDisabled: {
-    opacity: 0.6
-  },
-  buttonText: {
-    color: Colors.white,
-    fontSize: FontSizes.md,
-    fontWeight: '600'
-  }
 });
 
 export default ProfileSetupScreen;

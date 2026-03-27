@@ -64,7 +64,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
 import firestoreService from '../../services/firestoreService';
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 30;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom Hooks
@@ -256,7 +256,7 @@ const DoctorCard = React.memo(({ doctor, onPress, onBook }) => {
             {doctor.specialty || 'General Practice'}
           </Text>
 
-          <StarRating rating={doctor.rating ?? 0} />
+          <StarRating rating={doctor.averageRating ?? doctor.rating ?? 0} />
 
           <View style={S.metaRow}>
             {!!doctor.experience && (
@@ -332,6 +332,9 @@ const PatientHomeHeader = React.memo(({
   appointments,
   aptLoading,
   onNavigateAppointments,
+  onNavigateLabOrders,
+  onNavigatePrescriptions,
+  onNavigateMap,
   debouncedSearch,
   doctorCount,
   doctorsLoading,
@@ -417,6 +420,33 @@ const PatientHomeHeader = React.memo(({
       </View>
     )}
 
+    {/* ── Quick Access ─────────────────────────────────────────────── */}
+    <View style={S.quickAccessGrid}>
+      <TouchableOpacity style={S.quickCard} onPress={onNavigateLabOrders} activeOpacity={0.85}>
+        <View style={[S.quickIcon, { backgroundColor: Colors.warning + '1A' }]}>
+          <Ionicons name="flask-outline" size={22} color={Colors.warning} />
+        </View>
+        <Text style={S.quickLabel}>Lab Orders</Text>
+        <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={S.quickCard} onPress={onNavigatePrescriptions} activeOpacity={0.85}>
+        <View style={[S.quickIcon, { backgroundColor: Colors.primary + '1A' }]}>
+          <Ionicons name="document-text-outline" size={22} color={Colors.primary} />
+        </View>
+        <Text style={S.quickLabel}>Prescriptions</Text>
+        <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[S.quickCard, S.quickCardWide]} onPress={onNavigateMap} activeOpacity={0.85}>
+        <View style={[S.quickIcon, { backgroundColor: Colors.secondary + '1A' }]}>
+          <Ionicons name="map-outline" size={22} color={Colors.secondary} />
+        </View>
+        <Text style={S.quickLabel}>Doctors Map</Text>
+        <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+      </TouchableOpacity>
+    </View>
+
     {/* ── Doctors Section Label ────────────────────────────────────── */}
     <View style={[S.sectionHeader, S.doctorsSectionLabel]}>
       <Text style={S.sectionTitle}>
@@ -485,6 +515,9 @@ const PatientHomeScreen = ({ navigation }) => {
       appointments,
       aptLoading,
       onNavigateAppointments: () => navigation.navigate('Appointments'),
+      onNavigateLabOrders: () => navigation.navigate('LabOrders'),
+      onNavigatePrescriptions: () => navigation.navigate('PrescriptionInbox'),
+      onNavigateMap: () => navigation.navigate('DoctorMap'),
       debouncedSearch,
       doctorCount: doctors.length,
       doctorsLoading: loading,
@@ -720,6 +753,48 @@ const S = StyleSheet.create({
   countLabel: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
+  },
+
+  // ── Quick Access Grid ─────────────────────────────────────────────
+  quickAccessGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  quickCard: {
+    // takes ~48% of row width → 2 per row
+    flexBasis: '48%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+  },
+  quickCardWide: {
+    // Map card spans full width on the second row
+    flexBasis: '100%',
+  },
+  quickIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: Colors.text,
   },
 
   // ── Appointment Chip ─────────────────────────────────────────────

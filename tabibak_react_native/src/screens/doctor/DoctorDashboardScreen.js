@@ -186,7 +186,7 @@ const PendingRequestCard = React.memo(({ item, processingId, onAccept, onDecline
         <PatientAvatar name={item.patientName} />
         <View style={S.pendingCardInfo}>
           <Text style={S.pendingPatientName} numberOfLines={1}>
-            {item.patientName ?? '—'}
+            {item.patientName || '—'}
           </Text>
           <View style={S.pendingMeta}>
             <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
@@ -271,7 +271,7 @@ const ScheduleItem = React.memo(({ item, isLast, processingId, onMarkDone, t }) 
           <PatientAvatar name={item.patientName} size={36} />
           <View style={S.scheduleCardInfo}>
             <Text style={S.schedulePatientName} numberOfLines={1}>
-              {item.patientName ?? '—'}
+              {item.patientName || '—'}
             </Text>
             {!!item.reason && (
               <Text style={S.scheduleReason} numberOfLines={1}>{item.reason}</Text>
@@ -313,6 +313,69 @@ const ScheduleItem = React.memo(({ item, isLast, processingId, onMarkDone, t }) 
   );
 });
 
+/** Simple bar chart row for patient counts per day. */
+const MiniBarChart = React.memo(function MiniBarChart({ dailyCounts }) {
+  if (!dailyCounts?.length) return null;
+  const maxCount = Math.max(...dailyCounts.map(d => d.count), 1);
+  return (
+    <View style={S.barChart}>
+      {dailyCounts.map(({ date, dayLabel, count, isToday }) => {
+        const pct = count / maxCount;
+        return (
+          <View key={date} style={S.barCol}>
+            <Text style={[S.barCount, count === 0 && S.barCountZero]}>{count > 0 ? count : ''}</Text>
+            <View style={S.barTrack}>
+              <View style={[S.barFill, { flex: pct }, isToday && S.barFillToday]} />
+              <View style={{ flex: 1 - pct }} />
+            </View>
+            <Text style={[S.barDayLabel, isToday && S.barDayLabelToday]}>{dayLabel}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+});
+
+/** Revenue + patients-per-day analytics card. */
+const AnalyticsCard = React.memo(function AnalyticsCard({ weeklyStats, t }) {
+  if (!weeklyStats) return null;
+  const { todayRevenue, totalRevenue, dailyCounts, consultationFee } = weeklyStats;
+  const formatCurrency = (n) => n.toLocaleString() + ' IQD';
+  return (
+    <View style={[S.analyticsCard, shadows.sm]}>
+      <View style={S.analyticsHeader}>
+        <Ionicons name="bar-chart-outline" size={16} color={colors.primary} />
+        <Text style={S.analyticsTitle}>{t('doctor.analytics.title')}</Text>
+      </View>
+      <View style={S.analyticsRow}>
+        <View style={S.analyticsStat}>
+          <Ionicons name="cash-outline" size={18} color={colors.success} />
+          <Text style={S.analyticsStatValue}>{formatCurrency(todayRevenue)}</Text>
+          <Text style={S.analyticsStatLabel}>{t('doctor.analytics.todayRevenue')}</Text>
+        </View>
+        <View style={S.analyticsDivider} />
+        <View style={S.analyticsStat}>
+          <Ionicons name="trending-up-outline" size={18} color={colors.primary} />
+          <Text style={S.analyticsStatValue}>{formatCurrency(totalRevenue)}</Text>
+          <Text style={S.analyticsStatLabel}>{t('doctor.analytics.weekRevenue')}</Text>
+        </View>
+        {consultationFee > 0 && (
+          <>
+            <View style={S.analyticsDivider} />
+            <View style={S.analyticsStat}>
+              <Ionicons name="pricetag-outline" size={18} color={colors.info} />
+              <Text style={S.analyticsStatValue}>{formatCurrency(consultationFee)}</Text>
+              <Text style={S.analyticsStatLabel}>{t('doctor.analytics.feePerVisit')}</Text>
+            </View>
+          </>
+        )}
+      </View>
+      <Text style={S.analyticsChartTitle}>{t('doctor.analytics.patientsThisWeek')}</Text>
+      <MiniBarChart dailyCounts={dailyCounts} />
+    </View>
+  );
+});
+
 /** Shown in the pending carousel when there are no pending requests. */
 const PendingEmptyCard = React.memo(({ t }) => (
   <View style={[S.emptyCard, shadows.sm]}>
@@ -346,6 +409,9 @@ export default function DoctorDashboardScreen({ navigation }) {
   const [requests, setRequests]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
+
+  // ── Weekly analytics ───────────────────────────────────────────────────────
+  const [weeklyStats, setWeeklyStats] = useState(null);
 
   // ── Per-card write loading ──────────────────────────────────────────────────
   // Holds the appointment ID currently being written to Firestore.
@@ -401,6 +467,12 @@ export default function DoctorDashboardScreen({ navigation }) {
     );
 
     return () => { unsubSchedule(); unsubRequests(); };
+  }, [uid, retryKey]);
+
+  // ── Fetch weekly analytics once on mount (and on retry) ───────────────────
+  useEffect(() => {
+    if (!uid) return;
+    appointmentService.getWeeklyStats(uid).then(setWeeklyStats).catch(() => {});
   }, [uid, retryKey]);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
@@ -587,6 +659,9 @@ export default function DoctorDashboardScreen({ navigation }) {
             accent={STAT_ACCENTS.remaining}
           />
         </ScrollView>
+
+        {/* ── ANALYTICS ──────────────────────────────────────────────────── */}
+        <AnalyticsCard weeklyStats={weeklyStats} t={t} />
 
         {/* ── PENDING REQUESTS ───────────────────────────────────────────── */}
         <SectionHeader
@@ -1025,5 +1100,103 @@ const S = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
+  },
+
+  // ── Analytics card ────────────────────────────────────────────────────────
+  analyticsCard: {
+    backgroundColor: colors.white,
+    borderRadius: BorderRadius.lg,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  analyticsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  analyticsTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  analyticsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  analyticsStat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 3,
+  },
+  analyticsDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.border,
+  },
+  analyticsStatValue: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  analyticsStatLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  analyticsChartTitle: {
+    fontSize: typography.sizes.xs,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  // Bar chart
+  barChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 70,
+    gap: 4,
+  },
+  barCol: {
+    flex: 1,
+    alignItems: 'center',
+    height: 70,
+  },
+  barCount: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  barCountZero: {
+    color: 'transparent',
+  },
+  barTrack: {
+    flex: 1,
+    width: '75%',
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: colors.border,
+    flexDirection: 'column-reverse',
+  },
+  barFill: {
+    backgroundColor: colors.primary + 'AA',
+    borderRadius: 4,
+  },
+  barFillToday: {
+    backgroundColor: colors.primary,
+  },
+  barDayLabel: {
+    fontSize: 9,
+    color: colors.textSecondary,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  barDayLabelToday: {
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

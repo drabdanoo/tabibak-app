@@ -13,6 +13,9 @@ import BookAppointmentScreen from '../screens/patient/BookAppointmentScreen';
 import MyAppointmentsScreen  from '../screens/patient/MyAppointmentsScreen';
 import MedicalDocumentsScreen from '../screens/patient/MedicalDocumentsScreen';
 import PatientProfileScreen  from '../screens/patient/PatientProfileScreen';
+import LabOrdersScreen       from '../screens/patient/LabOrdersScreen';
+import PrescriptionInboxScreen from '../screens/patient/PrescriptionInboxScreen';
+import DoctorMapScreen       from '../screens/patient/DoctorMapScreen';
 
 // Shared Screens
 import ChatScreen from '../screens/chat/ChatScreen';
@@ -114,6 +117,21 @@ const PatientStack = () => {
       <Stack.Screen
         name="Chat"
         component={ChatScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="LabOrders"
+        component={LabOrdersScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PrescriptionInbox"
+        component={PrescriptionInboxScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="DoctorMap"
+        component={DoctorMapScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

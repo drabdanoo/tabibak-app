@@ -90,12 +90,21 @@ import Constants          from 'expo-constants';
 import { Platform }       from 'react-native';
 import {
   getFirestore,
+  collection,
   doc,
   setDoc,
   deleteDoc,
+  updateDoc,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  onSnapshot,
+  writeBatch,
   serverTimestamp,
 } from 'firebase/firestore';
 import { COLLECTIONS } from '../config/firebase';
+import { getAuth }      from 'firebase/auth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level foreground handler
@@ -258,6 +267,9 @@ class NotificationService {
    */
   async syncTokenToUserDocument(uid, token) {
     if (!uid || !token) return false;
+    // Guard: if the user has already signed out, skip the write to avoid
+    // a "Missing or insufficient permissions" error from a stale callback.
+    if (!getAuth().currentUser || getAuth().currentUser.uid !== uid) return false;
     try {
       await setDoc(
         doc(this.db, COLLECTIONS.USERS, uid),
@@ -627,6 +639,71 @@ class NotificationService {
       await Notifications.setBadgeCountAsync(count);
     } catch (error) {
       console.error('[NotificationService] setBadgeCount error:', error);
+    }
+  }
+
+  // ── In-app notification feed ──────────────────────────────────────────────
+
+  /**
+   * Subscribe to a user's in-app notifications in real time.
+   * Ordered by createdAt DESC (newest first).
+   *
+   * @param {string}   uid      - The user whose notifications to watch
+   * @param {function} onChange - Called with Notification[] on every snapshot
+   * @param {function} onError  - Called with Error on listener failure
+   * @returns {function} unsubscribe
+   */
+  subscribeToNotifications(uid, onChange, onError) {
+    const q = query(
+      collection(this.db, 'notifications'),
+      where('userId', '==', uid),
+      orderBy('createdAt', 'desc'),
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => onChange(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      onError,
+    );
+  }
+
+  /**
+   * Mark a single notification as read.
+   * Silent on failure.
+   *
+   * @param {string} notificationId
+   */
+  async markAsRead(notificationId) {
+    if (!notificationId) return;
+    try {
+      await updateDoc(doc(this.db, 'notifications', notificationId), { read: true });
+    } catch {
+      // Silent — non-fatal
+    }
+  }
+
+  /**
+   * Mark ALL unread notifications for a user as read via a batch write.
+   * Returns { success: boolean }.
+   *
+   * @param {string} uid
+   */
+  async markAllAsRead(uid) {
+    if (!uid) return { success: false };
+    try {
+      const q = query(
+        collection(this.db, 'notifications'),
+        where('userId', '==', uid),
+        where('read', '==', false),
+      );
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return { success: true };
+      const batch = writeBatch(this.db);
+      snapshot.docs.forEach((d) => batch.update(d.ref, { read: true }));
+      await batch.commit();
+      return { success: true };
+    } catch (error) {
+      console.error('[NotificationService] markAllAsRead error:', error);
+      return { success: false, error: error.message };
     }
   }
 
