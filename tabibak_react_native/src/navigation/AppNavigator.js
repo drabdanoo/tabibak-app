@@ -75,9 +75,9 @@ import notificationService      from '../services/notificationService';
 // ── Auth screens ──────────────────────────────────────────────────────────────
 import PhoneAuthScreen       from '../screens/auth/PhoneAuthScreen';
 import OTPVerificationScreen from '../screens/auth/OTPVerificationScreen';
-import ProfileSetupScreen    from '../screens/auth/ProfileSetupScreen';
 import RoleSelectionScreen   from '../screens/auth/RoleSelectionScreen';
 import EmailLoginScreen      from '../screens/auth/EmailLoginScreen';
+import ProfileSetupScreen    from '../screens/auth/ProfileSetupScreen';
 
 // ── Role stacks ───────────────────────────────────────────────────────────────
 import PatientStack      from './PatientStack';
@@ -128,7 +128,7 @@ const DEFAULT_TAB = {
 // AppNavigator
 // ─────────────────────────────────────────────────────────────────────────────
 const AppNavigator = () => {
-  const { user, userRole, initializing } = useAuth();
+  const { user, userRole, userProfile, loading, initializing } = useAuth();
 
   // ── Navigation ref ─────────────────────────────────────────────────────────
   // useNavigationContainerRef() returns a NavigationContainerRef whose
@@ -246,10 +246,10 @@ const AppNavigator = () => {
   });
 
   // ── Auth loading spinner ───────────────────────────────────────────────────
-  // Rendered while Firebase resolves the initial auth state (onAuthStateChanged
-  // has not yet fired). NavigationContainer is NOT mounted here; any notification
-  // tap during this window is buffered in pendingNotificationResponseRef.
-  if (initializing) {
+  // Show while Firebase resolves the initial auth state OR while AuthContext
+  // is fetching the user's role/profile from Firestore after sign-in.
+  // Once loading=false the role is definitively known (null = no profile yet).
+  if (initializing || loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
@@ -258,39 +258,44 @@ const AppNavigator = () => {
   }
 
   // ── Navigation tree ────────────────────────────────────────────────────────
+  //
+  // Three clear states so the navigator always has at least one screen:
+  //
+  //  1. !user              → Unauthenticated flow (RoleSelection → PhoneAuth …)
+  //  2. user && !userRole  → New user: Firebase auth done but no Firestore
+  //                          profile yet. Show ProfileSetup directly.
+  //  3. user && userRole   → Fully authenticated; show the correct role stack.
+  //
   return (
     <NavigationContainer
       ref={navigationRef}
       onReady={handleNavigationReady}
     >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!user ? (
-          // ── Unauthenticated ────────────────────────────────────────────────
+        {!user || !userRole ? (
+          // ── 1. Unauthenticated / role not yet resolved ─────────────────────
+          // New patients are auto-registered in AuthContext.verifyOTP so
+          // !userRole with a logged-in user is a transient state only.
           <>
             <Stack.Screen name="RoleSelection"   component={RoleSelectionScreen} />
             <Stack.Screen name="PhoneAuth"        component={PhoneAuthScreen} />
             <Stack.Screen name="OTPVerification"  component={OTPVerificationScreen} />
-            <Stack.Screen name="ProfileSetup"     component={ProfileSetupScreen} />
             <Stack.Screen name="EmailLogin"       component={EmailLoginScreen} />
           </>
         ) : (
-          // ── Authenticated — role-based stack ───────────────────────────────
+          // ── 2. Fully authenticated — role-based stack ──────────────────────
           <>
             {userRole === USER_ROLES.PATIENT && (
-              <Stack.Screen name="PatientStack" component={PatientStack} />
+              // Gate: if fullName or dateOfBirth is missing, force profile completion first
+              (!userProfile?.fullName?.trim() || !userProfile?.dateOfBirth)
+                ? <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+                : <Stack.Screen name="PatientStack" component={PatientStack} />
             )}
             {userRole === USER_ROLES.DOCTOR && (
               <Stack.Screen name="DoctorStack" component={DoctorStack} />
             )}
             {userRole === USER_ROLES.RECEPTIONIST && (
               <Stack.Screen name="ReceptionistStack" component={ReceptionistStack} />
-            )}
-            {(!userRole || (
-              userRole !== USER_ROLES.PATIENT &&
-              userRole !== USER_ROLES.DOCTOR &&
-              userRole !== USER_ROLES.RECEPTIONIST
-            )) && (
-              <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
             )}
           </>
         )}

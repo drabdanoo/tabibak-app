@@ -632,3 +632,76 @@ exports.sendAppointmentConfirmationSMS = functionsV1.https.onCall(async (data, c
     throw new functionsV1.https.HttpsError('internal', `SMS Error: ${error.message}`);
   }
 });
+
+// -----------------------------------------------------------------------------
+// APPOINTMENT REMINDERS — runs every 30 minutes
+// Sends push notifications to patients 24h and 1h before their appointment.
+// Marks reminder flags so each notification fires exactly once.
+// -----------------------------------------------------------------------------
+
+exports.sendAppointmentReminders = functionsV1.pubsub
+  .schedule('every 30 minutes')
+  .onRun(async () => {
+    const now     = Date.now();
+    const in24h   = now + 24 * 60 * 60 * 1000;
+    const in1h    = now +      60 * 60 * 1000;
+    const window  = 30 * 60 * 1000; // 30-min window so we don't miss/double-send
+
+    // Helper: send FCM to a patient if they have a push token
+    async function notifyPatient(patientId, title, body) {
+      if (!patientId) return;
+      try {
+        const userSnap = await db.collection('users').doc(patientId).get();
+        const token = userSnap.data()?.fcmToken;
+        if (!token) return;
+        await admin.messaging().send({
+          token,
+          notification: { title, body },
+          android: { priority: 'high' },
+          apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+        });
+      } catch (err) {
+        logger.warn(`[reminders] FCM failed for ${patientId}:`, err.message);
+      }
+    }
+
+    // Query confirmed/waiting appointments whose appointmentDate is a Timestamp
+    // within the upcoming 24h window that haven't had a 24h reminder sent yet.
+    const snap24 = await db.collection('appointments')
+      .where('status', 'in', ['confirmed', 'waiting'])
+      .where('reminder24hSent', '!=', true)
+      .where('appointmentDate', '>=', admin.firestore.Timestamp.fromMillis(in24h - window))
+      .where('appointmentDate', '<=', admin.firestore.Timestamp.fromMillis(in24h + window))
+      .get();
+
+    for (const docSnap of snap24.docs) {
+      const appt = docSnap.data();
+      await notifyPatient(
+        appt.patientId,
+        'تذكير بموعدك غداً',
+        `لديك موعد مع د. ${appt.doctorName || 'طبيبك'} الساعة ${appt.appointmentTime || ''}`,
+      );
+      await docSnap.ref.update({ reminder24hSent: true });
+    }
+
+    // 1-hour reminders
+    const snap1h = await db.collection('appointments')
+      .where('status', 'in', ['confirmed', 'waiting'])
+      .where('reminder1hSent', '!=', true)
+      .where('appointmentDate', '>=', admin.firestore.Timestamp.fromMillis(in1h - window))
+      .where('appointmentDate', '<=', admin.firestore.Timestamp.fromMillis(in1h + window))
+      .get();
+
+    for (const docSnap of snap1h.docs) {
+      const appt = docSnap.data();
+      await notifyPatient(
+        appt.patientId,
+        '⏰ موعدك خلال ساعة',
+        `تذكير: موعدك مع د. ${appt.doctorName || 'طبيبك'} الساعة ${appt.appointmentTime || ''}`,
+      );
+      await docSnap.ref.update({ reminder1hSent: true });
+    }
+
+    logger.info(`[reminders] 24h: ${snap24.size} | 1h: ${snap1h.size}`);
+    return null;
+  });

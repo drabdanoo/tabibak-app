@@ -66,18 +66,31 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Verify OTP
-  const verifyOTP = async (confirmation, code) => {
-    const result = await authService.verifyOTP(confirmation, code);
-    
+  const verifyOTP = async (code) => {
+    const result = await authService.verifyOTP(code);
+
     if (result.success) {
-      // Check if user has a profile
-      const role = await authService.getUserRole(result.user.uid);
-      
-      if (!role) {
-        // New user - needs to complete profile
-        return { success: true, needsProfile: true, user: result.user };
+      // Check if user has a profile.
+      // Retry once with a short delay in case auth state propagation is slow.
+      let role = await authService.getUserRole(result.user.uid);
+      if (!role && role !== undefined) {
+        await new Promise((r) => setTimeout(r, 1500));
+        role = await authService.getUserRole(result.user.uid);
       }
-      
+
+      if (!role) {
+        // New patient — auto-register with phone number; no profile form needed.
+        // The patient can update their name/DOB from the profile screen later.
+        await authService.createPatientProfile(result.user.uid, {
+          phoneNumber: result.user.phoneNumber ?? '',
+          fullName:    '',
+          dateOfBirth: '',
+          gender:      '',
+        });
+        setUserRole(USER_ROLES.PATIENT);
+        return { success: true, needsProfile: false, user: result.user, role: USER_ROLES.PATIENT };
+      }
+
       // Existing user - fetch profile
       const profile = await authService.getUserProfile(result.user.uid, role);
       return { success: true, needsProfile: false, user: result.user, role, profile };

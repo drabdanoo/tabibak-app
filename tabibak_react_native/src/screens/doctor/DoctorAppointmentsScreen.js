@@ -406,7 +406,7 @@ const AppointmentCard = React.memo(({
           <PatientAvatar name={item.patientName} size={40} />
           <View style={S.cardInfo}>
             <Text style={S.cardPatientName} numberOfLines={1}>
-              {item.patientName ?? 'Patient'}
+              {item.patientName || 'Patient'}
             </Text>
             {!!item.reason && (
               <Text style={S.cardReason} numberOfLines={1}>{item.reason}</Text>
@@ -619,6 +619,59 @@ export default function DoctorAppointmentsScreen({ route, navigation }) {
     setTimeout(() => setRefreshing(false), 1200);
   }, [refresh]);
 
+  // ── Emergency Override — cancel all pending/confirmed for the selected day ─
+  const [clearingDay, setClearingDay] = useState(false);
+
+  const handleClearDay = useCallback(() => {
+    const dayLabel = selectedDate.toLocaleDateString('ar-IQ', { weekday: 'long', day: 'numeric', month: 'long' });
+    Alert.alert(
+      '🚨 إلغاء يوم كامل',
+      `سيتم إلغاء جميع المواعيد المعلقة والمؤكدة ليوم ${dayLabel}.\n\nهل أنت متأكد؟`,
+      [
+        { text: 'رجوع', style: 'cancel' },
+        {
+          text: 'إلغاء الجميع',
+          style: 'destructive',
+          onPress: async () => {
+            setClearingDay(true);
+            try {
+              const { getDocs, query, collection, where, Timestamp, updateDoc, doc, serverTimestamp } = await import('firebase/firestore');
+              const { db: firestoreDb } = await import('../../config/firebase');
+
+              const [year, month, day] = selectedDateStr.split('-').map(Number);
+              const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+              const end   = new Date(year, month - 1, day, 23, 59, 59, 999);
+
+              const snap = await getDocs(query(
+                collection(firestoreDb, 'appointments'),
+                where('doctorId',        '==', uid),
+                where('appointmentDate', '>=', Timestamp.fromDate(start)),
+                where('appointmentDate', '<=', Timestamp.fromDate(end)),
+                where('status',          'in', ['pending', 'confirmed']),
+              ));
+
+              await Promise.all(snap.docs.map(d =>
+                updateDoc(doc(firestoreDb, 'appointments', d.id), {
+                  status:      'cancelled',
+                  cancelledBy: 'doctor_emergency',
+                  cancelledAt: serverTimestamp(),
+                  updatedAt:   serverTimestamp(),
+                }),
+              ));
+
+              Alert.alert('تم', `تم إلغاء ${snap.docs.length} موعد بنجاح.`);
+              refresh();
+            } catch (err) {
+              Alert.alert('خطأ', 'تعذّر إلغاء المواعيد. حاول مجدداً.');
+            } finally {
+              setClearingDay(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [uid, selectedDateStr, selectedDate, refresh]);
+
   // ── Action: navigate to patient record ───────────────────────────────────
   const handleViewChart = useCallback((appointment) => {
     navigation.navigate('PatientDetails', {
@@ -650,7 +703,7 @@ export default function DoctorAppointmentsScreen({ route, navigation }) {
   const handleDecline = useCallback((appointment) => {
     Alert.alert(
       'Decline Request',
-      `Decline ${appointment.patientName ?? 'this patient'}'s appointment ` +
+      `Decline ${appointment.patientName || 'this patient'}'s appointment ` +
       `request on ${appointment.appointmentDate} at ${formatTime12(appointment.appointmentTime)}?\n\n` +
       'The patient will be notified.',
       [
@@ -751,7 +804,23 @@ export default function DoctorAppointmentsScreen({ route, navigation }) {
           Static — stays pinned above both the date strip and the list.
       ─────────────────────────────────────────────────────────────────── */}
       <View style={S.pageHeader}>
-        <Text style={S.pageTitle}>Appointments</Text>
+        <View style={S.pageTitleRow}>
+          <Text style={S.pageTitle}>Appointments</Text>
+          {/* Emergency override — cancels all pending/confirmed for selected day */}
+          <TouchableOpacity
+            style={S.clearDayBtn}
+            onPress={handleClearDay}
+            disabled={clearingDay}
+            activeOpacity={0.8}
+            hitSlop={8}
+          >
+            {clearingDay
+              ? <ActivityIndicator size="small" color={Colors.error} />
+              : <><Ionicons name="warning-outline" size={14} color={Colors.error} />
+                 <Text style={S.clearDayBtnText}> إلغاء اليوم</Text></>
+            }
+          </TouchableOpacity>
+        </View>
 
         {/* Week navigation row */}
         <View style={S.weekNav}>
@@ -868,11 +937,30 @@ const S = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
+  pageTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
   pageTitle: {
     fontSize: FontSizes.xl,
     fontWeight: '800',
     color: Colors.text,
-    marginBottom: Spacing.sm,
+  },
+  clearDayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.error,
+  },
+  clearDayBtnText: {
+    fontSize: FontSizes.xs,
+    color: Colors.error,
+    fontWeight: '600',
   },
 
   // Week navigation: [← prev] [Mar 3–9, 2026] [next →]

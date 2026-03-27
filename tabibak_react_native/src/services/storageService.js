@@ -1,17 +1,19 @@
-import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, uploadBytesResumable, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
+import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, where, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { COLLECTIONS } from '../config/firebase';
 
-const storage = getStorage();
-const db = getFirestore();
-
 class StorageService {
-  constructor() {
-    this.storage = storage;
-    this.db = db;
+  get storage() {
+    if (!this._storage) this._storage = getStorage();
+    return this._storage;
+  }
+
+  get db() {
+    if (!this._db) this._db = getFirestore();
+    return this._db;
   }
 
   /**
@@ -240,14 +242,15 @@ class StorageService {
       // Save metadata to Firestore
       const docData = {
         patientId,
-        title: metadata.title || 'Untitled Document',
-        category: metadata.category || 'general',
-        description: metadata.description || '',
-        fileUrl: uploadResult.downloadURL,
+        title:             metadata.title || 'Untitled Document',
+        category:          metadata.category || 'general',
+        description:       metadata.description || '',
+        fileUrl:           uploadResult.downloadURL,
         storagePath,
-        fileType: extension,
-        uploadedAt: serverTimestamp(),
-        uploadedBy: metadata.uploadedBy || patientId,
+        fileType:          extension,
+        authorizedDoctors: [],           // consent model — empty until patient grants access
+        uploadedAt:        serverTimestamp(),
+        uploadedBy:        metadata.uploadedBy || patientId,
       };
 
       const docRef = await addDoc(collection(this.db, COLLECTIONS.DOCUMENTS), docData);
@@ -383,6 +386,170 @@ class StorageService {
       console.error('Error getting file size:', error);
       return 0;
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Documents Vault — Phase 4 API
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Dual-write: upload a file to Storage then record it in Firestore.
+   *
+   * Storage path : documents/{patientId}/{uuid}_{fileName}
+   * Firestore doc: COLLECTIONS.DOCUMENTS with createdAt: serverTimestamp()
+   *
+   * @param {string} patientId  - Patient UID
+   * @param {string} fileUri    - Local file URI (e.g. from expo-image-picker)
+   * @param {string} fileName   - Original file name (e.g. "IMG_001.jpg")
+   * @param {string} mimeType   - MIME type (e.g. "image/jpeg")
+   * @param {object} metadata   - Extra fields: { title, category, description }
+   * @returns {Promise<{ success: boolean, documentId?: string, fileUrl?: string, error?: string }>}
+   */
+  async uploadDocument(patientId, fileUri, fileName, mimeType, metadata = {}) {
+    try {
+      // 1. Build a unique storage path
+      const uuid        = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const safeName    = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `documents/${patientId}/${uuid}_${safeName}`;
+
+      // 2. Upload via Firebase Storage REST API.
+      //    The Firebase JS SDK Storage (uploadBytes / uploadString / etc.) all
+      //    internally construct a Blob from ArrayBuffer, which Hermes/React Native
+      //    does not support.  The REST API + React Native's native XHR avoids all
+      //    JS-side Blob construction: XHR.send({ uri, type, name }) hands the file
+      //    URI straight to the native networking layer, which streams it directly.
+      const { getAuth } = require('firebase/auth');
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) throw new Error('User not authenticated');
+      const idToken  = await currentUser.getIdToken();
+      const bucket   = this.storage.app.options.storageBucket;
+      const encoded  = encodeURIComponent(storagePath);
+      const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o`
+                      + `?uploadType=media&name=${encoded}`;
+
+      const uploadResult = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', uploadUrl, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${idToken}`);
+        xhr.setRequestHeader('Content-Type', mimeType ?? 'application/octet-stream');
+        xhr.onload  = () => {
+          if (xhr.status === 200) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            reject(new Error(`Storage REST upload failed: ${xhr.status} ${xhr.responseText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error during Storage REST upload'));
+        // React Native XHR natively supports { uri, type, name } — no Blob needed
+        xhr.send({ uri: fileUri, type: mimeType ?? 'application/octet-stream', name: safeName });
+      });
+
+      // 3. Build download URL from the upload response's download token
+      const dlToken = uploadResult.downloadTokens;
+      const fileUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}`
+                    + `?alt=media&token=${dlToken}`;
+
+      // 4. Write Firestore record
+      const record = {
+        patientId,
+        fileName:          safeName,
+        mimeType:          mimeType ?? 'application/octet-stream',
+        fileUrl,
+        storagePath,
+        title:             (metadata.title ?? '').trim() || safeName,
+        category:          metadata.category    ?? 'general',
+        description:       metadata.description ?? '',
+        authorizedDoctors: [],           // consent model — empty until patient grants access
+        createdAt:         serverTimestamp(),
+      };
+
+      const docRef = await addDoc(collection(this.db, COLLECTIONS.DOCUMENTS), record);
+
+      return { success: true, documentId: docRef.id, fileUrl };
+    } catch (error) {
+      console.error('[storageService.uploadDocument]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Subscribe to a patient's documents in real-time.
+   * Results are sorted by createdAt desc (client-side to avoid composite index).
+   *
+   * @param {string}   patientId - Patient UID
+   * @param {function} onChange  - Called with Document[] on every update
+   * @param {function} onError   - Called with Error on failure
+   * @returns {function} unsubscribe
+   */
+  // ─────────────────────────────────────────────────────────────────────────
+  // Consent-Based Document Access Control
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Grant a doctor read access to a specific patient document.
+   * Appends doctorId to the document's authorizedDoctors array atomically.
+   *
+   * @param {string} documentId - Firestore document ID in COLLECTIONS.DOCUMENTS
+   * @param {string} doctorId   - Doctor's Firebase UID
+   * @returns {Promise<{ success: boolean, error?: string }>}
+   */
+  async grantDoctorAccess(documentId, doctorId) {
+    if (!documentId || !doctorId) return { success: false, error: 'Missing parameters' };
+    try {
+      await updateDoc(
+        doc(this.db, COLLECTIONS.DOCUMENTS, documentId),
+        { authorizedDoctors: arrayUnion(doctorId) },
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('[storageService.grantDoctorAccess]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Revoke a doctor's read access to a specific patient document.
+   * Removes doctorId from the document's authorizedDoctors array atomically.
+   *
+   * @param {string} documentId - Firestore document ID in COLLECTIONS.DOCUMENTS
+   * @param {string} doctorId   - Doctor's Firebase UID
+   * @returns {Promise<{ success: boolean, error?: string }>}
+   */
+  async revokeDoctorAccess(documentId, doctorId) {
+    if (!documentId || !doctorId) return { success: false, error: 'Missing parameters' };
+    try {
+      await updateDoc(
+        doc(this.db, COLLECTIONS.DOCUMENTS, documentId),
+        { authorizedDoctors: arrayRemove(doctorId) },
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('[storageService.revokeDoctorAccess]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  subscribePatientDocuments(patientId, onChange, onError) {
+    const q = query(
+      collection(this.db, COLLECTIONS.DOCUMENTS),
+      where('patientId', '==', patientId),
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const docs = snapshot.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => {
+            // Handle both createdAt (new) and uploadedAt (legacy) timestamps
+            const tsA = (a.createdAt ?? a.uploadedAt)?.toMillis?.() ?? 0;
+            const tsB = (b.createdAt ?? b.uploadedAt)?.toMillis?.() ?? 0;
+            return tsB - tsA; // descending
+          });
+        onChange(docs);
+      },
+      onError,
+    );
   }
 }
 
