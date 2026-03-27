@@ -1,50 +1,15 @@
 /**
  * EMRScreen.js — Electronic Medical Record Viewer (Doctor Stack)
  *
- * ── Navigation Entry Points ──────────────────────────────────────────────────
+ * Navigation entry:  navigation.navigate('EMR', { patientId, patientName })
  *
- *   From PatientDetailsScreen:
- *     navigation.navigate('EMR', { patientId, patientName })
- *
- *   From DoctorAppointmentsScreen (future):
- *     navigation.navigate('EMR', { patientId, patientName })
- *
- * ── Architecture ─────────────────────────────────────────────────────────────
- *
- * THREE DATA SOURCES (all one-time getDocs — not onSnapshot, EMR is read-rarely
- * and does not need live updates in a clinical review context):
- *
- *   1. patients/{patientId}           → demographics + medical history
- *   2. appointments collection        → encounter history
- *        where('patientId', '==', uid)
- *        where('status',    '==', 'completed')
- *        orderBy('appointmentDate',   'desc')
- *        limit(50)
- *   3. documents collection           → uploaded medical files
- *        where('patientId', '==', uid)
- *        orderBy('uploadedAt', 'desc')
- *        limit(30)
- *
- *   All three queries fire in parallel via Promise.all. A single `isLoading`
- *   gate covers the whole batch — no per-section spinners.
- *
- * THREE TABS (segmented pill control — same visual as PatientDetailsScreen):
- *
- *   OVERVIEW  — Patient demographics, blood type, medical history tags
- *               (allergies / medications / chronic conditions)
- *
- *   ENCOUNTERS — FlatList of completed appointment cards (date, reason,
- *               clinical notes, diagnosis, prescriptions). Collapsible notes
- *               with "Show more" for long entries.
- *
- *   DOCUMENTS — FlatList of uploaded medical documents. Tap → Linking.openURL.
- *               Grouped by category with color-coded pills.
- *
- * RTL COMPLIANCE:
- *   marginStart / marginEnd          → never marginLeft / marginRight
- *   paddingStart / paddingEnd        → never paddingLeft / paddingRight
- *   borderStartWidth                 → never borderLeftWidth
- *   borderTopStartRadius / End       → never borderTopLeftRadius / Right
+ * Architecture contracts enforced:
+ *   ✓ Service layer  — all Firestore calls via emrService.getPatientEMR()
+ *   ✓ Design system  — ScreenContainer, PrimaryButton, colors/spacing/typography
+ *   ✓ i18n           — every string through t('doctor.emr.*')
+ *   ✓ RTL            — marginStart/End, paddingStart/End, borderStartWidth
+ *   ✓ 3-State UI     — loading → error+retry → success
+ *   ✓ Zero Alert.alert — doc-open failures are inline
  */
 
 import React, {
@@ -62,36 +27,19 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
-  StatusBar,
   Linking,
-  Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-} from 'firebase/firestore';
-import {
-  Colors,
-  Spacing,
-  BorderRadius,
-  FontSizes,
-} from '../../config/theme';
-import { COLLECTIONS } from '../../config/firebase';
+import { Ionicons }           from '@expo/vector-icons';
+import { useTranslation }     from 'react-i18next';
+import { useSafeAreaInsets }  from 'react-native-safe-area-context';
+
+import { ScreenContainer, PrimaryButton } from '../../components/ui';
+import { colors, spacing, typography, BorderRadius, shadows } from '../../config/theme';
+import emrService from '../../services/emrService';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Constants
+// Static lookup tables  (colours only — labels come from i18n)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const TABS = ['نظرة عامة', 'الزيارات', 'المستندات'];
 
 const BLOOD_TYPE_COLOR = {
   'A+':  '#ef4444', 'A-':  '#fca5a5',
@@ -100,12 +48,13 @@ const BLOOD_TYPE_COLOR = {
   'O+':  '#f59e0b', 'O-':  '#fcd34d',
 };
 
-const CATEGORY_CONFIG = {
-  lab:          { label: 'مختبر',         color: '#3b82f6', bg: '#dbeafe' },
-  imaging:      { label: 'تصوير',         color: '#8b5cf6', bg: '#ede9fe' },
-  prescription: { label: 'وصفة طبية',    color: Colors.primary, bg: '#d1fae5' },
-  report:       { label: 'تقرير',         color: '#f59e0b', bg: '#fef3c7' },
-  general:      { label: 'عام',           color: Colors.gray,   bg: '#f3f4f6' },
+/** Colour palette per document category — label key resolved at render */
+const CATEGORY_STYLE = {
+  lab:          { labelKey: 'doctor.emr.catLab',          color: '#3b82f6', bg: '#dbeafe' },
+  imaging:      { labelKey: 'doctor.emr.catImaging',      color: '#8b5cf6', bg: '#ede9fe' },
+  prescription: { labelKey: 'doctor.emr.catPrescription', color: colors.primary, bg: '#d1fae5' },
+  report:       { labelKey: 'doctor.emr.catReport',       color: '#f59e0b', bg: '#fef3c7' },
+  general:      { labelKey: 'doctor.emr.catGeneral',      color: colors.gray,   bg: '#f3f4f6' },
 };
 
 const FILE_ICON = {
@@ -117,7 +66,7 @@ const FILE_ICON = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Pure helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatDate(ts) {
@@ -143,10 +92,10 @@ function fileExt(fileType = '') {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-components — all memo'd for FlatList perf
+// Shared sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Horizontal pill row for medical tags (allergies, meds, conditions) */
+/** Wrappable pill row for medical tags (allergies, meds, conditions) */
 const TagRow = memo(({ tags, color, bg }) => {
   if (!tags?.length) return null;
   return (
@@ -160,88 +109,96 @@ const TagRow = memo(({ tags, color, bg }) => {
   );
 });
 
-/** Section header with left accent border */
+/** Section block with left-start accent stripe */
 const SectionBlock = memo(({ title, accentColor, children }) => (
-  <View style={[styles.sectionBlock, { borderStartColor: accentColor ?? Colors.primary }]}>
-    <Text style={[styles.sectionBlockTitle, { color: accentColor ?? Colors.primary }]}>
+  <View style={[styles.sectionBlock, { borderStartColor: accentColor ?? colors.primary }]}>
+    <Text style={[styles.sectionBlockTitle, { color: accentColor ?? colors.primary }]}>
       {title}
     </Text>
     {children}
   </View>
 ));
 
-/** Key–value info row */
+/** Icon + label + value info row */
 const InfoRow = memo(({ icon, label, value }) => (
   <View style={styles.infoRow}>
-    <Ionicons name={icon} size={15} color={Colors.textSecondary} style={styles.infoIcon} />
+    <Ionicons name={icon} size={15} color={colors.textSecondary} style={styles.infoIcon} />
     <Text style={styles.infoLabel}>{label}</Text>
     <Text style={styles.infoValue}>{value ?? '—'}</Text>
   </View>
 ));
 
-/** Encounter card — collapsed notes with "show more" */
+// ─────────────────────────────────────────────────────────────────────────────
+// EncounterCard — collapsible notes with "show more"
+// ─────────────────────────────────────────────────────────────────────────────
+
 const EncounterCard = memo(({ item }) => {
+  const { t }         = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
-  const notes = item.clinicalNotes ?? '';
-  const diagnosis = item.diagnosis ?? '';
+  const notes        = item.clinicalNotes ?? '';
+  const diagnosis    = item.diagnosis     ?? '';
   const prescriptions = item.prescriptions ?? [];
-  const isLong = notes.length > 120;
+  const isLong       = notes.length > 120;
   const displayNotes = isLong && !expanded ? notes.slice(0, 120) + '…' : notes;
 
   return (
     <View style={styles.encounterCard}>
-      {/* Header row */}
+      {/* Date + time header */}
       <View style={styles.encounterHeader}>
-        <View style={styles.encounterDateBadge}>
-          <Ionicons name="calendar-outline" size={13} color={Colors.primary} />
-          <Text style={styles.encounterDateText}>{formatDate(item.appointmentDate)}</Text>
+        <View style={styles.dateBadge}>
+          <Ionicons name="calendar-outline" size={13} color={colors.primary} />
+          <Text style={styles.dateBadgeText}>{formatDate(item.appointmentDate)}</Text>
         </View>
-        <View style={styles.encounterTimeBadge}>
-          <Text style={styles.encounterTimeText}>{item.appointmentTime ?? ''}</Text>
-        </View>
+        {!!item.appointmentTime && (
+          <View style={styles.timeBadge}>
+            <Text style={styles.timeBadgeText}>{item.appointmentTime}</Text>
+          </View>
+        )}
       </View>
 
       {/* Reason */}
-      {item.reason ? (
-        <View style={styles.encounterReasonRow}>
-          <Text style={styles.encounterReasonLabel}>السبب: </Text>
-          <Text style={styles.encounterReasonValue}>{item.reason}</Text>
+      {!!item.reason && (
+        <View style={styles.encounterRow}>
+          <Text style={styles.encounterRowLabel}>{t('doctor.emr.reason')}: </Text>
+          <Text style={styles.encounterRowValue}>{item.reason}</Text>
         </View>
-      ) : null}
+      )}
 
       {/* Clinical notes */}
-      {notes ? (
+      {!!notes && (
         <View style={styles.encounterSection}>
-          <Text style={styles.encounterSectionTitle}>ملاحظات سريرية</Text>
+          <Text style={styles.encounterSectionTitle}>{t('doctor.emr.clinicalNotes')}</Text>
           <Text style={styles.encounterNotes}>{displayNotes}</Text>
           {isLong && (
             <TouchableOpacity onPress={() => setExpanded(v => !v)} activeOpacity={0.7}>
-              <Text style={styles.showMore}>{expanded ? 'عرض أقل' : 'عرض المزيد'}</Text>
+              <Text style={styles.showMore}>
+                {expanded ? t('doctor.emr.showLess') : t('doctor.emr.showMore')}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
-      ) : null}
+      )}
 
       {/* Diagnosis */}
-      {diagnosis ? (
+      {!!diagnosis && (
         <View style={styles.encounterSection}>
-          <Text style={styles.encounterSectionTitle}>التشخيص</Text>
+          <Text style={styles.encounterSectionTitle}>{t('doctor.emr.diagnosis')}</Text>
           <Text style={styles.encounterNotes}>{diagnosis}</Text>
         </View>
-      ) : null}
+      )}
 
       {/* Prescriptions */}
       {prescriptions.length > 0 && (
         <View style={styles.encounterSection}>
-          <Text style={styles.encounterSectionTitle}>الأدوية الموصوفة</Text>
+          <Text style={styles.encounterSectionTitle}>{t('doctor.emr.prescriptions')}</Text>
           {prescriptions.map((rx, i) => (
             <View key={i} style={styles.rxRow}>
-              <Ionicons name="medkit-outline" size={13} color={Colors.primary} />
+              <Ionicons name="medkit-outline" size={13} color={colors.primary} />
               <Text style={styles.rxText}>
                 {rx.drug}
-                {rx.dosage ? ` — ${rx.dosage}` : ''}
-                {rx.frequency ? ` (${rx.frequency})` : ''}
+                {rx.dosage    ? ` — ${rx.dosage}`       : ''}
+                {rx.frequency ? ` (${rx.frequency})`    : ''}
               </Text>
             </View>
           ))}
@@ -251,47 +208,64 @@ const EncounterCard = memo(({ item }) => {
   );
 });
 
-/** Document card */
-const DocCard = memo(({ item, onOpen }) => {
-  const ext  = fileExt(item.fileType ?? '');
-  const icon = FILE_ICON[ext] ?? 'document-outline';
-  const cat  = CATEGORY_CONFIG[item.category] ?? CATEGORY_CONFIG.general;
+// ─────────────────────────────────────────────────────────────────────────────
+// DocCard — tappable document row
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DocCard = memo(({ item, onOpen, docOpenError }) => {
+  const { t }   = useTranslation();
+  const ext     = fileExt(item.fileType ?? '');
+  const icon    = FILE_ICON[ext] ?? 'document-outline';
+  const cat     = CATEGORY_STYLE[item.category] ?? CATEGORY_STYLE.general;
 
   return (
-    <TouchableOpacity style={styles.docCard} onPress={() => onOpen(item)} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={styles.docCard}
+      onPress={() => onOpen(item)}
+      activeOpacity={0.75}
+    >
       <View style={[styles.docIconBox, { backgroundColor: cat.bg }]}>
         <Ionicons name={icon} size={22} color={cat.color} />
       </View>
+
       <View style={styles.docContent}>
-        <Text style={styles.docTitle} numberOfLines={1}>{item.title ?? 'مستند'}</Text>
-        {item.description ? (
+        <Text style={styles.docTitle} numberOfLines={1}>
+          {item.title ?? t('doctor.emr.docDefaultTitle')}
+        </Text>
+        {!!item.description && (
           <Text style={styles.docDesc} numberOfLines={1}>{item.description}</Text>
-        ) : null}
+        )}
         <View style={styles.docMeta}>
           <View style={[styles.catPill, { backgroundColor: cat.bg }]}>
-            <Text style={[styles.catPillText, { color: cat.color }]}>{cat.label}</Text>
+            <Text style={[styles.catPillText, { color: cat.color }]}>{t(cat.labelKey)}</Text>
           </View>
           <Text style={styles.docDate}>{formatDate(item.uploadedAt)}</Text>
         </View>
       </View>
-      <Ionicons name="open-outline" size={16} color={Colors.gray} />
+
+      <Ionicons name="open-outline" size={16} color={colors.gray} />
     </TouchableOpacity>
   );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab content components
+// Overview tab
 // ─────────────────────────────────────────────────────────────────────────────
 
 const OverviewTab = memo(({ patient }) => {
+  const { t } = useTranslation();
   if (!patient) return null;
 
-  const age      = calcAge(patient.dateOfBirth);
-  const allergies   = patient.medicalHistory?.allergies         ?? patient.allergies         ?? [];
-  const medications = patient.medicalHistory?.currentMedications ?? patient.currentMedications ?? [];
-  const conditions  = patient.medicalHistory?.chronicConditions  ?? patient.chronicConditions  ?? [];
+  const age        = calcAge(patient.dateOfBirth);
+  const allergies  = patient.medicalHistory?.allergies          ?? patient.allergies         ?? [];
+  const meds       = patient.medicalHistory?.currentMedications ?? patient.currentMedications ?? [];
+  const conditions = patient.medicalHistory?.chronicConditions  ?? patient.chronicConditions  ?? [];
+  const bColor     = BLOOD_TYPE_COLOR[patient.bloodType] ?? colors.primary;
 
-  const bColor = BLOOD_TYPE_COLOR[patient.bloodType] ?? Colors.primary;
+  const genderLabel =
+    patient.gender === 'male'   ? t('doctor.emr.genderMale')   :
+    patient.gender === 'female' ? t('doctor.emr.genderFemale') :
+    patient.gender ?? '—';
 
   return (
     <ScrollView
@@ -299,68 +273,71 @@ const OverviewTab = memo(({ patient }) => {
       contentContainerStyle={styles.tabScrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Demographics ── */}
-      <SectionBlock title="البيانات الشخصية">
-        <InfoRow icon="person-outline"    label="الاسم"       value={patient.name ?? patient.displayName} />
-        <InfoRow icon="call-outline"      label="الهاتف"      value={patient.phoneNumber ?? patient.phone} />
-        <InfoRow icon="mail-outline"      label="البريد"      value={patient.email} />
-        {age !== null && (
-          <InfoRow icon="calendar-outline" label="العمر"       value={`${age} سنة`} />
+      {/* Demographics */}
+      <SectionBlock title={t('doctor.emr.demographics')}>
+        <InfoRow icon="person-outline"    label={t('doctor.emr.name')}  value={patient.name ?? patient.displayName} />
+        <InfoRow icon="call-outline"      label={t('doctor.emr.phone')} value={patient.phoneNumber ?? patient.phone} />
+        {!!patient.email && (
+          <InfoRow icon="mail-outline"    label={t('doctor.emr.email')} value={patient.email} />
         )}
-        <InfoRow
-          icon="transgender-outline"
-          label="الجنس"
-          value={patient.gender === 'male' ? 'ذكر' : patient.gender === 'female' ? 'أنثى' : patient.gender}
-        />
-        {patient.bloodType && (
+        {age !== null && (
+          <InfoRow icon="calendar-outline" label={t('doctor.emr.age')}  value={t('doctor.emr.ageYears', { n: age })} />
+        )}
+        <InfoRow icon="transgender-outline" label={t('doctor.emr.gender')} value={genderLabel} />
+        {!!patient.bloodType && (
           <View style={styles.infoRow}>
-            <Ionicons name="water-outline" size={15} color={Colors.textSecondary} style={styles.infoIcon} />
-            <Text style={styles.infoLabel}>فصيلة الدم</Text>
+            <Ionicons name="water-outline" size={15} color={colors.textSecondary} style={styles.infoIcon} />
+            <Text style={styles.infoLabel}>{t('doctor.emr.bloodType')}</Text>
             <View style={[styles.bloodBadge, { backgroundColor: bColor + '22' }]}>
               <Text style={[styles.bloodBadgeText, { color: bColor }]}>{patient.bloodType}</Text>
             </View>
           </View>
         )}
-        {patient.city && (
-          <InfoRow icon="location-outline" label="المدينة"    value={patient.city} />
+        {!!patient.city && (
+          <InfoRow icon="location-outline" label={t('doctor.emr.city')} value={patient.city} />
         )}
       </SectionBlock>
 
-      {/* ── Medical History ── */}
-      <SectionBlock title="الحساسيات" accentColor="#ef4444">
-        {allergies.length ? (
-          <TagRow tags={allergies} color="#ef4444" bg="#fee2e2" />
-        ) : (
-          <Text style={styles.emptyHint}>لا توجد حساسيات مسجّلة</Text>
-        )}
+      {/* Allergies */}
+      <SectionBlock title={t('doctor.emr.allergies')} accentColor="#ef4444">
+        {allergies.length
+          ? <TagRow tags={allergies} color="#ef4444" bg="#fee2e2" />
+          : <Text style={styles.emptyHint}>{t('doctor.emr.noAllergies')}</Text>
+        }
       </SectionBlock>
 
-      <SectionBlock title="الأدوية الحالية" accentColor="#3b82f6">
-        {medications.length ? (
-          <TagRow tags={medications} color="#3b82f6" bg="#dbeafe" />
-        ) : (
-          <Text style={styles.emptyHint}>لا توجد أدوية مسجّلة</Text>
-        )}
+      {/* Medications */}
+      <SectionBlock title={t('doctor.emr.medications')} accentColor="#3b82f6">
+        {meds.length
+          ? <TagRow tags={meds} color="#3b82f6" bg="#dbeafe" />
+          : <Text style={styles.emptyHint}>{t('doctor.emr.noMedications')}</Text>
+        }
       </SectionBlock>
 
-      <SectionBlock title="الأمراض المزمنة" accentColor="#8b5cf6">
-        {conditions.length ? (
-          <TagRow tags={conditions} color="#8b5cf6" bg="#ede9fe" />
-        ) : (
-          <Text style={styles.emptyHint}>لا توجد أمراض مزمنة مسجّلة</Text>
-        )}
+      {/* Chronic conditions */}
+      <SectionBlock title={t('doctor.emr.conditions')} accentColor="#8b5cf6">
+        {conditions.length
+          ? <TagRow tags={conditions} color="#8b5cf6" bg="#ede9fe" />
+          : <Text style={styles.emptyHint}>{t('doctor.emr.noConditions')}</Text>
+        }
       </SectionBlock>
     </ScrollView>
   );
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Encounters tab
+// ─────────────────────────────────────────────────────────────────────────────
+
 const EncountersTab = memo(({ encounters }) => {
+  const { t } = useTranslation();
+
   if (!encounters.length) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="document-text-outline" size={52} color={Colors.border} />
-        <Text style={styles.emptyStateTitle}>لا توجد زيارات سابقة</Text>
-        <Text style={styles.emptyStateHint}>ستظهر الزيارات المكتملة هنا</Text>
+        <Ionicons name="document-text-outline" size={52} color={colors.border} />
+        <Text style={styles.emptyStateTitle}>{t('doctor.emr.noEncounters')}</Text>
+        <Text style={styles.emptyStateHint}>{t('doctor.emr.noEncountersSub')}</Text>
       </View>
     );
   }
@@ -372,113 +349,100 @@ const EncountersTab = memo(({ encounters }) => {
       renderItem={({ item }) => <EncounterCard item={item} />}
       contentContainerStyle={styles.listContent}
       showsVerticalScrollIndicator={false}
-      ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+      ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
     />
   );
 });
 
-const DocumentsTab = memo(({ documents, onOpen }) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Documents tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DocumentsTab = memo(({ documents, onOpen, docOpenError }) => {
+  const { t } = useTranslation();
+
   if (!documents.length) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="folder-open-outline" size={52} color={Colors.border} />
-        <Text style={styles.emptyStateTitle}>لا توجد مستندات</Text>
-        <Text style={styles.emptyStateHint}>لم يرفع المريض أي مستندات بعد</Text>
+        <Ionicons name="folder-open-outline" size={52} color={colors.border} />
+        <Text style={styles.emptyStateTitle}>{t('doctor.emr.noDocuments')}</Text>
+        <Text style={styles.emptyStateHint}>{t('doctor.emr.noDocumentsSub')}</Text>
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={documents}
-      keyExtractor={item => item.id}
-      renderItem={({ item }) => <DocCard item={item} onOpen={onOpen} />}
-      contentContainerStyle={styles.listContent}
-      showsVerticalScrollIndicator={false}
-      ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
-    />
+    <>
+      {!!docOpenError && (
+        <View style={styles.docErrorBanner}>
+          <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+          <Text style={styles.docErrorText}>{docOpenError}</Text>
+        </View>
+      )}
+      <FlatList
+        data={documents}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => <DocCard item={item} onOpen={onOpen} />}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+      />
+    </>
   );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EMRScreen
+// EMRScreen — root
 // ─────────────────────────────────────────────────────────────────────────────
 
 const EMRScreen = ({ route, navigation }) => {
   const { patientId, patientName } = route.params ?? {};
+  const { t }    = useTranslation();
+  const insets   = useSafeAreaInsets();
 
-  const db = getFirestore();
+  const [patient,      setPatient]      = useState(null);
+  const [encounters,   setEncounters]   = useState([]);
+  const [documents,    setDocuments]    = useState([]);
+  const [isLoading,    setIsLoading]    = useState(true);
+  const [error,        setError]        = useState(null);
+  const [activeTab,    setActiveTab]    = useState(0);
+  const [docOpenError, setDocOpenError] = useState('');
+  const [retryKey,     setRetryKey]     = useState(0);
 
-  const [patient,    setPatient]    = useState(null);
-  const [encounters, setEncounters] = useState([]);
-  const [documents,  setDocuments]  = useState([]);
-  const [isLoading,  setIsLoading]  = useState(true);
-  const [error,      setError]      = useState(null);
-  const [activeTab,  setActiveTab]  = useState(0);
-
-  // ── Fetch all three data sources in parallel ──────────────────────────────
+  // ── Load all three data sources in parallel ──────────────────────────────
   useEffect(() => {
     if (!patientId) {
-      setError('معرّف المريض غير موجود');
+      setError(t('doctor.emr.loadError'));
       setIsLoading(false);
       return;
     }
 
-    let isMounted = true;
+    let active = true;
+    setIsLoading(true);
+    setError(null);
 
-    const fetchAll = async () => {
-      try {
-        const patientRef  = doc(db, COLLECTIONS.PATIENTS, patientId);
+    emrService.getPatientEMR(patientId)
+      .then(({ patient, encounters, documents }) => {
+        if (!active) return;
+        setPatient(patient);
+        setEncounters(encounters);
+        setDocuments(documents);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setError(t('doctor.emr.loadError'));
+        setIsLoading(false);
+      });
 
-        const encounterQ  = query(
-          collection(db, COLLECTIONS.APPOINTMENTS),
-          where('patientId', '==', patientId),
-          where('status',    '==', 'completed'),
-          orderBy('appointmentDate', 'desc'),
-          limit(50),
-        );
+    return () => { active = false; };
+  }, [patientId, retryKey]);
 
-        const documentsQ  = query(
-          collection(db, COLLECTIONS.DOCUMENTS),
-          where('patientId', '==', patientId),
-          orderBy('uploadedAt', 'desc'),
-          limit(30),
-        );
-
-        const [patientSnap, encounterSnap, docsSnap] = await Promise.all([
-          getDoc(patientRef),
-          getDocs(encounterQ),
-          getDocs(documentsQ),
-        ]);
-
-        if (!isMounted) return;
-
-        if (patientSnap.exists()) {
-          setPatient({ id: patientSnap.id, ...patientSnap.data() });
-        }
-
-        setEncounters(
-          encounterSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-        );
-
-        setDocuments(
-          docsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-        );
-      } catch (err) {
-        if (isMounted) setError('تعذّر تحميل السجل الطبي');
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-
-    fetchAll();
-    return () => { isMounted = false; };
-  }, [patientId, db]);
-
-  // ── Open document ─────────────────────────────────────────────────────────
+  // ── Open document via system handler ─────────────────────────────────────
   const handleOpenDoc = useCallback(async (doc) => {
+    setDocOpenError('');
     if (!doc.fileUrl) {
-      Alert.alert('خطأ', 'رابط الملف غير متاح.');
+      setDocOpenError(t('doctor.emr.cannotOpen'));
       return;
     }
     try {
@@ -486,106 +450,140 @@ const EMRScreen = ({ route, navigation }) => {
       if (canOpen) {
         await Linking.openURL(doc.fileUrl);
       } else {
-        Alert.alert('تعذّر فتح الملف', 'لا يوجد تطبيق مدعوم لفتح هذا الملف.');
+        setDocOpenError(t('doctor.emr.cannotOpen'));
       }
     } catch {
-      Alert.alert('خطأ', 'تعذّر فتح المستند.');
+      setDocOpenError(t('doctor.emr.openError'));
     }
-  }, []);
+  }, [t]);
 
-  // ── Header: set title dynamically ────────────────────────────────────────
-  useEffect(() => {
-    if (patientName) {
-      navigation.setOptions({ title: `سجل: ${patientName}` });
-    }
-  }, [navigation, patientName]);
+  // ── Tab configuration ─────────────────────────────────────────────────────
+  const TABS = useMemo(() => [
+    { key: 'overview',   label: t('doctor.emr.tabOverview'),   badge: null },
+    { key: 'encounters', label: t('doctor.emr.tabEncounters'), badge: encounters.length || null },
+    { key: 'documents',  label: t('doctor.emr.tabDocuments'),  badge: documents.length  || null },
+  ], [t, encounters.length, documents.length]);
 
-  // ── Tab badge counts ──────────────────────────────────────────────────────
-  const tabCounts = useMemo(() => ({
-    0: null,
-    1: encounters.length || null,
-    2: documents.length  || null,
-  }), [encounters.length, documents.length]);
+  const displayName = patient?.name ?? patientName ?? '';
+  const age         = patient ? calcAge(patient.dateOfBirth) : null;
+  const bColor      = BLOOD_TYPE_COLOR[patient?.bloodType] ?? colors.primary;
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── 3-State: Loading ─────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <ScreenContainer scrollable={false} padded={false} edges={['top', 'bottom']}>
         <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>جاري تحميل السجل الطبي…</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </SafeAreaView>
+      </ScreenContainer>
     );
   }
 
+  // ─── 3-State: Error ───────────────────────────────────────────────────────
   if (error) {
     return (
-      <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <ScreenContainer scrollable={false} padded={false} edges={['top', 'bottom']}>
+        {/* Back */}
+        <TouchableOpacity
+          style={[styles.backBtn, { marginTop: insets.top + spacing.sm }]}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+
         <View style={styles.centeredState}>
-          <Ionicons name="alert-circle-outline" size={52} color={Colors.error} />
+          <Ionicons name="alert-circle-outline" size={52} color={colors.error} />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={() => { setIsLoading(true); setError(null); }}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.retryBtnText}>إعادة المحاولة</Text>
-          </TouchableOpacity>
+          <PrimaryButton
+            label={t('common.retry')}
+            onPress={() => setRetryKey(k => k + 1)}
+            style={styles.retryButton}
+          />
         </View>
-      </SafeAreaView>
+      </ScreenContainer>
     );
   }
 
+  // ─── 3-State: Success ─────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+    <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
 
-      {/* ── Patient banner ── */}
-      {patient && (
-        <View style={styles.patientBanner}>
-          <View style={styles.bannerAvatar}>
-            <Text style={styles.bannerAvatarText}>
-              {(patient.name ?? patientName ?? 'م')[0].toUpperCase()}
+      {/* ── Tinted header (bleeds under status bar) ── */}
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        {/* Back */}
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.white} />
+        </TouchableOpacity>
+
+        {/* Patient identity strip */}
+        <View style={styles.patientStrip}>
+          {/* Avatar initial */}
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {displayName.trim()[0]?.toUpperCase() ?? '?'}
             </Text>
           </View>
-          <View style={styles.bannerInfo}>
-            <Text style={styles.bannerName}>{patient.name ?? patientName}</Text>
-            <Text style={styles.bannerMeta}>
-              {patient.gender === 'male' ? 'ذكر' : patient.gender === 'female' ? 'أنثى' : ''}
-              {patient.bloodType ? ` · فصيلة ${patient.bloodType}` : ''}
-              {calcAge(patient.dateOfBirth) !== null
-                ? ` · ${calcAge(patient.dateOfBirth)} سنة`
-                : ''}
-            </Text>
+
+          {/* Name + meta */}
+          <View style={styles.patientInfo}>
+            <Text style={styles.patientName} numberOfLines={1}>{displayName}</Text>
+            <View style={styles.patientMeta}>
+              {age !== null && (
+                <Text style={styles.patientMetaText}>
+                  {t('doctor.emr.ageYears', { n: age })}
+                </Text>
+              )}
+              {!!patient?.bloodType && (
+                <>
+                  <Text style={styles.patientMetaSep}>·</Text>
+                  <View style={[styles.bloodBadge, { backgroundColor: bColor }]}>
+                    <Text style={[styles.bloodBadgeText, { color: colors.white }]}>
+                      {patient.bloodType}
+                    </Text>
+                  </View>
+                </>
+              )}
+              {!!patient?.gender && (
+                <>
+                  <Text style={styles.patientMetaSep}>·</Text>
+                  <Text style={styles.patientMetaText}>
+                    {patient.gender === 'male'
+                      ? t('doctor.emr.genderMale')
+                      : t('doctor.emr.genderFemale')}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
         </View>
-      )}
+      </View>
 
       {/* ── Tab bar ── */}
       <View style={styles.tabBar}>
-        {TABS.map((label, idx) => {
+        {TABS.map(({ key, label, badge }, idx) => {
           const active = idx === activeTab;
-          const count  = tabCounts[idx];
           return (
             <TouchableOpacity
-              key={idx}
+              key={key}
               style={[styles.tabItem, active && styles.tabItemActive]}
-              onPress={() => setActiveTab(idx)}
+              onPress={() => { setActiveTab(idx); setDocOpenError(''); }}
               activeOpacity={0.75}
             >
               <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
                 {label}
               </Text>
-              {count ? (
+              {!!badge && (
                 <View style={[styles.tabBadge, active && styles.tabBadgeActive]}>
                   <Text style={[styles.tabBadgeText, active && styles.tabBadgeTextActive]}>
-                    {count}
+                    {badge}
                   </Text>
                 </View>
-              ) : null}
+              )}
             </TouchableOpacity>
           );
         })}
@@ -595,9 +593,16 @@ const EMRScreen = ({ route, navigation }) => {
       <View style={styles.tabContent}>
         {activeTab === 0 && <OverviewTab   patient={patient} />}
         {activeTab === 1 && <EncountersTab encounters={encounters} />}
-        {activeTab === 2 && <DocumentsTab  documents={documents} onOpen={handleOpenDoc} />}
+        {activeTab === 2 && (
+          <DocumentsTab
+            documents={documents}
+            onOpen={handleOpenDoc}
+            docOpenError={docOpenError}
+          />
+        )}
       </View>
-    </SafeAreaView>
+
+    </ScreenContainer>
   );
 };
 
@@ -607,286 +612,295 @@ const EMRScreen = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
 
-  screen:  { flex: 1, backgroundColor: Colors.background },
-
   // ── Centered states ────────────────────────────────────────────────────────
   centeredState: {
     flex: 1,
     alignItems:     'center',
     justifyContent: 'center',
-    padding:        Spacing.lg,
-    gap:            Spacing.sm,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
   },
-  loadingText: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: Spacing.sm },
-  errorText:   { fontSize: FontSizes.md, color: Colors.error, textAlign: 'center' },
-  retryBtn: {
-    marginTop:       Spacing.sm,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical:   Spacing.sm,
-    borderRadius:    BorderRadius.full,
+  errorText: {
+    fontSize:  typography.sizes.md,
+    color:     colors.error,
+    textAlign: 'center',
   },
-  retryBtnText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.sm },
+  retryButton: { marginTop: spacing.sm },
 
-  // ── Patient banner ─────────────────────────────────────────────────────────
-  patientBanner: {
-    flexDirection:   'row',
+  // ── Header ────────────────────────────────────────────────────────────────
+  header: {
+    backgroundColor:  colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingBottom:    spacing.md,
+  },
+  backBtn: {
+    alignSelf:    'flex-start',
+    marginBottom: spacing.sm,
+  },
+  patientStrip: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           spacing.sm,
+  },
+  avatar: {
+    width:           48,
+    height:          48,
+    borderRadius:    24,
+    backgroundColor: colors.white + '30',
     alignItems:      'center',
-    backgroundColor: Colors.white,
-    paddingHorizontal: Spacing.md,
-    paddingVertical:   Spacing.sm,
-    gap:             Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    justifyContent:  'center',
   },
-  bannerAvatar: {
-    width:          44,
-    height:         44,
-    borderRadius:   BorderRadius.full,
-    backgroundColor: Colors.primary,
-    alignItems:     'center',
-    justifyContent: 'center',
+  avatarText: {
+    fontSize:   typography.sizes.xl,
+    fontWeight: '700',
+    color:      colors.white,
   },
-  bannerAvatarText: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.white },
-  bannerInfo:  { flex: 1 },
-  bannerName:  { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text },
-  bannerMeta:  { fontSize: FontSizes.xs, color: Colors.textSecondary, marginTop: 2 },
+  patientInfo: { flex: 1 },
+  patientName: {
+    fontSize:   typography.sizes.md,
+    fontWeight: '700',
+    color:      colors.white,
+  },
+  patientMeta: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    flexWrap:      'wrap',
+    gap:           spacing.xs,
+    marginTop:     2,
+  },
+  patientMetaText: {
+    fontSize: typography.sizes.xs,
+    color:    colors.white + 'cc',
+  },
+  patientMetaSep: {
+    fontSize: typography.sizes.xs,
+    color:    colors.white + '80',
+  },
+  bloodBadge: {
+    borderRadius:      BorderRadius.full,
+    paddingHorizontal: 8,
+    paddingVertical:   1,
+  },
+  bloodBadgeText: {
+    fontSize:   typography.sizes.xs,
+    fontWeight: '700',
+  },
 
   // ── Tab bar ───────────────────────────────────────────────────────────────
   tabBar: {
-    flexDirection:   'row',
-    backgroundColor: Colors.white,
+    flexDirection:     'row',
+    backgroundColor:   colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    paddingHorizontal: Spacing.sm,
+    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.sm,
   },
   tabItem: {
-    flex: 1,
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-    gap: 4,
+    flex:             1,
+    flexDirection:    'row',
+    alignItems:       'center',
+    justifyContent:   'center',
+    paddingVertical:  spacing.sm,
+    gap:              4,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabItemActive: { borderBottomColor: Colors.primary },
-  tabLabel:      { fontSize: FontSizes.sm, color: Colors.textSecondary, fontWeight: '500' },
-  tabLabelActive:{ color: Colors.primary, fontWeight: '700' },
+  tabItemActive:      { borderBottomColor: colors.primary },
+  tabLabel:           { fontSize: typography.sizes.sm, color: colors.textSecondary, fontWeight: '500' },
+  tabLabelActive:     { color: colors.primary, fontWeight: '700' },
   tabBadge: {
-    backgroundColor: Colors.borderLight,
-    borderRadius: BorderRadius.full,
+    backgroundColor:   colors.borderLight,
+    borderRadius:      BorderRadius.full,
     paddingHorizontal: 6,
-    paddingVertical: 1,
-    minWidth: 20,
-    alignItems: 'center',
+    paddingVertical:   1,
+    minWidth:          20,
+    alignItems:        'center',
   },
-  tabBadgeActive: { backgroundColor: Colors.primary + '22' },
-  tabBadgeText:   { fontSize: 10, color: Colors.textSecondary, fontWeight: '600' },
-  tabBadgeTextActive: { color: Colors.primary },
+  tabBadgeActive:     { backgroundColor: colors.primary + '22' },
+  tabBadgeText:       { fontSize: 10, color: colors.textSecondary, fontWeight: '600' },
+  tabBadgeTextActive: { color: colors.primary },
 
-  // ── Tab content wrapper ───────────────────────────────────────────────────
+  // ── Tab content ───────────────────────────────────────────────────────────
   tabContent: { flex: 1 },
-
   tabScroll:  { flex: 1 },
-
-  // paddings inside ScrollView / FlatList
+  tabScrollContent: {
+    padding:       spacing.md,
+    paddingBottom: spacing.xxl,
+  },
   listContent: {
-    padding: Spacing.md,
-    paddingBottom: Spacing.xxl,
+    padding:       spacing.md,
+    paddingBottom: spacing.xxl,
   },
 
   // ── Section block ──────────────────────────────────────────────────────────
   sectionBlock: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius:    BorderRadius.xl,
-    padding:         Spacing.md,
-    marginBottom:    Spacing.sm,
+    padding:         spacing.md,
+    marginBottom:    spacing.sm,
     borderStartWidth: 3,
-    borderStartColor: Colors.primary,
-    elevation:    1,
-    shadowColor:  Colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    ...shadows.sm,
   },
   sectionBlockTitle: {
-    fontSize:     FontSizes.sm,
+    fontSize:     typography.sizes.sm,
     fontWeight:   '700',
-    color:        Colors.primary,
-    marginBottom: Spacing.sm,
-    textAlign:    'right',
+    marginBottom: spacing.sm,
   },
 
   // ── Info rows ──────────────────────────────────────────────────────────────
   infoRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
+    flexDirection:  'row',
+    alignItems:     'center',
     paddingVertical: 5,
-    gap: Spacing.sm,
+    gap:             spacing.sm,
   },
   infoIcon:  { width: 20 },
-  infoLabel: { flex: 1, fontSize: FontSizes.sm, color: Colors.textSecondary },
-  infoValue: { fontSize: FontSizes.sm, color: Colors.text, fontWeight: '500', textAlign: 'right' },
-
-  // ── Blood type badge ───────────────────────────────────────────────────────
-  bloodBadge: {
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-  },
-  bloodBadgeText: { fontSize: FontSizes.sm, fontWeight: '700' },
+  infoLabel: { flex: 1, fontSize: typography.sizes.sm, color: colors.textSecondary },
+  infoValue: { fontSize: typography.sizes.sm, color: colors.text, fontWeight: '500' },
 
   // ── Medical tags ───────────────────────────────────────────────────────────
   tagRow: {
     flexDirection: 'row',
     flexWrap:      'wrap',
-    gap:           Spacing.xs,
+    gap:           spacing.xs,
     marginTop:     4,
   },
   tag: {
-    borderRadius:    BorderRadius.full,
+    borderRadius:      BorderRadius.full,
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical:   3,
   },
-  tagText: { fontSize: FontSizes.xs, fontWeight: '600' },
-
-  // ── Empty hint ─────────────────────────────────────────────────────────────
+  tagText:  { fontSize: typography.sizes.xs, fontWeight: '600' },
   emptyHint: {
-    fontSize: FontSizes.xs,
-    color:    Colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: 4,
+    fontSize:   typography.sizes.xs,
+    color:      colors.textSecondary,
+    fontStyle:  'italic',
+    marginTop:  4,
   },
 
   // ── Encounter card ─────────────────────────────────────────────────────────
   encounterCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius:    BorderRadius.xl,
-    padding:         Spacing.md,
-    elevation:       1,
-    shadowColor:     Colors.black,
-    shadowOffset:    { width: 0, height: 1 },
-    shadowOpacity:   0.05,
-    shadowRadius:    2,
+    padding:         spacing.md,
+    ...shadows.sm,
   },
   encounterHeader: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    justifyContent:  'space-between',
-    marginBottom:    Spacing.sm,
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    marginBottom:   spacing.sm,
   },
-  encounterDateBadge: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             4,
-    backgroundColor: Colors.primary + '15',
-    borderRadius:    BorderRadius.full,
+  dateBadge: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    backgroundColor:   colors.primary + '15',
+    borderRadius:      BorderRadius.full,
     paddingHorizontal: 10,
     paddingVertical:   3,
   },
-  encounterDateText: { fontSize: FontSizes.xs, color: Colors.primary, fontWeight: '600' },
-  encounterTimeBadge: {
-    backgroundColor: Colors.borderLight,
-    borderRadius:    BorderRadius.full,
+  dateBadgeText: { fontSize: typography.sizes.xs, color: colors.primary, fontWeight: '600' },
+  timeBadge: {
+    backgroundColor:   colors.borderLight,
+    borderRadius:      BorderRadius.full,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical:   2,
   },
-  encounterTimeText: { fontSize: FontSizes.xs, color: Colors.textSecondary },
-  encounterReasonRow: {
+  timeBadgeText: { fontSize: typography.sizes.xs, color: colors.textSecondary },
+  encounterRow: {
     flexDirection: 'row',
     alignItems:    'flex-start',
-    marginBottom:  Spacing.xs,
+    marginBottom:  spacing.xs,
   },
-  encounterReasonLabel: {
-    fontSize:   FontSizes.sm,
-    color:      Colors.textSecondary,
-    fontWeight: '500',
-  },
-  encounterReasonValue: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    color:    Colors.text,
-    textAlign: 'right',
-  },
-  encounterSection: { marginTop: Spacing.sm },
+  encounterRowLabel: { fontSize: typography.sizes.sm, color: colors.textSecondary, fontWeight: '500' },
+  encounterRowValue: { flex: 1, fontSize: typography.sizes.sm, color: colors.text },
+  encounterSection:  { marginTop: spacing.sm },
   encounterSectionTitle: {
-    fontSize:     FontSizes.xs,
+    fontSize:     typography.sizes.xs,
     fontWeight:   '700',
-    color:        Colors.textSecondary,
+    color:        colors.textSecondary,
     marginBottom: 4,
-    textAlign:    'right',
   },
   encounterNotes: {
-    fontSize:   FontSizes.sm,
-    color:      Colors.text,
+    fontSize:   typography.sizes.sm,
+    color:      colors.text,
     lineHeight: 20,
-    textAlign:  'right',
   },
   showMore: {
-    fontSize:   FontSizes.xs,
-    color:      Colors.primary,
+    fontSize:   typography.sizes.xs,
+    color:      colors.primary,
     fontWeight: '600',
     marginTop:  4,
-    textAlign:  'right',
   },
   rxRow: {
     flexDirection: 'row',
     alignItems:    'center',
-    gap:           Spacing.xs,
+    gap:           spacing.xs,
     marginTop:     3,
   },
-  rxText: { fontSize: FontSizes.sm, color: Colors.text, flex: 1, textAlign: 'right' },
+  rxText: { fontSize: typography.sizes.sm, color: colors.text, flex: 1 },
 
   // ── Document card ──────────────────────────────────────────────────────────
   docCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     borderRadius:    BorderRadius.xl,
-    padding:         Spacing.md,
+    padding:         spacing.md,
     flexDirection:   'row',
     alignItems:      'center',
-    gap:             Spacing.sm,
-    elevation:       1,
-    shadowColor:     Colors.black,
-    shadowOffset:    { width: 0, height: 1 },
-    shadowOpacity:   0.05,
-    shadowRadius:    2,
+    gap:             spacing.sm,
+    ...shadows.sm,
   },
   docIconBox: {
-    width:           44,
-    height:          44,
-    borderRadius:    BorderRadius.md,
-    alignItems:      'center',
-    justifyContent:  'center',
-  },
-  docContent:  { flex: 1, gap: 3 },
-  docTitle:    { fontSize: FontSizes.sm, color: Colors.text, fontWeight: '600', textAlign: 'right' },
-  docDesc:     { fontSize: FontSizes.xs, color: Colors.textSecondary, textAlign: 'right' },
-  docMeta:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, justifyContent: 'flex-end' },
-  catPill: {
-    borderRadius:    BorderRadius.full,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  catPillText: { fontSize: 10, fontWeight: '600' },
-  docDate:     { fontSize: 10, color: Colors.textSecondary },
-
-  // ── Empty state ───────────────────────────────────────────────────────────
-  emptyState: {
-    flex: 1,
+    width:          44,
+    height:         44,
+    borderRadius:   BorderRadius.md,
     alignItems:     'center',
     justifyContent: 'center',
-    gap:            Spacing.sm,
-    padding:        Spacing.lg,
   },
-  emptyStateTitle: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text },
-  emptyStateHint:  { fontSize: FontSizes.sm, color: Colors.textSecondary, textAlign: 'center' },
+  docContent: { flex: 1, gap: 3 },
+  docTitle:   { fontSize: typography.sizes.sm, color: colors.text, fontWeight: '600' },
+  docDesc:    { fontSize: typography.sizes.xs, color: colors.textSecondary },
+  docMeta: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           spacing.xs,
+  },
+  catPill: {
+    borderRadius:      BorderRadius.full,
+    paddingHorizontal: 6,
+    paddingVertical:   1,
+  },
+  catPillText: { fontSize: 10, fontWeight: '600' },
+  docDate:     { fontSize: 10, color: colors.textSecondary },
 
-  // ── tab padding ───────────────────────────────────────────────────────────
-  tabScrollContent: {
-    padding: Spacing.md,
-    paddingBottom: Spacing.xxl,
+  // ── Doc open inline error ──────────────────────────────────────────────────
+  docErrorBanner: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               spacing.sm,
+    backgroundColor:   colors.error + '12',
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.sm,
+    marginHorizontal:  spacing.md,
+    marginTop:         spacing.sm,
+    borderRadius:      BorderRadius.md,
   },
+  docErrorText: {
+    flex:      1,
+    fontSize:  typography.sizes.xs,
+    color:     colors.error,
+  },
+
+  // ── Empty state ────────────────────────────────────────────────────────────
+  emptyState: {
+    flex:           1,
+    alignItems:     'center',
+    justifyContent: 'center',
+    gap:            spacing.sm,
+    padding:        spacing.lg,
+  },
+  emptyStateTitle: { fontSize: typography.sizes.md, fontWeight: '700', color: colors.text },
+  emptyStateHint:  { fontSize: typography.sizes.sm, color: colors.textSecondary, textAlign: 'center' },
 });
 
 export default EMRScreen;

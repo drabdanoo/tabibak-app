@@ -151,6 +151,7 @@ const STATUS_CONFIG = {
   in_progress: { color: '#8b5cf6', bg: '#ede9fe', label: 'مع الطبيب',    icon: 'medical-outline' },
   completed:   { color: Colors.primary, bg: '#d1fae5', label: 'مكتمل',   icon: 'checkmark-done-outline' },
   cancelled:   { color: Colors.error,   bg: '#fee2e2', label: 'ملغي',    icon: 'close-circle-outline' },
+  no_show:     { color: '#6b7280',      bg: '#f3f4f6', label: 'لم يحضر', icon: 'person-remove-outline' },
 };
 
 // Stats shown in the header pills row (order = display order)
@@ -161,6 +162,7 @@ const STATS_ORDER = [
   { key: 'waiting',    label: 'الاستقبال', color: '#eab308',      icon: 'people-outline' },
   { key: 'inProgress', label: 'مع طبيب',   color: '#8b5cf6',      icon: 'medical-outline' },
   { key: 'completed',  label: 'مكتملة',    color: Colors.primary, icon: 'checkmark-done-outline' },
+  { key: 'noShow',     label: 'لم يحضر',   color: '#6b7280',      icon: 'person-remove-outline' },
 ];
 
 // Appointment type display config
@@ -622,6 +624,7 @@ export default function ReceptionistDashboardScreen({ navigation }) {
     waiting:    filteredAppointments.filter((a) => a.status === 'waiting').length,
     inProgress: filteredAppointments.filter((a) => a.status === 'in_progress').length,
     completed:  filteredAppointments.filter((a) => a.status === 'completed').length,
+    noShow:     filteredAppointments.filter((a) => a.status === 'no_show').length,
   }), [filteredAppointments]);
 
   // ── pendingIds helpers ─────────────────────────────────────────────────────

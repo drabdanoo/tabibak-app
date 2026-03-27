@@ -115,21 +115,25 @@ import {
   getDocs,
   getDoc,
   doc,
+  addDoc,
   updateDoc,
+  onSnapshot,
   serverTimestamp,
   limit,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import LabResultModal from '../patient/LabResultModal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: 'overview', label: 'Overview',      icon: 'person-outline'   },
-  { key: 'history',  label: 'History',       icon: 'time-outline'     },
-  { key: 'visit',    label: 'Current Visit', icon: 'create-outline'   },
+  { key: 'overview', label: 'Overview', icon: 'person-outline'  },
+  { key: 'history',  label: 'History',  icon: 'time-outline'    },
+  { key: 'visit',    label: 'Visit',    icon: 'create-outline'  },
+  { key: 'labs',     label: 'Labs',     icon: 'flask-outline'   },
 ];
 
 const STATUS_CONFIG = {
@@ -138,6 +142,14 @@ const STATUS_CONFIG = {
   cancelled: { label: 'Cancelled', bg: '#EF4444', color: '#FFF', icon: 'close-circle'     },
   completed: { label: 'Completed', bg: '#6B7280', color: '#FFF', icon: 'checkmark-done-circle' },
 };
+
+/** Common lab tests offered as quick-select chips. */
+const COMMON_LAB_TESTS = [
+  'CBC', 'RBS', 'FBS', 'HbA1c', 'LFT', 'KFT', 'Lipid Profile',
+  'TSH', 'T3/T4', 'CRP', 'ESR', 'Urine Analysis', 'Urine Culture',
+  'Blood Culture', 'ECG', 'Chest X-Ray', 'Abdominal Ultrasound',
+  'COVID-19 PCR', 'PT/INR', 'Serum Electrolytes', 'Ferritin',
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -207,7 +219,7 @@ function usePatientData(patientId, currentAppointmentId) {
     let mounted = true;
 
     // ── Profile fetch ──────────────────────────────────────────────────────
-    getDoc(doc(db, 'users', patientId))
+    getDoc(doc(db, 'patients', patientId))
       .then(snap => {
         if (mounted && snap.exists()) {
           setProfile({ id: snap.id, ...snap.data() });
@@ -551,6 +563,12 @@ const CurrentVisitTab = React.memo(({
   onAddMedication,
   onRemoveMedication,
   onUpdateMedication,
+  labTests,
+  customLabTest,
+  onCustomLabTestChange,
+  onToggleLabTest,
+  onAddCustomLabTest,
+  onRemoveLabTest,
   onSave,
   saving,
   insets,
@@ -638,6 +656,66 @@ const CurrentVisitTab = React.memo(({
         </TouchableOpacity>
       </View>
 
+      {/* ── Lab Tests ──────────────────────────────────────────── */}
+      <View style={S.formSection}>
+        <View style={S.prescriptionHeader}>
+          <Text style={S.formLabel}>Lab Tests</Text>
+          {labTests.length > 0 && (
+            <Text style={S.medCountBadge}>{labTests.length} test{labTests.length > 1 ? 's' : ''}</Text>
+          )}
+        </View>
+        <Text style={S.formHint}>Tap to request. Custom tests can be added manually.</Text>
+
+        {/* Quick-select chips */}
+        <View style={S.labChipsWrap}>
+          {COMMON_LAB_TESTS.map(test => {
+            const selected = labTests.includes(test);
+            return (
+              <TouchableOpacity
+                key={test}
+                style={[S.labChip, selected && S.labChipSelected]}
+                onPress={() => onToggleLabTest(test)}
+                activeOpacity={0.75}
+              >
+                {selected && <Ionicons name="checkmark" size={11} color={Colors.white} style={{ marginEnd: 3 }} />}
+                <Text style={[S.labChipText, selected && S.labChipTextSelected]}>{test}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Custom test input */}
+        <View style={S.customLabRow}>
+          <TextInput
+            style={S.customLabInput}
+            value={customLabTest}
+            onChangeText={onCustomLabTestChange}
+            placeholder="Add custom test…"
+            placeholderTextColor={Colors.gray}
+            returnKeyType="done"
+            onSubmitEditing={onAddCustomLabTest}
+          />
+          <TouchableOpacity style={S.customLabAddBtn} onPress={onAddCustomLabTest} activeOpacity={0.8}>
+            <Ionicons name="add" size={20} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Selected tests (including custom) */}
+        {labTests.length > 0 && (
+          <View style={S.selectedLabsWrap}>
+            {labTests.map(test => (
+              <View key={test} style={S.selectedLabTag}>
+                <Ionicons name="flask-outline" size={12} color={Colors.primary} />
+                <Text style={S.selectedLabTagText}>{test}</Text>
+                <TouchableOpacity onPress={() => onRemoveLabTest(test)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                  <Ionicons name="close-circle" size={14} color={Colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+
       {/* ── Save Encounter ──────────────────────────────────────── */}
       <TouchableOpacity
         style={[S.saveBtn, saving && S.saveBtnDisabled]}
@@ -657,6 +735,94 @@ const CurrentVisitTab = React.memo(({
     </ScrollView>
   </KeyboardAvoidingView>
 ));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab 4 — Lab Results (doctor read-only view)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function formatLabDate(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+const LAB_STATUS_CONFIG = {
+  pending:           { label: 'Pending',       bg: '#F59E0B', color: '#FFF' },
+  results_submitted: { label: 'Results Sent',  bg: '#3B82F6', color: '#FFF' },
+  completed:         { label: 'Completed',     bg: '#22C55E', color: '#FFF' },
+  cancelled:         { label: 'Cancelled',     bg: '#EF4444', color: '#FFF' },
+};
+
+const LabResultsTab = React.memo(function LabResultsTab({ labOrders, onOpenOrder, insets }) {
+  if (labOrders.length === 0) {
+    return (
+      <View style={S.labEmpty}>
+        <Ionicons name="flask-outline" size={48} color={Colors.border} />
+        <Text style={S.labEmptyTitle}>No Lab Orders</Text>
+        <Text style={S.labEmptySub}>Lab tests ordered from Current Visit will appear here.</Text>
+      </View>
+    );
+  }
+  return (
+    <ScrollView
+      style={S.tabScroll}
+      contentContainerStyle={[S.tabScrollContent, { paddingBottom: insets.bottom + Spacing.xl }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {labOrders.map((order) => {
+        const cfg = LAB_STATUS_CONFIG[order.status] ?? LAB_STATUS_CONFIG.pending;
+        const hasResults = !!order.patientNote || !!order.resultImageURL;
+        return (
+          <TouchableOpacity
+            key={order.id}
+            style={S.labCard}
+            onPress={() => onOpenOrder(order)}
+            activeOpacity={0.75}
+          >
+            <View style={S.labCardHeader}>
+              <View style={S.labIconWrap}>
+                <Ionicons name="flask-outline" size={18} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={S.labCardDate}>{formatLabDate(order.createdAt)}</Text>
+                {order.diagnosis ? (
+                  <Text style={S.labCardDiag} numberOfLines={1}>{order.diagnosis}</Text>
+                ) : null}
+              </View>
+              <View style={[S.labStatusBadge, { backgroundColor: cfg.bg }]}>
+                <Text style={[S.labStatusText, { color: cfg.color }]}>{cfg.label}</Text>
+              </View>
+            </View>
+
+            <View style={S.labChipsRow}>
+              {(order.tests ?? []).map((t, i) => (
+                <View key={i} style={S.labChip}>
+                  <Text style={S.labChipText}>{t}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={S.labCardFooter}>
+              {hasResults ? (
+                <>
+                  <Ionicons name="checkmark-done" size={14} color="#3B82F6" />
+                  <Text style={[S.labCardFooterText, { color: '#3B82F6' }]}>
+                    Results received — tap to view
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+                  <Text style={S.labCardFooterText}>Awaiting patient results</Text>
+                </>
+              )}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -680,10 +846,30 @@ export default function PatientDetailsScreen({ route, navigation }) {
   // ── Tab state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('overview');
 
+  // ── Lab orders (real-time) ────────────────────────────────────────────────
+  const [labOrders,       setLabOrders]       = useState([]);
+  const [selectedLabOrder, setSelectedLabOrder] = useState(null);
+  const [labModalVisible,  setLabModalVisible]  = useState(false);
+
+  useEffect(() => {
+    if (!patientId) return;
+    const q = query(
+      collection(db, 'labOrders'),
+      where('patientId', '==', patientId),
+      orderBy('createdAt', 'desc'),
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setLabOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => console.error('[PatientDetails] labOrders:', err));
+    return unsub;
+  }, [patientId]);
+
   // ── CurrentVisit form state (lifted to parent — survives tab switches) ───
   const [clinicalNotes,  setClinicalNotes]  = useState('');
   const [diagnosis,      setDiagnosis]      = useState('');
   const [medications,    setMedications]    = useState([]);
+  const [labTests,       setLabTests]       = useState([]); // array of strings
+  const [customLabTest,  setCustomLabTest]  = useState('');
   const [saving,         setSaving]         = useState(false);
 
   // Seed clinical notes from existing appointment data (if re-entering)
@@ -719,6 +905,26 @@ export default function PatientDetailsScreen({ route, navigation }) {
     );
   }, []);
 
+  // ── Lab test handlers ─────────────────────────────────────────────────────
+  const handleToggleLabTest = useCallback((testName) => {
+    setLabTests(prev =>
+      prev.includes(testName)
+        ? prev.filter(t => t !== testName)
+        : [...prev, testName],
+    );
+  }, []);
+
+  const handleAddCustomLabTest = useCallback(() => {
+    const name = customLabTest.trim();
+    if (!name) return;
+    setLabTests(prev => prev.includes(name) ? prev : [...prev, name]);
+    setCustomLabTest('');
+  }, [customLabTest]);
+
+  const handleRemoveLabTest = useCallback((testName) => {
+    setLabTests(prev => prev.filter(t => t !== testName));
+  }, []);
+
   // ── Save encounter ────────────────────────────────────────────────────────
   const handleSaveEncounter = useCallback(async () => {
     if (!clinicalNotes.trim()) {
@@ -740,17 +946,52 @@ export default function PatientDetailsScreen({ route, navigation }) {
         .filter(m => m.drug.trim())
         .map(({ id: _id, ...rest }) => rest); // strip local id before Firestore write
 
-      await updateDoc(doc(db, 'appointments', appointment.id), {
-        status: 'completed',
-        clinicalNotes: clinicalNotes.trim(),
-        diagnosis: diagnosis.trim() || null,
-        prescriptions: validMeds,
-        encounterCompletedAt: serverTimestamp(),
-      });
+      const writes = [
+        updateDoc(doc(db, 'appointments', appointment.id), {
+          status: 'completed',
+          clinicalNotes: clinicalNotes.trim(),
+          diagnosis: diagnosis.trim() || null,
+          prescriptions: validMeds,
+          encounterCompletedAt: serverTimestamp(),
+        }),
+      ];
+
+      // Write lab orders if any were requested
+      if (labTests.length > 0) {
+        writes.push(
+          addDoc(collection(db, 'labOrders'), {
+            patientId:     appointment.patientId,
+            doctorId:      appointment.doctorId,
+            appointmentId: appointment.id,
+            tests:         labTests,
+            diagnosis:     diagnosis.trim() || null,
+            status:        'pending',
+            createdAt:     serverTimestamp(),
+          }),
+        );
+      }
+
+      // Write prescription to patient inbox if medications exist
+      if (validMeds.length > 0) {
+        writes.push(
+          addDoc(collection(db, 'prescriptions'), {
+            patientId:     appointment.patientId,
+            doctorId:      appointment.doctorId,
+            doctorName:    appointment.doctorName ?? null,
+            appointmentId: appointment.id,
+            medications:   validMeds,
+            diagnosis:     diagnosis.trim() || null,
+            status:        'unread',
+            createdAt:     serverTimestamp(),
+          }),
+        );
+      }
+
+      await Promise.all(writes);
 
       Alert.alert(
         'Encounter Saved ✓',
-        `Clinical notes and prescription for ${appointment.patientName ?? 'the patient'} have been saved.`,
+        `Clinical notes${labTests.length > 0 ? ', lab orders,' : ''} and prescription for ${appointment.patientName ?? 'the patient'} have been saved.`,
         [{ text: 'Done', onPress: () => navigation.goBack() }],
       );
     } catch (err) {
@@ -759,7 +1000,7 @@ export default function PatientDetailsScreen({ route, navigation }) {
     } finally {
       setSaving(false);
     }
-  }, [clinicalNotes, diagnosis, medications, appointment, navigation]);
+  }, [clinicalNotes, diagnosis, medications, labTests, appointment, navigation]);
 
   // ── Quick info bar data ───────────────────────────────────────────────────
   const patientName = appointment?.patientName ?? profile?.fullName ?? 'Patient';
@@ -788,6 +1029,14 @@ export default function PatientDetailsScreen({ route, navigation }) {
           : <StatusBadge status={appointment?.status} />
         }
       </View>
+
+      {/* ── LAB RESULT MODAL (doctor read-only) ─────────────────────────── */}
+      <LabResultModal
+        visible={labModalVisible}
+        order={selectedLabOrder}
+        onClose={() => { setLabModalVisible(false); setSelectedLabOrder(null); }}
+        doctorView
+      />
 
       {/* ── SEGMENTED CONTROL ────────────────────────────────────────────
           Pill-trough pattern. In RTL, flex-row reversal puts "Overview"
@@ -841,6 +1090,14 @@ export default function PatientDetailsScreen({ route, navigation }) {
           />
         )}
 
+        {activeTab === 'labs' && (
+          <LabResultsTab
+            labOrders={labOrders}
+            onOpenOrder={(order) => { setSelectedLabOrder(order); setLabModalVisible(true); }}
+            insets={insets}
+          />
+        )}
+
         {activeTab === 'visit' && (
           <CurrentVisitTab
             appointment={appointment}
@@ -852,6 +1109,12 @@ export default function PatientDetailsScreen({ route, navigation }) {
             onAddMedication={handleAddMedication}
             onRemoveMedication={handleRemoveMedication}
             onUpdateMedication={handleUpdateMedication}
+            labTests={labTests}
+            customLabTest={customLabTest}
+            onCustomLabTestChange={setCustomLabTest}
+            onToggleLabTest={handleToggleLabTest}
+            onAddCustomLabTest={handleAddCustomLabTest}
+            onRemoveLabTest={handleRemoveLabTest}
             onSave={handleSaveEncounter}
             saving={saving}
             insets={insets}
@@ -1310,6 +1573,80 @@ const S = StyleSheet.create({
     color: Colors.primary,
   },
 
+  // ── Lab tests ─────────────────────────────────────────────────────────────
+  labChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  labChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.white,
+  },
+  labChipSelected: {
+    backgroundColor: Colors.primary,
+  },
+  labChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  labChipTextSelected: {
+    color: Colors.white,
+  },
+  customLabRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  customLabInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
+    fontSize: FontSizes.sm,
+    color: Colors.text,
+  },
+  customLabAddBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedLabsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  selectedLabTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primary + '15',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  selectedLabTagText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+
   // ── Save Encounter button ─────────────────────────────────────────────────
   saveBtn: {
     flexDirection: 'row',
@@ -1329,5 +1666,98 @@ const S = StyleSheet.create({
     fontSize: FontSizes.md,
     fontWeight: '800',
     color: Colors.white,
+  },
+
+  // ── Labs tab ──────────────────────────────────────────────────────────────
+  labEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.xl,
+  },
+  labEmptyTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  labEmptySub: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  labCard: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  labCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  labIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.primary + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  labCardDate: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  labCardDiag: {
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
+  },
+  labStatusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  labStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  labChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginBottom: Spacing.sm,
+  },
+  labChip: {
+    backgroundColor: Colors.primary + '12',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  labChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  labCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  labCardFooterText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
 });

@@ -1,311 +1,443 @@
 /**
- * PatientProfileScreen.js — Patient Profile & Account (Phase 3/4)
+ * PatientProfileScreen.js — Patient Profile & Edit (Phase 4)
  *
- * Displays profile data from AuthContext.userProfile (PATIENTS collection).
- * Shows personal info, medical history snapshot, and account actions.
+ * ╔══ ARCHITECTURE ════════════════════════════════════════════════════════════╗
  *
- * RTL compliance:
- *   marginStart / marginEnd    → never marginLeft / marginRight
- *   borderStartWidth           → never borderLeftWidth
+ * 3-STATE PATTERN
+ * ────────────────
+ *   loading  — AuthContext.loading is true (Firebase resolving auth)
+ *   error    — Authenticated but userProfile is null (Firestore miss)
+ *   success  — Profile loaded; editable form rendered
+ *
+ * EDIT MODEL
+ * ──────────
+ *   Local form state is seeded from AuthContext.userProfile on first mount.
+ *   Editing writes directly to COLLECTIONS.PATIENTS via userService.
+ *   After a successful save, the local state is the source of truth for the
+ *   hero (so the updated name appears without a full auth state cycle).
+ *
+ * CONTRACTS ENFORCED
+ * ───────────────────
+ *   ✅ ScreenContainer (scrollable=true, padded=false, edges=['bottom'])
+ *   ✅ RTL logical properties throughout (marginStart/End, paddingStart/End)
+ *   ✅ All strings via t() — zero hardcoded text
+ *   ✅ Colors from theme.js — zero hardcoded hex
+ *   ✅ Zero Firebase imports — writes via userService
+ *   ✅ isSubmitting prevents double-tap on Save
+ *   ✅ Zero Alert.alert — inline banners only
+ *
+ * ╚════════════════════════════════════════════════════════════════════════════╝
  */
 
-import React, { useCallback, useState, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
-  SafeAreaView,
-  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { ScreenContainer, CustomTextField, PrimaryButton } from '../../components/ui';
+import { useAuth }     from '../../contexts/AuthContext';
+import userService     from '../../services/userService';
 import {
-  Colors,
-  Spacing,
+  colors,
+  spacing,
+  typography,
   BorderRadius,
-  FontSizes,
+  shadows,
 } from '../../config/theme';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Derive display initials from a full name string */
+const getInitials = (name = '') =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0] ?? '')
+    .join('')
+    .toUpperCase() || '?';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-const InfoRow = memo(({ icon, label, value, iconBg }) => (
-  <View style={styles.infoRow}>
-    <View style={[styles.iconBox, iconBg && { backgroundColor: iconBg }]}>
-      <Ionicons name={icon} size={18} color={Colors.primary} />
-    </View>
-    <View style={styles.infoText}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || '—'}</Text>
-    </View>
+/** Section wrapper with a left accent bar and title */
+const SectionHeader = ({ title }) => (
+  <View style={styles.sectionHeader}>
+    <View style={styles.sectionAccent} />
+    <Text style={styles.sectionTitle}>{title}</Text>
   </View>
-));
+);
 
-const MedTag = memo(({ label, color, bg }) => (
-  <View style={[styles.medTag, { backgroundColor: bg }]}>
-    <Text style={[styles.medTagText, { color }]}>{label}</Text>
+/** Chip selector row — gender or blood type */
+const ChipRow = ({ options, selected, onSelect, small }) => (
+  <View style={styles.chipRow}>
+    {options.map(({ value, label, icon }) => {
+      const isSelected = selected === value;
+      return (
+        <TouchableOpacity
+          key={value}
+          style={[
+            styles.chip,
+            small && styles.chipSmall,
+            isSelected && styles.chipSelected,
+          ]}
+          onPress={() => onSelect(value)}
+          activeOpacity={0.75}
+        >
+          {icon && (
+            <Ionicons
+              name={icon}
+              size={small ? 14 : 18}
+              color={isSelected ? colors.white : colors.primary}
+            />
+          )}
+          <Text
+            style={[
+              styles.chipText,
+              small && styles.chipTextSmall,
+              isSelected && styles.chipTextSelected,
+            ]}
+          >
+            {label}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
   </View>
-));
-
-const MenuRow = memo(({ icon, label, value, onPress, destructive, chevron = true }) => (
-  <TouchableOpacity style={styles.menuRow} onPress={onPress} activeOpacity={0.7}>
-    <View style={[styles.menuIconBox, destructive && styles.menuIconBoxRed]}>
-      <Ionicons name={icon} size={18} color={destructive ? Colors.error : Colors.primary} />
-    </View>
-    <View style={styles.menuContent}>
-      <Text style={[styles.menuLabel, destructive && styles.menuLabelRed]}>{label}</Text>
-      {value ? <Text style={styles.menuValue}>{value}</Text> : null}
-    </View>
-    {chevron && !destructive && (
-      <Ionicons name="chevron-back-outline" size={16} color={Colors.gray} />
-    )}
-  </TouchableOpacity>
-));
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PatientProfileScreen
+// Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PatientProfileScreen = ({ navigation }) => {
-  const { user, userProfile, signOut } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
+  const { t }                               = useTranslation();
+  const insets                              = useSafeAreaInsets();
+  const { user, userProfile, loading, signOut } = useAuth();
+
+  // ── Local edit state (seeded from userProfile) ────────────────────────────
+  const [editName,      setEditName]      = useState('');
+  const [editGender,    setEditGender]    = useState('');
+  const [editBloodType, setEditBloodType] = useState('');
+
+  // Seed form whenever profile loads or changes
+  useEffect(() => {
+    if (userProfile) {
+      setEditName(userProfile.fullName ?? userProfile.name ?? '');
+      setEditGender(userProfile.gender ?? '');
+      setEditBloodType(userProfile.bloodType ?? userProfile.blood_type ?? '');
+    }
+  }, [userProfile]);
+
+  // ── Save action state ──────────────────────────────────────────────────────
+  const [isSubmitting,  setIsSubmitting]  = useState(false);
+  // 'idle' | 'success' | 'error'
+  const [saveStatus,    setSaveStatus]    = useState('idle');
+
+  // ── Sign-out state ─────────────────────────────────────────────────────────
+  const [isSigningOut,  setIsSigningOut]  = useState(false);
+  const [logOutError,   setLogOutError]   = useState('');
 
   // ── Derived display values ─────────────────────────────────────────────────
-  const name   = userProfile?.name        ?? userProfile?.displayName ?? 'المريض';
-  const phone  = userProfile?.phoneNumber ?? user?.phoneNumber        ?? '—';
-  const email  = userProfile?.email       ?? user?.email              ?? '—';
-  const gender = userProfile?.gender === 'male'   ? 'ذكر'
-               : userProfile?.gender === 'female' ? 'أنثى'
-               : '—';
+  const displayName = editName || t('patient.profileScreen.patientLabel');
+  const phone       = userProfile?.phoneNumber ?? user?.phoneNumber ?? '—';
+  const initials    = getInitials(displayName);
 
-  const dob = useMemo(() => {
-    const raw = userProfile?.dateOfBirth ?? userProfile?.dob;
-    if (!raw) return '—';
+  // ── Save handler ───────────────────────────────────────────────────────────
+  const handleSave = useCallback(async () => {
+    if (isSubmitting || !user) return;
+    setSaveStatus('idle');
+    setIsSubmitting(true);
+
+    const result = await userService.updateUserProfile(user.uid, {
+      fullName:  editName.trim(),
+      gender:    editGender,
+      bloodType: editBloodType,
+    });
+
+    setIsSubmitting(false);
+    setSaveStatus(result.success ? 'success' : 'error');
+  }, [isSubmitting, user, editName, editGender, editBloodType]);
+
+  // ── Sign-out handler ───────────────────────────────────────────────────────
+  const handleLogOut = useCallback(async () => {
+    if (isSigningOut) return;
+    setLogOutError('');
+    setIsSigningOut(true);
     try {
-      const d = raw?.toDate?.() ?? new Date(raw);
-      return d.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch { return '—'; }
-  }, [userProfile]);
+      await signOut();
+    } catch {
+      setLogOutError(t('patient.profileScreen.logOutError'));
+      setIsSigningOut(false);
+    }
+  }, [isSigningOut, signOut, t]);
 
-  const bloodType = userProfile?.bloodType ?? userProfile?.blood_type ?? '—';
+  // ── 3-STATE PATTERN ────────────────────────────────────────────────────────
 
-  const joinedAt = useMemo(() => {
-    const raw = userProfile?.createdAt;
-    if (!raw) return '—';
-    try {
-      const d = raw?.toDate?.() ?? new Date(raw);
-      return d.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long' });
-    } catch { return '—'; }
-  }, [userProfile]);
-
-  // Medical history fields
-  const allergies   = userProfile?.medicalHistory?.allergies         ?? userProfile?.allergies         ?? null;
-  const medications = userProfile?.medicalHistory?.currentMedications ?? userProfile?.currentMedications ?? null;
-  const conditions  = userProfile?.medicalHistory?.chronicConditions  ?? userProfile?.chronicConditions  ?? null;
-
-  // Avatar initials
-  const initials = name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-
-  // ── Sign out ──────────────────────────────────────────────────────────────
-  const handleSignOut = useCallback(() => {
-    Alert.alert(
-      'تسجيل الخروج',
-      'هل تريد تسجيل الخروج من حسابك؟',
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text:  'تسجيل الخروج',
-          style: 'destructive',
-          onPress: async () => {
-            setIsSigningOut(true);
-            try { await signOut(); }
-            catch { Alert.alert('خطأ', 'تعذّر تسجيل الخروج. حاول مرة أخرى.'); }
-            finally { setIsSigningOut(false); }
-          },
-        },
-      ],
+  // State 1: Loading
+  if (loading) {
+    return (
+      <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
+        <View style={[styles.hero, { paddingTop: insets.top + spacing.md }]} />
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.centerStateText}>{t('common.loading')}</Text>
+        </View>
+      </ScreenContainer>
     );
-  }, [signOut]);
+  }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-  return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
-
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* ══ Profile Hero ══ */}
-        <View style={styles.hero}>
+  // State 2: Error (profile missing after auth)
+  if (!userProfile) {
+    return (
+      <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
+        <View style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{initials || 'م'}</Text>
-          </View>
-          <Text style={styles.heroName}>{name}</Text>
-          <View style={styles.roleBadge}>
-            <Ionicons name="person-circle-outline" size={13} color={Colors.primary} />
-            <Text style={styles.roleBadgeText}>مريض</Text>
-          </View>
-          {/* Quick stats */}
-          <View style={styles.heroStats}>
-            {bloodType !== '—' && (
-              <View style={styles.heroStatChip}>
-                <Ionicons name="water-outline" size={14} color="#ef4444" />
-                <Text style={styles.heroStatText}>{bloodType}</Text>
-              </View>
-            )}
-            {gender !== '—' && (
-              <View style={styles.heroStatChip}>
-                <Ionicons name="person-outline" size={14} color={Colors.primary} />
-                <Text style={styles.heroStatText}>{gender}</Text>
-              </View>
-            )}
+            <Text style={styles.avatarText}>?</Text>
           </View>
         </View>
+        <View style={styles.centerState}>
+          <Ionicons name="alert-circle-outline" size={52} color={colors.error} />
+          <Text style={styles.centerStateTitle}>{t('patient.profileScreen.loadError')}</Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
-        {/* ══ Personal Info ══ */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>المعلومات الشخصية</Text>
-          <InfoRow icon="person-outline"   label="الاسم الكامل"       value={name}      />
-          <View style={styles.divider} />
-          <InfoRow icon="call-outline"     label="رقم الهاتف"         value={phone}     />
-          <View style={styles.divider} />
-          <InfoRow icon="mail-outline"     label="البريد الإلكتروني"  value={email}     />
-          <View style={styles.divider} />
-          <InfoRow icon="calendar-outline" label="تاريخ الميلاد"      value={dob}       />
-          <View style={styles.divider} />
-          <InfoRow icon="water-outline"    label="فصيلة الدم"         value={bloodType} />
-          <View style={styles.divider} />
-          <InfoRow icon="calendar-number-outline" label="عضو منذ"    value={joinedAt}  />
+  // State 3: Success — editable form
+  const genderOptions = [
+    { value: 'male',   label: t('patient.profileScreen.male'),   icon: 'male'   },
+    { value: 'female', label: t('patient.profileScreen.female'), icon: 'female' },
+  ];
+
+  const bloodTypeOptions = BLOOD_TYPES.map((bt) => ({ value: bt, label: bt }));
+
+  return (
+    <ScreenContainer scrollable padded={false} edges={['bottom']}>
+
+      {/* ── Green hero ──────────────────────────────────────────────────── */}
+      <View style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
+        {/* Avatar */}
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
 
-        {/* ══ Medical History ══ */}
-        {(allergies || medications || conditions) && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>السجل الطبي</Text>
+        {/* Name */}
+        <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
 
-            {allergies && allergies !== 'None' && allergies !== 'لا يوجد' && (
-              <View style={styles.medSection}>
-                <View style={styles.medSectionHeader}>
-                  <Ionicons name="warning-outline" size={15} color="#ef4444" />
-                  <Text style={[styles.medSectionTitle, { color: '#ef4444' }]}>الحساسية</Text>
-                </View>
-                <View style={styles.medTagRow}>
-                  {allergies.split(',').map((a) => (
-                    <MedTag key={a.trim()} label={a.trim()} color="#dc2626" bg="#fee2e2" />
-                  ))}
-                </View>
-              </View>
-            )}
+        {/* Patient badge */}
+        <View style={styles.heroBadge}>
+          <Ionicons name="person-circle-outline" size={12} color={colors.primary} />
+          <Text style={styles.heroBadgeText}>{t('patient.profileScreen.patientLabel')}</Text>
+        </View>
 
-            {medications && medications !== 'None' && medications !== 'لا يوجد' && (
-              <View style={styles.medSection}>
-                <View style={styles.medSectionHeader}>
-                  <Ionicons name="medical-outline" size={15} color={Colors.primary} />
-                  <Text style={[styles.medSectionTitle, { color: Colors.primary }]}>الأدوية الحالية</Text>
-                </View>
-                <View style={styles.medTagRow}>
-                  {medications.split(',').map((m) => (
-                    <MedTag key={m.trim()} label={m.trim()} color={Colors.primary} bg="#d1fae5" />
-                  ))}
-                </View>
-              </View>
-            )}
+        {/* Quick stat chips (blood type + gender) */}
+        <View style={styles.heroChips}>
+          {!!editBloodType && (
+            <View style={styles.heroChip}>
+              <Ionicons name="water-outline" size={12} color={colors.white} />
+              <Text style={styles.heroChipText}>{editBloodType}</Text>
+            </View>
+          )}
+          {!!editGender && (
+            <View style={styles.heroChip}>
+              <Ionicons
+                name={editGender === 'male' ? 'male' : 'female'}
+                size={12}
+                color={colors.white}
+              />
+              <Text style={styles.heroChipText}>
+                {editGender === 'male'
+                  ? t('patient.profileScreen.male')
+                  : t('patient.profileScreen.female')}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
 
-            {conditions && conditions !== 'None' && conditions !== 'لا يوجد' && (
-              <View style={styles.medSection}>
-                <View style={styles.medSectionHeader}>
-                  <Ionicons name="pulse-outline" size={15} color="#8b5cf6" />
-                  <Text style={[styles.medSectionTitle, { color: '#8b5cf6' }]}>الأمراض المزمنة</Text>
-                </View>
-                <View style={styles.medTagRow}>
-                  {conditions.split(',').map((c) => (
-                    <MedTag key={c.trim()} label={c.trim()} color="#7c3aed" bg="#ede9fe" />
-                  ))}
-                </View>
-              </View>
-            )}
+      {/* ── Edit form ──────────────────────────────────────────────────── */}
+      <View style={styles.content}>
+
+        <SectionHeader title={t('patient.profileScreen.personalInfo')} />
+
+        {/* Full Name */}
+        <CustomTextField
+          label={t('patient.profileScreen.fullName')}
+          value={editName}
+          onChangeText={(v) => { setEditName(v); setSaveStatus('idle'); }}
+          placeholder={t('patient.profileScreen.fullNamePlaceholder')}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+
+        {/* Phone — read-only */}
+        <CustomTextField
+          label={t('patient.profileScreen.phone')}
+          value={phone}
+          editable={false}
+          onChangeText={() => {}}
+        />
+
+        {/* Gender */}
+        <Text style={styles.fieldLabel}>{t('patient.profileScreen.gender')}</Text>
+        <ChipRow
+          options={genderOptions}
+          selected={editGender}
+          onSelect={(v) => { setEditGender(v); setSaveStatus('idle'); }}
+        />
+
+        {/* Blood Type */}
+        <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>
+          {t('patient.profileScreen.bloodType')}
+        </Text>
+        <View style={styles.bloodTypeGrid}>
+          {bloodTypeOptions.map(({ value, label }) => {
+            const isSelected = editBloodType === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                style={[styles.bloodChip, isSelected && styles.bloodChipSelected]}
+                onPress={() => { setEditBloodType(value); setSaveStatus('idle'); }}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.bloodChipText, isSelected && styles.bloodChipTextSelected]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Save feedback banner */}
+        {saveStatus === 'success' && (
+          <View style={styles.successBanner}>
+            <Ionicons name="checkmark-circle-outline" size={16} color={colors.success} />
+            <Text style={styles.successBannerText}>
+              {t('patient.profileScreen.saveSuccess')}
+            </Text>
+          </View>
+        )}
+        {saveStatus === 'error' && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="warning-outline" size={16} color={colors.error} />
+            <Text style={styles.errorBannerText}>
+              {t('patient.profileScreen.saveError')}
+            </Text>
           </View>
         )}
 
-        {/* ══ Quick Actions ══ */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>الإجراءات السريعة</Text>
-          <MenuRow
-            icon="calendar-outline"
-            label="مواعيدي"
+        {/* Save Changes */}
+        <PrimaryButton
+          label={t('patient.profileScreen.saveChanges')}
+          onPress={handleSave}
+          loading={isSubmitting}
+          disabled={!editName.trim() || isSubmitting}
+          style={styles.saveBtn}
+        />
+
+        {/* ── Quick Actions ──────────────────────────────────────────── */}
+        <SectionHeader title={t('patient.profileScreen.quickActions')} />
+
+        <View style={styles.actionsCard}>
+          <TouchableOpacity
+            style={styles.actionRow}
             onPress={() => navigation.navigate('Appointments')}
-          />
-          <View style={styles.divider} />
-          <MenuRow
-            icon="document-text-outline"
-            label="وثائقي الطبية"
-            onPress={() => navigation.navigate('Documents')}
-          />
-          <View style={styles.divider} />
-          <MenuRow
-            icon="chatbubble-outline"
-            label="محادثاتي"
-            onPress={() => Alert.alert('قريباً', 'هذه الميزة قيد التطوير.')}
-          />
-        </View>
-
-        {/* ══ Account ══ */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>الحساب</Text>
-          <MenuRow
-            icon="shield-checkmark-outline"
-            label="الخصوصية والأمان"
-            onPress={() => Alert.alert('قريباً', 'هذه الميزة قيد التطوير.')}
-          />
-          <View style={styles.divider} />
-          <MenuRow
-            icon="help-circle-outline"
-            label="المساعدة والدعم"
-            onPress={() => Alert.alert('قريباً', 'هذه الميزة قيد التطوير.')}
-          />
-          <View style={styles.divider} />
-
-          {isSigningOut ? (
-            <View style={styles.signOutRow}>
-              <ActivityIndicator size="small" color={Colors.error} />
-              <Text style={styles.signOutText}>جاري تسجيل الخروج...</Text>
+            activeOpacity={0.75}
+          >
+            <View style={styles.actionIconBox}>
+              <Ionicons name="calendar-outline" size={18} color={colors.primary} />
             </View>
-          ) : (
-            <MenuRow
-              icon="log-out-outline"
-              label="تسجيل الخروج"
-              onPress={handleSignOut}
-              destructive
-              chevron={false}
-            />
-          )}
+            <Text style={styles.actionLabel}>{t('patient.profileScreen.myAppointments')}</Text>
+            <Ionicons name="chevron-forward-outline" size={16} color={colors.gray} />
+          </TouchableOpacity>
+
+          <View style={styles.actionDivider} />
+
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('Documents')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.actionIconBox}>
+              <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+            </View>
+            <Text style={styles.actionLabel}>{t('patient.profileScreen.myDocuments')}</Text>
+            <Ionicons name="chevron-forward-outline" size={16} color={colors.gray} />
+          </TouchableOpacity>
         </View>
+
+        {/* ── Log out ────────────────────────────────────────────────── */}
+        {!!logOutError && (
+          <View style={[styles.errorBanner, { marginTop: spacing.sm }]}>
+            <Ionicons name="warning-outline" size={16} color={colors.error} />
+            <Text style={styles.errorBannerText}>{logOutError}</Text>
+          </View>
+        )}
+
+        <PrimaryButton
+          label={t('patient.profileScreen.logOut')}
+          onPress={handleLogOut}
+          loading={isSigningOut}
+          variant="outline"
+          style={styles.logOutBtn}
+          textStyle={{ color: colors.error }}
+        />
 
         <Text style={styles.versionText}>Tabibak v1.0.0</Text>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+
+    </ScreenContainer>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Styles
+// Styles — RTL logical properties throughout
 // ─────────────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.background },
-  scroll: { gap: Spacing.md, paddingBottom: Spacing.xxl },
 
-  // ── Hero ─────────────────────────────────────────────────────────────────
+  // ── Loading / error center states ──────────────────────────────────────────
+  centerState: {
+    flex:           1,
+    alignItems:     'center',
+    justifyContent: 'center',
+    gap:            spacing.md,
+    padding:        spacing.xl,
+  },
+  centerStateText: {
+    fontSize: typography.sizes.sm,
+    color:    colors.textSecondary,
+  },
+  centerStateTitle: {
+    fontSize:  typography.sizes.md,
+    color:     colors.error,
+    textAlign: 'center',
+  },
+
+  // ── Green hero ─────────────────────────────────────────────────────────────
   hero: {
-    backgroundColor: Colors.primary,
-    alignItems:      'center',
-    paddingTop:      Spacing.xl,
-    paddingBottom:   Spacing.xxl,
-    gap:             Spacing.sm,
+    backgroundColor:  colors.primary,
+    alignItems:       'center',
+    paddingBottom:    spacing.xl + spacing.md,
+    paddingHorizontal: spacing.md,
+    gap:              spacing.xs,
   },
   avatarCircle: {
     width:           88,
@@ -313,131 +445,244 @@ const styles = StyleSheet.create({
     borderRadius:    BorderRadius.full,
     backgroundColor: 'rgba(255,255,255,0.25)',
     borderWidth:     3,
-    borderColor:     'rgba(255,255,255,0.6)',
+    borderColor:     'rgba(255,255,255,0.55)',
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginBottom:    spacing.xs,
+  },
+  avatarText: {
+    fontSize:   36,
+    fontWeight: '700',
+    color:      colors.white,
+  },
+  heroName: {
+    fontSize:   typography.sizes.xl,
+    fontWeight: '800',
+    color:      colors.white,
+    maxWidth:   '80%',
+  },
+  heroBadge: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   'rgba(255,255,255,0.9)',
+    borderRadius:      BorderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   4,
+    gap:               4,
+  },
+  heroBadgeText: {
+    fontSize:   typography.sizes.xs,
+    fontWeight: '700',
+    color:      colors.primary,
+  },
+  heroChips: {
+    flexDirection:  'row',
+    flexWrap:       'wrap',
+    justifyContent: 'center',
+    gap:            spacing.xs,
+    marginTop:      spacing.xs,
+  },
+  heroChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   'rgba(255,255,255,0.2)',
+    borderRadius:      BorderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   3,
+    gap:               3,
+  },
+  heroChipText: {
+    color:    colors.white,
+    fontSize: typography.sizes.xs,
+  },
+
+  // ── Form content ───────────────────────────────────────────────────────────
+  content: {
+    paddingHorizontal: spacing.md,
+    paddingTop:        spacing.lg,
+    paddingBottom:     spacing.xxl,
+  },
+
+  // ── Section header ─────────────────────────────────────────────────────────
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    marginBottom:  spacing.md,
+    marginTop:     spacing.sm,
+  },
+  sectionAccent: {
+    width:           3,
+    height:          16,
+    borderRadius:    2,
+    backgroundColor: colors.primary,
+    marginEnd:       spacing.sm,
+  },
+  sectionTitle: {
+    fontSize:      typography.sizes.sm,
+    fontWeight:    '700',
+    color:         colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // ── Field labels ───────────────────────────────────────────────────────────
+  fieldLabel: {
+    fontSize:     typography.sizes.sm,
+    fontWeight:   '500',
+    color:        colors.text,
+    marginBottom: spacing.xs,
+  },
+
+  // ── Chip row (gender) ──────────────────────────────────────────────────────
+  chipRow: {
+    flexDirection: 'row',
+    gap:           spacing.sm,
+    marginBottom:  spacing.md,
+  },
+  chip: {
+    flex:           1,
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'center',
+    gap:            spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius:   BorderRadius.lg,
+    borderWidth:    1.5,
+    borderColor:    colors.primary,
+    backgroundColor: colors.white,
+  },
+  chipSmall: {
+    paddingVertical:   6,
+    paddingHorizontal: spacing.sm,
+    flex:              0,
+  },
+  chipSelected: {
+    backgroundColor: colors.primary,
+  },
+  chipText: {
+    fontSize:   typography.sizes.sm,
+    fontWeight: '600',
+    color:      colors.primary,
+  },
+  chipTextSmall: {
+    fontSize: typography.sizes.xs,
+  },
+  chipTextSelected: {
+    color: colors.white,
+  },
+
+  // ── Blood type grid (2 × 4) ────────────────────────────────────────────────
+  bloodTypeGrid: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:           spacing.xs,
+    marginBottom:  spacing.md,
+  },
+  bloodChip: {
+    width:           '22%',
+    alignItems:      'center',
+    paddingVertical: 8,
+    borderRadius:    BorderRadius.md,
+    borderWidth:     1.5,
+    borderColor:     colors.border,
+    backgroundColor: colors.white,
+  },
+  bloodChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor:     colors.primary,
+  },
+  bloodChipText: {
+    fontSize:   typography.sizes.sm,
+    fontWeight: '700',
+    color:      colors.text,
+  },
+  bloodChipTextSelected: {
+    color: colors.white,
+  },
+
+  // ── Save / success / error ─────────────────────────────────────────────────
+  successBanner: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   colors.success + '15',
+    borderRadius:      BorderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.sm,
+    marginBottom:      spacing.md,
+    gap:               spacing.xs,
+  },
+  successBannerText: {
+    fontSize: typography.sizes.sm,
+    color:    colors.success,
+    flex:     1,
+  },
+  errorBanner: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   colors.error + '15',
+    borderRadius:      BorderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.sm,
+    marginBottom:      spacing.md,
+    gap:               spacing.xs,
+  },
+  errorBannerText: {
+    fontSize: typography.sizes.sm,
+    color:    colors.error,
+    flex:     1,
+  },
+  saveBtn: {
+    marginBottom: spacing.lg,
+  },
+
+  // ── Quick actions card ─────────────────────────────────────────────────────
+  actionsCard: {
+    backgroundColor: colors.white,
+    borderRadius:    BorderRadius.xl,
+    marginBottom:    spacing.md,
+    ...shadows.sm,
+  },
+  actionRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.md,
+    gap:               spacing.sm,
+  },
+  actionIconBox: {
+    width:           36,
+    height:          36,
+    borderRadius:    BorderRadius.md,
+    backgroundColor: colors.primary + '18',
     alignItems:      'center',
     justifyContent:  'center',
   },
-  avatarText:  { fontSize: 36, fontWeight: '700', color: Colors.white },
-  heroName:    { fontSize: FontSizes.xl, fontWeight: '800', color: Colors.white },
-  roleBadge: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    backgroundColor:  'rgba(255,255,255,0.9)',
-    borderRadius:     BorderRadius.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical:  4,
-    gap:              4,
+  actionLabel: {
+    flex:       1,
+    fontSize:   typography.sizes.md,
+    color:      colors.text,
+    fontWeight: '500',
   },
-  roleBadgeText: { fontSize: FontSizes.xs, fontWeight: '700', color: Colors.primary },
-  heroStats: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap', justifyContent: 'center' },
-  heroStatChip: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    backgroundColor:  'rgba(255,255,255,0.2)',
-    borderRadius:     BorderRadius.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical:  4,
-    gap:              4,
-  },
-  heroStatText: { color: Colors.white, fontSize: FontSizes.xs, fontWeight: '600' },
-
-  // ── Cards ─────────────────────────────────────────────────────────────────
-  card: {
-    backgroundColor:  Colors.white,
-    marginHorizontal: Spacing.md,
-    borderRadius:     BorderRadius.xl,
-    paddingVertical:  Spacing.xs,
-    elevation:        1,
-    shadowColor:      Colors.black,
-    shadowOffset:     { width: 0, height: 1 },
-    shadowOpacity:    0.05,
-    shadowRadius:     2,
-  },
-  cardTitle: {
-    fontSize:          FontSizes.sm,
-    fontWeight:        '700',
-    color:             Colors.textSecondary,
-    textAlign:         'right',
-    paddingHorizontal: Spacing.md,
-    paddingTop:        Spacing.sm,
-    paddingBottom:     Spacing.xs,
-  },
-  divider: {
+  actionDivider: {
     height:           1,
-    backgroundColor:  Colors.borderLight,
-    marginHorizontal: Spacing.md,
+    backgroundColor:  colors.borderLight,
+    marginHorizontal: spacing.md,
   },
 
-  // ── Info rows ─────────────────────────────────────────────────────────────
-  infoRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    gap:              Spacing.sm,
+  // ── Log out ────────────────────────────────────────────────────────────────
+  logOutBtn: {
+    marginTop:        spacing.sm,
+    marginBottom:     spacing.md,
+    borderColor:      colors.error,
   },
-  iconBox: {
-    width:          36,
-    height:         36,
-    borderRadius:   BorderRadius.md,
-    backgroundColor: Colors.primaryLight + '20',
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
-  infoText: { flex: 1, gap: 2 },
-  infoLabel: { fontSize: FontSizes.xs, color: Colors.textSecondary },
-  infoValue: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.text },
 
-  // ── Medical history ───────────────────────────────────────────────────────
-  medSection: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical:   Spacing.sm,
-    gap:               Spacing.xs,
+  // ── Footer version text ────────────────────────────────────────────────────
+  versionText: {
+    textAlign: 'center',
+    fontSize:  typography.sizes.xs,
+    color:     colors.gray,
+    marginTop: spacing.sm,
   },
-  medSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  medSectionTitle: { fontSize: FontSizes.sm, fontWeight: '700' },
-  medTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  medTag: {
-    borderRadius:     BorderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical:  4,
-  },
-  medTagText: { fontSize: FontSizes.xs, fontWeight: '600' },
-
-  // ── Menu rows ─────────────────────────────────────────────────────────────
-  menuRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    gap:              Spacing.sm,
-  },
-  menuIconBox: {
-    width:          36,
-    height:         36,
-    borderRadius:   BorderRadius.md,
-    backgroundColor: Colors.primaryLight + '20',
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
-  menuIconBoxRed: { backgroundColor: '#fee2e2' },
-  menuContent:    { flex: 1, gap: 2 },
-  menuLabel:      { fontSize: FontSizes.md, color: Colors.text, fontWeight: '500' },
-  menuLabelRed:   { color: Colors.error, fontWeight: '600' },
-  menuValue:      { fontSize: FontSizes.xs, color: Colors.textSecondary },
-
-  // ── Sign-out loading ──────────────────────────────────────────────────────
-  signOutRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    gap:              Spacing.sm,
-  },
-  signOutText: { fontSize: FontSizes.sm, color: Colors.error },
-
-  // ── Footer ────────────────────────────────────────────────────────────────
-  versionText: { textAlign: 'center', fontSize: FontSizes.xs, color: Colors.gray },
 });
 
 export default PatientProfileScreen;

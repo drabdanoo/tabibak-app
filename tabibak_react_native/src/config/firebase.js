@@ -1,6 +1,9 @@
 // Firebase Configuration for Tabibok App
 // Project: medconnect-2
 
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+
 export const firebaseConfig = {
   apiKey: "AIzaSyCHiS1JxbIm5zclg1QxM-i8DvHPeWMPne0",
   authDomain: "medconnect-2.firebaseapp.com",
@@ -10,6 +13,12 @@ export const firebaseConfig = {
   appId: "1:464755135042:web:ac00e07a1aa0721683d3db",
   measurementId: "G-1Q7MTPV8XE"
 };
+
+// Initialize Firebase app (guarded: authService.js may have already done this)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+// Shared Firestore instance — imported by screens that use collection()/doc() directly
+export const db = getFirestore(app);
 
 // User Roles
 export const USER_ROLES = {

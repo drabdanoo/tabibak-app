@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import {
   initializeAuth,
+  getAuth,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -25,11 +26,24 @@ import { firebaseConfig, COLLECTIONS, USER_ROLES } from '../config/firebase';
 // We use require() so each platform only loads the bundle it needs at runtime.
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-const _persistence = Platform.OS === 'web'
-  ? browserLocalPersistence
-  : require('@firebase/auth').getReactNativePersistence(AsyncStorage);
+// initializeAuth must be called only ONCE per app instance across the entire
+// JS lifetime (including dev-mode hot-reloads where module scope re-executes
+// but the native Firebase app stays alive).  If auth is already initialized
+// (i.e. this module was hot-reloaded), getAuth() returns the existing instance
+// so Firestore continues to see a valid authenticated user.
+function getOrInitAuth(firebaseApp) {
+  try {
+    const _persistence = Platform.OS === 'web'
+      ? browserLocalPersistence
+      : require('@firebase/auth').getReactNativePersistence(AsyncStorage);
+    return initializeAuth(firebaseApp, { persistence: _persistence });
+  } catch (e) {
+    // auth/already-initialized — return the already-created instance
+    return getAuth(firebaseApp);
+  }
+}
 
-const auth = initializeAuth(app, { persistence: _persistence });
+const auth = getOrInitAuth(app);
 const db = getFirestore(app);
 
 
@@ -37,7 +51,8 @@ class AuthService {
   constructor() {
     this.auth = auth;
     this.db = db;
-    this.rnAuth = null; // React Native Firebase auth (lazy loaded on native)
+    this.rnAuth = null;              // React Native Firebase auth (lazy loaded on native)
+    this._pendingConfirmation = null; // Stored here so it never passes through nav state
   }
 
   /**
@@ -67,53 +82,73 @@ class AuthService {
         return {
           success: false,
           error: 'Phone verification is only available on the mobile app. Please use the Android or iOS app to sign in.',
+          code:  'auth/web-unsupported',
         };
       } else {
         // Native Android/iOS: use @react-native-firebase/auth
         // This uses Google Play Services for app verification — no reCAPTCHA needed
         const rnAuth = await this.getRNAuth();
         const confirmation = await rnAuth.signInWithPhoneNumber(phoneNumber);
-        return { success: true, confirmation };
+        // Store here so it never has to travel through React Navigation params
+        // (non-serializable Firebase objects crash state persistence).
+        this._pendingConfirmation = confirmation;
+        return { success: true };
       }
     } catch (error) {
       console.error('Error sending OTP:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, code: error.code ?? 'unknown' };
     }
   }
 
   /**
    * Verify OTP code.
-   * On native, after RN Firebase confirms the OTP, we sync the auth state
-   * to the JS SDK using the ID token so that onAuthStateChanged fires.
-   * @param {object} confirmation - Confirmation object from sendOTP
-   * @param {string} code - OTP code
-   * @returns {Promise<object>} - { success, user } or { success: false, error }
+   *
+   * ── Strategy ────────────────────────────────────────────────────────────────
+   * On native we use @react-native-firebase/auth ONLY to obtain the
+   * verificationId (via signInWithPhoneNumber).  We do NOT call
+   * confirmation.confirm(code) — that would consume the OTP in the native SDK,
+   * leaving nothing for the JS SDK.
+   *
+   * Instead we pass (verificationId, code) straight to the JS SDK's
+   * PhoneAuthProvider → signInWithCredential.  The JS SDK signs in, fires
+   * onAuthStateChanged, and Firestore (JS SDK) immediately sees an
+   * authenticated user.  One OTP, one use, correct SDK.
+   *
+   * On web the JS SDK already owns the full phone-auth flow, so we just call
+   * confirmation.confirm(code) as usual.
+   *
+   * @param {string} code - 6-digit OTP code entered by the user
+   * @returns {Promise<{success:boolean, user?:object, error?:string, code?:string}>}
    */
-  async verifyOTP(confirmation, code) {
+  async verifyOTP(code) {
     try {
-      const userCredential = await confirmation.confirm(code);
-      const rnUser = userCredential.user;
-
       if (Platform.OS !== 'web') {
-        // Sync RN Firebase session into the JS SDK so AuthContext listener fires
-        const { signInWithCredential, PhoneAuthProvider } = await import('firebase/auth');
-        const idToken = await rnUser.getIdToken();
-        const credential = PhoneAuthProvider.credential(confirmation.verificationId || '', code);
-        try {
-          await signInWithCredential(this.auth, credential);
-        } catch {
-          // If credential fails (e.g. verificationId issues), manually trigger
-          // auth state update by setting currentUser via token sign-in
-          const { signInWithCustomToken } = await import('firebase/auth');
-          // Fallback: force reload — JS SDK will pick up the session from storage
-          await this.auth.currentUser?.reload?.();
+        const confirmation = this._pendingConfirmation;
+        if (!confirmation) {
+          return { success: false, error: 'No pending OTP session. Please request a new code.', code: 'auth/no-session' };
         }
-      }
 
-      return { success: true, user: rnUser };
+        const { signInWithCredential, PhoneAuthProvider } = await import('firebase/auth');
+        const credential = PhoneAuthProvider.credential(confirmation.verificationId, code);
+        const userCredential = await signInWithCredential(this.auth, credential);
+
+        // Session consumed — clear the pending confirmation
+        this._pendingConfirmation = null;
+
+        return { success: true, user: userCredential.user };
+      } else {
+        // Web: JS SDK owns the full phone-auth flow
+        const confirmation = this._pendingConfirmation;
+        if (!confirmation) {
+          return { success: false, error: 'No pending OTP session. Please request a new code.', code: 'auth/no-session' };
+        }
+        const userCredential = await confirmation.confirm(code);
+        this._pendingConfirmation = null;
+        return { success: true, user: userCredential.user };
+      }
     } catch (error) {
       console.error('Error verifying OTP:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, code: error.code ?? 'unknown' };
     }
   }
 
@@ -123,34 +158,44 @@ class AuthService {
    * @returns {Promise<string|null>} - User role
    */
   async getUserRole(uid) {
+    // ── 1. Custom JWT claims (authoritative, set by Cloud Functions / Admin SDK) ──
+    // Check these first — they cannot be spoofed by incorrect Firestore data.
     try {
-      // Check in users collection first
-      const userDocRef = doc(this.db, COLLECTIONS.USERS, uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        return userData.role || null;
+      const currentUser = getAuth().currentUser;
+      if (currentUser) {
+        const idTokenResult = await currentUser.getIdTokenResult();
+        const claims = idTokenResult.claims;
+        if (claims.admin)        return USER_ROLES.ADMIN;
+        if (claims.doctor)       return USER_ROLES.DOCTOR;
+        if (claims.receptionist) return USER_ROLES.RECEPTIONIST;
+        if (claims.patient)      return USER_ROLES.PATIENT;
       }
+    } catch { /* claims unavailable — fall through to Firestore */ }
 
-      // Check in specific role collections
-      const patientDocRef = doc(this.db, COLLECTIONS.PATIENTS, uid);
-      const patientDoc = await getDoc(patientDocRef);
+    // ── 2. Firestore role collections (fallback) ──
+    // Each wrapped in its own try-catch so a permission denial on one collection
+    // does not prevent the fallthrough checks on the others.
+    try {
+      const userDoc = await getDoc(doc(this.db, COLLECTIONS.USERS, uid));
+      if (userDoc.exists() && userDoc.data().role) return userDoc.data().role;
+    } catch { /* document absent or rules denied */ }
+
+    try {
+      const patientDoc = await getDoc(doc(this.db, COLLECTIONS.PATIENTS, uid));
       if (patientDoc.exists()) return USER_ROLES.PATIENT;
+    } catch { /* not a patient */ }
 
-      const doctorDocRef = doc(this.db, COLLECTIONS.DOCTORS, uid);
-      const doctorDoc = await getDoc(doctorDocRef);
+    try {
+      const doctorDoc = await getDoc(doc(this.db, COLLECTIONS.DOCTORS, uid));
       if (doctorDoc.exists()) return USER_ROLES.DOCTOR;
+    } catch { /* not a doctor */ }
 
-      const receptionistDocRef = doc(this.db, COLLECTIONS.RECEPTIONISTS, uid);
-      const receptionistDoc = await getDoc(receptionistDocRef);
+    try {
+      const receptionistDoc = await getDoc(doc(this.db, COLLECTIONS.RECEPTIONISTS, uid));
       if (receptionistDoc.exists()) return USER_ROLES.RECEPTIONIST;
+    } catch { /* not a receptionist */ }
 
-      return null;
-    } catch (error) {
-      console.error('Error getting user role:', error);
-      return null;
-    }
+    return null;
   }
 
   /**

@@ -26,19 +26,24 @@ const ScreenContainer = ({
   style,
   edges = ['top', 'bottom'],
 }) => {
-  const innerStyle = [styles.inner, padded && styles.padded, style];
+  // For a plain View, flex:1 fills the available space (correct).
+  // For a ScrollView, flex:1 on contentContainerStyle caps the content to the
+  // viewport height and prevents scrolling — use flexGrow:1 instead so the
+  // content can expand beyond the screen while still filling it when short.
+  const viewStyle       = [styles.inner,       padded && styles.padded, style];
+  const scrollableStyle = [styles.scrollable,   padded && styles.padded, style];
 
   const content = scrollable ? (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={innerStyle}
+      contentContainerStyle={scrollableStyle}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={innerStyle}>{children}</View>
+    <View style={viewStyle}>{children}</View>
   );
 
   return (
@@ -66,6 +71,11 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
+  },
+  // Used as contentContainerStyle on ScrollView — flexGrow instead of flex
+  // so the content can scroll past the viewport when tall enough.
+  scrollable: {
+    flexGrow: 1,
   },
   padded: {
     paddingHorizontal: spacing.md,

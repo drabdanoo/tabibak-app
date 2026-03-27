@@ -16,7 +16,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.abdullah.reacttabibok",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +28,8 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.abdullah.reacttabibok",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,6 +39,26 @@
         "projectId": "c6e91624-4f76-4b03-90f1-f4f724ab5547"
       }
     },
-    "owner": "abdanoo"
+    "owner": "abdanoo",
+    "plugins": [
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#10b981",
+          "defaultChannel": "default",
+          "androidMode": "default"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ]
   }
 }

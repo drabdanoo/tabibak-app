@@ -2,234 +2,183 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import { ScreenContainer, PrimaryButton, CustomTextField } from '../../components/ui';
+import { colors, spacing, typography, BorderRadius } from '../../config/theme';
 import { USER_ROLES } from '../../config/firebase';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Resolve icon name from role */
+const roleIcon = (role) =>
+  role === USER_ROLES.DOCTOR ? 'medkit-outline' : 'desktop-outline';
+
+/** Resolve role title key from role */
+const roleTitleKey = (role) =>
+  role === USER_ROLES.DOCTOR ? 'roles.doctor' : 'roles.receptionist';
+
+/** Map a Firebase error code → localized auth error string */
+const mapLoginError = (code, t) => {
+  switch (code) {
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential': return t('auth.loginFailed');
+    case 'auth/too-many-requests':  return t('auth.errors.tooManyRequests');
+    default:                        return t('auth.loginError');
+  }
+};
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 const EmailLoginScreen = ({ navigation, route }) => {
   const { role } = route.params;
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
   const { signInWithEmail, signOut } = useAuth();
 
-  const getRoleTitle = () => {
-    if (role === USER_ROLES.DOCTOR) return 'Doctor';
-    if (role === USER_ROLES.RECEPTIONIST) return 'Receptionist';
-    return 'Staff';
-  };
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
 
   const handleSignIn = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Required Fields', 'Please enter both email and password');
+      setAuthError(t('auth.requiredFields'));
       return;
     }
 
-    setLoading(true);
+    setAuthError('');
+    setIsLoading(true);
 
-    try {
-      const result = await signInWithEmail(email.trim(), password);
+    const result = await signInWithEmail(email.trim(), password);
+    setIsLoading(false);
 
-      if (result.success) {
-        // Check if user has the correct role
-        if (result.role !== role) {
-          Alert.alert(
-            'Access Denied',
-            `This account is not registered as a ${getRoleTitle().toLowerCase()}`
-          );
-          await signOut();
-          return;
-        }
-        // Navigation will be handled by AuthContext
-      } else {
-        Alert.alert('Login Failed', result.error || 'Invalid credentials. Please try again.');
+    if (result.success) {
+      // If the account's role does not match the selected entry point, deny access
+      if (result.role && result.role !== role) {
+        setAuthError(t('auth.accessDenied', { role: t(roleTitleKey(role)) }));
+        await signOut();
+        return;
       }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-      console.error('Email login error:', error);
-    } finally {
-      setLoading(false);
+      // Correct role — AuthContext onAuthStateChanged handles stack navigation
+    } else {
+      setAuthError(mapLoginError(result.code, t));
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-      
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
+    <ScreenContainer scrollable={false} padded={true} edges={['top', 'bottom']}>
+
+      {/* Back */}
+      <TouchableOpacity
+        style={styles.back}
+        onPress={() => navigation.goBack()}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
-        </TouchableOpacity>
+        <Ionicons name="arrow-back" size={24} color={colors.text} />
+      </TouchableOpacity>
 
-        <View style={styles.header}>
-          <Ionicons 
-            name={role === USER_ROLES.DOCTOR ? 'medkit' : 'desktop'} 
-            size={80} 
-            color={Colors.primary} 
+      {/* Hero */}
+      <View style={styles.header}>
+        <View style={[
+          styles.iconCircle,
+          { backgroundColor: role === USER_ROLES.DOCTOR
+              ? colors.secondary + '18'
+              : colors.info    + '18' },
+        ]}>
+          <Ionicons
+            name={roleIcon(role)}
+            size={44}
+            color={role === USER_ROLES.DOCTOR ? colors.secondary : colors.info}
           />
-          <Text style={styles.title}>{getRoleTitle()} Login</Text>
-          <Text style={styles.subtitle}>Sign in with your credentials</Text>
         </View>
+        <Text style={styles.title}>{t(roleTitleKey(role))}</Text>
+        <Text style={styles.subtitle}>{t('auth.staffLoginSubtitle')}</Text>
+      </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email"
-            placeholderTextColor={Colors.gray}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+      {/* Email */}
+      <CustomTextField
+        label={t('auth.email')}
+        value={email}
+        onChangeText={(v) => { setEmail(v); setAuthError(''); }}
+        placeholder={t('auth.emailPlaceholder')}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
 
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              placeholderTextColor={Colors.gray}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity
-              style={styles.eyeButton}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Ionicons
-                name={showPassword ? 'eye-off' : 'eye'}
-                size={24}
-                color={Colors.gray}
-              />
-            </TouchableOpacity>
-          </View>
+      {/* Password */}
+      <CustomTextField
+        label={t('auth.password')}
+        value={password}
+        onChangeText={(v) => { setPassword(v); setAuthError(''); }}
+        placeholder={t('auth.passwordPlaceholder')}
+        secureText
+      />
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSignIn}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color={Colors.white} />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      {/* Inline error */}
+      {!!authError && (
+        <Text style={styles.errorText}>{authError}</Text>
+      )}
+
+      {/* Sign-in CTA */}
+      <PrimaryButton
+        label={t('auth.signIn')}
+        onPress={handleSignIn}
+        disabled={!canSubmit}
+        loading={isLoading}
+        style={styles.button}
+      />
+
+    </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.white
+  back: {
+    marginBottom: spacing.lg,
+    alignSelf: 'flex-start',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg
-  },
-  backButton: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing.lg
-  },
+
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl
+    marginBottom: spacing.xl,
+  },
+  iconCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
   title: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginTop: Spacing.md
+    fontSize: typography.sizes.xl,
+    fontWeight: '700',
+    color: colors.text,
   },
   subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.textLight,
-    marginTop: Spacing.sm
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
   },
-  form: {
-    flex: 1
+
+  errorText: {
+    fontSize: typography.sizes.sm,
+    color: colors.error,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
   },
-  label: {
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md
-  },
-  input: {
-    backgroundColor: Colors.backgroundLight,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.md,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.backgroundLight,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: Spacing.lg
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.md,
-    color: Colors.text
-  },
-  eyeButton: {
-    paddingHorizontal: Spacing.md
-  },
+
   button: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3
+    marginTop: spacing.sm,
   },
-  buttonDisabled: {
-    opacity: 0.6
-  },
-  buttonText: {
-    color: Colors.white,
-    fontSize: FontSizes.md,
-    fontWeight: '600'
-  }
 });
 
 export default EmailLoginScreen;

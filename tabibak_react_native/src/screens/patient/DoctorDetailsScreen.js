@@ -83,12 +83,23 @@ const StarRating = React.memo(({ rating = 0, reviewCount = 0 }) => {
   );
 });
 
-const StatChip = React.memo(({ icon, label }) => (
-  <View style={S.statChip}>
-    <Ionicons name={icon} size={12} color={Colors.white} />
-    <Text style={S.statChipText}>{label}</Text>
-  </View>
-));
+const StatChip = React.memo(({ icon, label, onPress }) => {
+  const inner = (
+    <>
+      <Ionicons name={icon} size={12} color={Colors.white} />
+      <Text style={S.statChipText}>{label}</Text>
+      {!!onPress && <Ionicons name="open-outline" size={10} color="rgba(255,255,255,0.7)" />}
+    </>
+  );
+  if (onPress) {
+    return (
+      <TouchableOpacity style={S.statChip} onPress={onPress} activeOpacity={0.75}>
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={S.statChip}>{inner}</View>;
+});
 
 /** Single labelled row inside an Overview card. Returns null if value is falsy. */
 const InfoRow = React.memo(({ icon, label, value, isLast = false }) => {
@@ -204,6 +215,12 @@ export default function DoctorDetailsScreen({ route, navigation }) {
     navigation.navigate('BookAppointment', { doctor });
   }, [navigation, doctor]);
 
+  // ── Open doctor location on the in-app map ────────────────────────
+  const handleOpenMaps = useCallback(() => {
+    if (!doctor) return;
+    navigation.navigate('DoctorMap', { focusDoctor: doctor });
+  }, [navigation, doctor]);
+
   // ── Avatar initials fallback ──────────────────────────────────────
   const initials = (doctor?.name ?? 'D')
     .split(' ')
@@ -298,7 +315,13 @@ export default function DoctorDetailsScreen({ route, navigation }) {
               <StatChip icon="briefcase-outline" label={`${doctor.experience} yr exp`} />
             )}
             {!!doctor?.city && (
-              <StatChip icon="location-outline" label={doctor.city} />
+              <StatChip
+                icon="location-outline"
+                label={doctor.city}
+                onPress={(doctor?.latitude && doctor?.longitude) || doctor?.address
+                  ? handleOpenMaps
+                  : undefined}
+              />
             )}
             {!!doctor?.consultationFee && (
               <StatChip icon="cash-outline" label={`$${doctor.consultationFee}`} />

@@ -113,6 +113,8 @@ import React, {
 import {
   View,
   Text,
+  Image,
+  TextInput,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -135,6 +137,7 @@ import {
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import storageService from '../../services/storageService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -232,18 +235,20 @@ function useDoctorProfile(uid) {
     let cancelled = false;
     setLoading(true);
 
-    getDoc(doc(db, 'users', uid))
-      .then((snap) => {
-        if (!cancelled && snap.exists()) {
-          setProfile({ id: snap.id, ...snap.data() });
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) console.error('[DoctorProfile] fetch:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    Promise.all([
+      getDoc(doc(db, 'users', uid)).catch(() => null),
+      getDoc(doc(db, 'doctors', uid)).catch(() => null),
+    ]).then(([userSnap, doctorSnap]) => {
+      if (cancelled) return;
+      const userData   = userSnap?.exists()   ? userSnap.data()   : {};
+      const doctorData = doctorSnap?.exists()  ? doctorSnap.data() : {};
+      // doctors/{uid} wins for name/about/photoURL; users/{uid} wins for schedule
+      setProfile({ id: uid, ...userData, ...doctorData });
+    }).catch((err) => {
+      if (!cancelled) console.error('[DoctorProfile] fetch:', err);
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     return () => { cancelled = true; };
   }, [uid]);
@@ -255,8 +260,8 @@ function useDoctorProfile(uid) {
 // Sub-components  (all module-level React.memo — never recreated on re-render)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Circular avatar with initials fallback. */
-const Avatar = React.memo(function Avatar({ name = 'Dr', size = 72 }) {
+/** Circular avatar — shows photo if available, initials otherwise. */
+const Avatar = React.memo(function Avatar({ name = 'Dr', size = 72, photoURL, onPress, editMode }) {
   const initials = (name || 'Dr')
     .split(' ')
     .filter(Boolean)
@@ -265,16 +270,30 @@ const Avatar = React.memo(function Avatar({ name = 'Dr', size = 72 }) {
     .join('');
 
   return (
-    <View
-      style={[
-        S.avatar,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={editMode ? 0.7 : 1}
+      style={{ alignItems: 'center' }}
     >
-      <Text style={[S.avatarText, { fontSize: Math.round(size * 0.36) }]}>
-        {initials || 'Dr'}
-      </Text>
-    </View>
+      <View style={[S.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+        {photoURL ? (
+          <Image
+            source={{ uri: photoURL }}
+            style={{ width: size, height: size, borderRadius: size / 2 }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text style={[S.avatarText, { fontSize: Math.round(size * 0.36) }]}>
+            {initials || 'Dr'}
+          </Text>
+        )}
+      </View>
+      {editMode && (
+        <View style={S.avatarEditBadge}>
+          <Ionicons name="camera-outline" size={12} color={Colors.white} />
+        </View>
+      )}
+    </TouchableOpacity>
   );
 });
 
@@ -406,6 +425,14 @@ export default function DoctorProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const { profile, loading: profileLoading } = useDoctorProfile(uid);
+
+  // ── Profile edit state ────────────────────────────────────────────────────
+  const [editMode,      setEditMode]      = useState(false);
+  const [editName,      setEditName]      = useState('');
+  const [editBio,       setEditBio]       = useState('');
+  const [editPhoto,     setEditPhoto]     = useState(null); // local URI while editing
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   // ── Schedule local state ───────────────────────────────────────────────────
   // All edits stay local until "Save Schedule" is pressed (Rule 4).
@@ -545,6 +572,68 @@ export default function DoctorProfileScreen({ navigation }) {
     }
   }, [schedule, consultationDuration, uid]);
 
+  // ── Handler: enter / exit edit mode ──────────────────────────────────────
+  const handleEnterEdit = useCallback(() => {
+    setEditName(doctorName);
+    setEditBio(about);
+    setEditPhoto(null);
+    setEditMode(true);
+  }, [doctorName, about]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditMode(false);
+    setEditPhoto(null);
+  }, []);
+
+  // ── Handler: pick a new profile photo ─────────────────────────────────────
+  const handlePickPhoto = useCallback(async () => {
+    if (!editMode) return;
+    const result = await storageService.openGallery({ allowsEditing: true, aspect: [1, 1] });
+    if (result?.uri) setEditPhoto(result.uri);
+  }, [editMode]);
+
+  // ── Handler: save profile (name + bio + optional photo) ───────────────────
+  const handleSaveProfile = useCallback(async () => {
+    if (!uid) return;
+    setSavingProfile(true);
+    try {
+      let photoURL = profile?.photoURL ?? null;
+
+      if (editPhoto) {
+        setPhotoUploading(true);
+        const uploadResult = await storageService.uploadDoctorPhoto(uid, editPhoto);
+        setPhotoUploading(false);
+        if (uploadResult?.success) photoURL = uploadResult.photoURL;
+      }
+
+      const updates = {
+        name:      editName.trim() || doctorName,
+        fullName:  editName.trim() || doctorName,
+        about:     editBio.trim(),
+        updatedAt: serverTimestamp(),
+      };
+      if (photoURL) updates.photoURL = photoURL;
+
+      await Promise.all([
+        updateDoc(doc(db, 'doctors', uid), updates),
+        updateDoc(doc(db, 'users',   uid), {
+          fullName:  updates.fullName,
+          updatedAt: updates.updatedAt,
+        }),
+      ]);
+
+      setEditMode(false);
+      setEditPhoto(null);
+      Alert.alert('Saved ✓', 'Profile updated successfully.');
+    } catch (err) {
+      console.error('[DoctorProfile] save profile:', err);
+      Alert.alert('Error', 'Could not save profile. Please try again.');
+    } finally {
+      setSavingProfile(false);
+      setPhotoUploading(false);
+    }
+  }, [uid, editName, editBio, editPhoto, profile, doctorName]);
+
   // ── Handler: sign out with confirmation ───────────────────────────────────
   const handleSignOut = useCallback(() => {
     Alert.alert(
@@ -562,10 +651,11 @@ export default function DoctorProfileScreen({ navigation }) {
   }, [signOut]);
 
   // ── Derived display values ─────────────────────────────────────────────────
-  const doctorName  = profile?.fullName    ?? cachedProfile?.fullName    ?? 'Doctor';
+  const doctorName  = profile?.fullName    ?? profile?.name ?? cachedProfile?.fullName ?? 'Doctor';
   const specialty   = profile?.specialty   ?? cachedProfile?.specialty   ?? '';
   const phone       = profile?.phoneNumber ?? cachedProfile?.phoneNumber ?? user?.phoneNumber ?? '';
   const about       = profile?.about       ?? '';
+  const photoURL    = profile?.photoURL    ?? null;
   const rating      = profile?.averageRating  ?? 0;
   const reviewCount = profile?.totalReviews   ?? 0;
 
@@ -618,22 +708,61 @@ export default function DoctorProfileScreen({ navigation }) {
         ─────────────────────────────────────────────────────────────────── */}
         <View style={[S.profileHeader, { paddingTop: insets.top + Spacing.lg }]}>
 
-          {/* Settings icon — absolute top-end corner */}
-          <TouchableOpacity
-            style={[S.settingsIconBtn, { top: insets.top + Spacing.sm }]}
-            onPress={() => navigation.navigate('Settings')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="settings-outline" size={22} color={Colors.white} />
-          </TouchableOpacity>
+          {/* Settings / Edit toggle — absolute top-end corner */}
+          {editMode ? (
+            <TouchableOpacity
+              style={[S.settingsIconBtn, { top: insets.top + Spacing.sm }]}
+              onPress={handleCancelEdit}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close-outline" size={24} color={Colors.white} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[S.settingsIconBtn, { top: insets.top + Spacing.sm }]}
+              onPress={() => navigation.navigate('Settings')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="settings-outline" size={22} color={Colors.white} />
+            </TouchableOpacity>
+          )}
+
+          {/* Edit profile pencil — absolute top-start corner */}
+          {!editMode && (
+            <TouchableOpacity
+              style={[S.editProfileBtn, { top: insets.top + Spacing.sm }]}
+              onPress={handleEnterEdit}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="pencil-outline" size={18} color={Colors.white} />
+            </TouchableOpacity>
+          )}
 
           {/* Avatar */}
-          <Avatar name={doctorName} size={80} />
+          <Avatar
+            name={editMode ? editName : doctorName}
+            size={80}
+            photoURL={editPhoto ?? photoURL}
+            onPress={handlePickPhoto}
+            editMode={editMode}
+          />
 
-          {/* Name */}
-          <Text style={S.profileName} numberOfLines={2}>
-            Dr. {doctorName}
-          </Text>
+          {/* Name — editable in edit mode */}
+          {editMode ? (
+            <TextInput
+              style={S.profileNameInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your name"
+              placeholderTextColor="rgba(255,255,255,0.55)"
+              maxLength={60}
+              textAlign="center"
+            />
+          ) : (
+            <Text style={S.profileName} numberOfLines={2}>
+              Dr. {doctorName}
+            </Text>
+          )}
 
           {/* Specialty badge */}
           {specialty ? (
@@ -669,41 +798,66 @@ export default function DoctorProfileScreen({ navigation }) {
         {/* ── PERSONAL INFO CARD ────────────────────────────────────────────
             Read-only. Phone + About/bio. Hidden entirely if both are empty.
         ─────────────────────────────────────────────────────────────────── */}
-        {(phone || about) ? (
-          <View style={S.card}>
-            <View style={S.cardHeader}>
-              <View style={S.cardHeaderIcon}>
-                <Ionicons name="person-outline" size={16} color={Colors.primary} />
-              </View>
-              <Text style={S.cardTitle}>Personal Information</Text>
+        <View style={S.card}>
+          <View style={S.cardHeader}>
+            <View style={S.cardHeaderIcon}>
+              <Ionicons name="person-outline" size={16} color={Colors.primary} />
             </View>
-
-            {phone ? (
-              <View style={S.infoRow}>
-                <Ionicons
-                  name="call-outline"
-                  size={14}
-                  color={Colors.textSecondary}
-                />
-                <Text style={S.infoLabel}>Phone</Text>
-                <Text style={S.infoValue} numberOfLines={1}>{phone}</Text>
-              </View>
-            ) : null}
-
-            {about ? (
-              <View style={[S.infoRow, { alignItems: 'flex-start' }]}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={14}
-                  color={Colors.textSecondary}
-                  style={{ marginTop: 2 }}
-                />
-                <Text style={S.infoLabel}>About</Text>
-                <Text style={[S.infoValue, S.infoValueMultiline]}>{about}</Text>
-              </View>
-            ) : null}
+            <Text style={S.cardTitle}>Personal Information</Text>
           </View>
-        ) : null}
+
+          {phone ? (
+            <View style={S.infoRow}>
+              <Ionicons name="call-outline" size={14} color={Colors.textSecondary} />
+              <Text style={S.infoLabel}>Phone</Text>
+              <Text style={S.infoValue} numberOfLines={1}>{phone}</Text>
+            </View>
+          ) : null}
+
+          <View style={[S.infoRow, { alignItems: 'flex-start' }]}>
+            <Ionicons
+              name="document-text-outline"
+              size={14}
+              color={Colors.textSecondary}
+              style={{ marginTop: editMode ? 10 : 2 }}
+            />
+            <Text style={S.infoLabel}>About</Text>
+            {editMode ? (
+              <TextInput
+                style={S.bioInput}
+                value={editBio}
+                onChangeText={setEditBio}
+                placeholder="Write a short bio about yourself…"
+                placeholderTextColor={Colors.textSecondary}
+                multiline
+                maxLength={400}
+                textAlignVertical="top"
+              />
+            ) : (
+              <Text style={[S.infoValue, S.infoValueMultiline]}>
+                {about || '—'}
+              </Text>
+            )}
+          </View>
+
+          {editMode && (
+            <TouchableOpacity
+              style={[S.saveProfileBtn, savingProfile && S.saveBtnDisabled]}
+              onPress={handleSaveProfile}
+              disabled={savingProfile}
+              activeOpacity={0.85}
+            >
+              {savingProfile ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <Ionicons name="checkmark-circle-outline" size={18} color={Colors.white} />
+              )}
+              <Text style={S.saveBtnText}>
+                {photoUploading ? 'Uploading photo…' : savingProfile ? 'Saving…' : 'Save Profile'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* ── WORKING HOURS CARD ────────────────────────────────────────────
             The primary deliverable: 7 DayRows + Consultation Duration.
@@ -1349,5 +1503,58 @@ const S = StyleSheet.create({
   },
   pickerControl: {
     height: 200,
+  },
+
+  // ── Edit profile ──────────────────────────────────────────────────────────
+  editProfileBtn: {
+    position: 'absolute',
+    start: Spacing.md,
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.md,
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    end: 0,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.white,
+  },
+  profileNameInput: {
+    fontSize: FontSizes.xl,
+    fontWeight: '800',
+    color: Colors.white,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.55)',
+    paddingBottom: 4,
+    minWidth: 180,
+  },
+  bioInput: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    minHeight: 80,
+    marginStart: Spacing.xs,
+  },
+  saveProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm + 2,
+    marginTop: Spacing.md,
+    gap: Spacing.xs,
   },
 });

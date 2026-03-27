@@ -1,115 +1,67 @@
 /**
- * ChatScreen.js — Real-Time 1-on-1 Messaging (Phase 5)
+ * ChatScreen.js — Real-Time 1-on-1 Messaging (Phase 4)
  *
- * ╔══ ARCHITECTURE NOTES ═══════════════════════════════════════════════════════╗
+ * ╔══ ARCHITECTURE ════════════════════════════════════════════════════════════╗
  *
- * 1. INVERTED FLATLIST — why it works perfectly for chat
- * ────────────────────────────────────────────────────────
- *   React Native's FlatList with inverted={true} physically rotates the scroll
- *   view 180°. The practical effect: data[0] of the array appears at the BOTTOM
- *   of the screen, and data[N-1] appears at the TOP.
+ * INVERTED FLATLIST — the core chat pattern
+ * ──────────────────────────────────────────
+ *   FlatList inverted={true} physically rotates the scroll view 180°.
+ *   Firestore query: orderBy('timestamp', 'desc') → data is [newest … oldest].
+ *   After inversion: newest = visual bottom, oldest = visual top.
  *
- *   Firestore query: orderBy('timestamp', 'desc') → data is [newest, ..., oldest].
- *   After inversion: newest = bottom, oldest = top. No manual reversal needed.
+ *   • New messages arrive at data[0] → always at the visual bottom.
+ *     No programmatic scrollToBottom is ever needed.
+ *   • onEndReached fires when the user scrolls to data[N-1] (visual top) —
+ *     the natural "load more history" trigger.
  *
- *   • The list never needs programmatic scrollToBottom — new messages arrive at
- *     index 0, which is always the visual bottom. The user sees them immediately.
- *   • onEndReached fires when the user scrolls to data[N-1] (oldest, visual top).
- *     This is the natural "load more history" trigger.
- *   • Date separators are rendered inside each message item. Because the list is
- *     physically flipped, a separator placed "below" the bubble in JSX appears
- *     "above" it on screen — between the older and newer message groups.
+ * KEYBOARD AVOIDANCE
+ * ──────────────────
+ *   ScreenContainer (edges=['bottom']) provides:
+ *     • SafeAreaView  — handles notch + home indicator (bottom only)
+ *     • KeyboardAvoidingView — behavior='padding' on iOS, undefined on Android
+ *   ChatHeader handles its own top inset via useSafeAreaInsets().top.
+ *   With behavior='padding', the KAV adds bottom padding = keyboard height,
+ *   compressing only the FlatList while keeping the header and InputBar fixed.
  *
- * 2. KEYBOARD AVOIDANCE
- * ───────────────────────
- *   The ChatHeader lives OUTSIDE the KeyboardAvoidingView so it never shifts
- *   when the keyboard slides up. KAV wraps only the FlatList + InputBar.
+ * COMPONENT ISOLATION — prevents typing from re-rendering the message list
+ * ──────────────────────────────────────────────────────────────────────────
+ *   • InputBar       is React.memo — its props are all stable references
+ *   • MessageBubble  is React.memo — only re-renders when its own data changes
+ *   • renderItem     useCallback([]) — empty deps; reads uid via a stable uidRef
+ *   • messagesWithMeta useMemo — date-separator flags pre-computed here,
+ *                    so renderItem is dependency-free
+ *   Every keystroke updates inputText state → ChatScreen re-renders, but
+ *   messagesWithMeta.data reference is unchanged → FlatList cells stay stable.
  *
- *     iOS:     behavior="padding" — KAV adds bottom padding = keyboard height,
- *              which compresses the FlatList and keeps InputBar above the keyboard.
- *     Android: behavior={undefined} — the OS handles it via windowSoftInputMode
- *              adjustResize; no KAV manipulation needed.
+ * BUBBLE STYLING (RTL-aware logical properties throughout)
+ * ─────────────────────────────────────────────────────────
+ *   "My" bubble    → colors.primary bg, white text, alignSelf flex-end
+ *                    sharp borderTopEndRadius (nearest to trailing edge)
+ *                    tail at borderBottomEndRadius: 0
+ *   "Their" bubble → colors.borderLight bg, dark text, alignSelf flex-start
+ *                    sharp borderTopStartRadius (nearest to leading edge)
+ *                    tail at borderBottomStartRadius: 0
  *
- *   keyboardShouldPersistTaps="handled" on the FlatList ensures the keyboard
- *   stays open when the user taps the Send button (sibling of the list). Without
- *   this, the list's gesture responder would dismiss the keyboard on any tap.
+ * PUSH NOTIFICATIONS — fire-and-forget IIFE after each successful send
+ *   Token lookup: chatService.fetchPushToken(recipientId)
+ *   Delivery failure is non-fatal and fully transparent to the UI.
  *
- * 3. PUSH NOTIFICATION HOOKUP
- * ────────────────────────────
- *   After every successful Firestore write, sendMessage dispatches a push
- *   notification to the recipient in a fire-and-forget IIFE (never blocks UI):
+ * CONTRACTS ENFORCED
+ * ───────────────────
+ *   ✅ ScreenContainer (scrollable=false, padded=false, edges=['bottom'])
+ *   ✅ RTL logical properties throughout (marginStart/End, borderTopStartRadius/End,
+ *      borderBottomStartRadius/End, end: N for absolute positioning)
+ *   ✅ All strings via t() — zero hardcoded text
+ *   ✅ colors / spacing / typography / BorderRadius from theme.js only
+ *   ✅ Zero Firebase imports — all Firestore ops via chatService
+ *   ✅ Zero SafeAreaView from react-native (ScreenContainer handles it)
  *
- *     • Reads users/{recipientId}.pushToken (the fast-lookup field written by
- *       notificationService.registerDeviceToken and syncTokenToUserDocument).
- *     • Calls notificationService.sendPushNotification(token, title, body, data)
- *       with channelId: 'messages' (matches the 'messages' Android channel
- *       declared in usePushNotifications.js and notificationService.js).
- *     • DeviceNotRegistered errors are caught and logged but never shown to user.
- *
- *   data payload: { type: 'new_message', chatId, senderId }
- *   → Add 'new_message' → 'Chat' entry to AppNavigator's ROUTE_MAP once a
- *     dedicated Chat tab / shared entry point exists in the tab navigators.
- *
- * 4. FIRESTORE DATA MODEL
- * ─────────────────────────
- *   chats/{chatId}                               ← metadata document
- *     participants:        [uid1, uid2]
- *     lastMessage:         string
- *     lastMessageTime:     Timestamp
- *     lastMessageSenderId: uid
- *     unreadCounts:        { [uid1]: 0, [uid2]: N }
- *     participantInfo:     { [uid1]: { name, avatar }, [uid2]: { name, avatar } }
- *
- *   chats/{chatId}/messages/{messageId}          ← per-message sub-documents
- *     text:       string
- *     senderId:   uid
- *     senderName: string
- *     timestamp:  Timestamp  (serverTimestamp on write)
- *     read:       boolean
- *
- *   chatId is deterministic: [uid1, uid2].sort().join('_')
- *   Both participants always reference the same Firestore path, with no server
- *   coordination or chatId exchange required.
- *
- * 5. PAGINATION STRATEGY
- * ────────────────────────
- *   messageLimit state starts at MESSAGES_PER_PAGE (30).
- *   onEndReached → increments messageLimit by 30.
- *   The onSnapshot useEffect has [chatId, messageLimit] in its dep array, so
- *   the listener re-subscribes with the enlarged limit. The previous listener
- *   is torn down via the effect cleanup return. React Native re-renders only
- *   the newly loaded items (memoized MessageBubble prevents re-renders of
- *   previously loaded bubbles).
- *
- * 6. RENDERITEM PERFORMANCE
- * ──────────────────────────
- *   Date-separator flags are pre-computed in useMemo([messages]) and attached
- *   to each item as item.showSeparator. This keeps the renderItem callback
- *   dependency-free (it reads uid via a stable ref), so it is never recreated
- *   between renders. Combined with React.memo on MessageBubble, individual
- *   bubbles only re-render when their own message data changes.
- *
- * 7. RTL COMPLIANCE (master rule)
- * ─────────────────────────────────
- *   All directional style properties use CSS logical equivalents:
- *     marginStart / marginEnd           → never physical left/right margin
- *     paddingStart / paddingEnd         → never physical left/right padding
- *     borderTopStartRadius / EndRadius
- *     borderBottomStartRadius / EndRadius
- *     end: N  (not right: N for absolute positioning)
- *
- *   Bubble alignment uses cross-axis flexbox (alignSelf: flex-end / flex-start)
- *   which React Native automatically mirrors in RTL layout.
- *
- *   "My" bubble tail:    borderBottomEndRadius: 0   → pointed at logical END
- *   "Their" bubble tail: borderBottomStartRadius: 0  → pointed at logical START
+ * Route params:
+ *   recipientId:     string  — other user's UID (required)
+ *   recipientName:   string  — display name shown in header
+ *   recipientAvatar: string? — photo URL (optional, falls back to initials)
  *
  * ╚════════════════════════════════════════════════════════════════════════════╝
- *
- * Route params expected:
- *   recipientId:     string  — other user's Firebase UID (required)
- *   recipientName:   string  — display name shown in header
- *   recipientAvatar: string? — photo URL (optional; falls back to initials)
  */
 
 import React, {
@@ -126,115 +78,90 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   ActivityIndicator,
-  StatusBar,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import {
-  getFirestore,
-  doc,
-  collection,
-  addDoc,
-  setDoc,
-  updateDoc,
-  getDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  limit,
-  serverTimestamp,
-  increment,
-} from 'firebase/firestore';
-import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect }      from '@react-navigation/native';
+import { Ionicons }            from '@expo/vector-icons';
+import { useTranslation }      from 'react-i18next';
+import { useSafeAreaInsets }   from 'react-native-safe-area-context';
 
-import { useAuth }         from '../../contexts/AuthContext';
-import { COLLECTIONS }     from '../../config/firebase';
+import ScreenContainer         from '../../components/ui/ScreenContainer';
+import chatService, { computeChatId } from '../../services/chatService';
+import notificationService     from '../../services/notificationService';
+import { useAuth }             from '../../contexts/AuthContext';
 import {
-  Colors,
-  Spacing,
+  colors,
+  spacing,
+  typography,
   BorderRadius,
-  FontSizes,
-}                          from '../../config/theme';
-import notificationService from '../../services/notificationService';
+  shadows,
+} from '../../config/theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Module constants
+// Re-export computeChatId for screens that imported it from here previously
 // ─────────────────────────────────────────────────────────────────────────────
-const CHAT_COLLECTION    = 'chats';
-const MESSAGE_COLLECTION = 'messages';
-const MESSAGES_PER_PAGE  = 30;
+export { computeChatId };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// computeChatId
-//
-// Deterministic chat ID from two user UIDs. Sorting guarantees both users
-// compute the same ID regardless of which side initiates the conversation.
+// Constants
 // ─────────────────────────────────────────────────────────────────────────────
-export function computeChatId(uid1, uid2) {
-  return [uid1, uid2].sort().join('_');
-}
+
+const MESSAGES_PER_PAGE = 30;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Formatting helpers
+// Pure formatting helpers (no i18n dependency — labels resolved by caller)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Firestore Timestamp | Date | null → 'HH:MM' (24h) */
 function formatTime(timestamp) {
   if (!timestamp) return '';
-  const date =
-    typeof timestamp.toDate === 'function'
-      ? timestamp.toDate()
-      : new Date(timestamp);
-  return date.toLocaleTimeString([], {
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  });
+  const date = typeof timestamp.toDate === 'function'
+    ? timestamp.toDate()
+    : new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-/** Firestore Timestamp → Arabic date label for the day separator pill */
-function formatDateSeparator(timestamp) {
+/**
+ * Resolve a localized day label for the date separator.
+ * Returns t('chat.today'), t('chat.yesterday'), or a locale-formatted date string.
+ *
+ * @param {object|Date|null} timestamp - Firestore Timestamp or Date
+ * @param {function} t - i18next translate function
+ */
+function getDateLabel(timestamp, t) {
   if (!timestamp) return '';
-  const date =
-    typeof timestamp.toDate === 'function'
-      ? timestamp.toDate()
-      : new Date(timestamp);
+  const date = typeof timestamp.toDate === 'function'
+    ? timestamp.toDate()
+    : new Date(timestamp);
 
   const today     = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString())     return 'اليوم';    // Today
-  if (date.toDateString() === yesterday.toDateString()) return 'أمس';     // Yesterday
-  return date.toLocaleDateString('ar-SA', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
+  if (date.toDateString() === today.toDateString())     return t('chat.today');
+  if (date.toDateString() === yesterday.toDateString()) return t('chat.yesterday');
+  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 /**
- * shouldShowDateSeparator
+ * Decide whether a date separator should appear below a message in JSX.
+ * Because the FlatList is physically inverted, "below in JSX" = "above on screen".
  *
- * Called during the useMemo pass that attaches metadata to each message.
- * Data is ordered DESC (newest first), so messages[index + 1] is the
- * OLDER neighbour. We show a separator when two adjacent items are on
- * different calendar days, and always above the oldest loaded message.
- *
- * The separator is rendered BELOW the bubble in JSX. Because the FlatList
- * is inverted (physically flipped), "below in JSX" = "above on screen".
+ * Data is DESC order: messages[index + 1] is the older neighbour.
+ * We show a separator when adjacent items are on different calendar days,
+ * and always above the oldest loaded message.
  */
 function shouldShowDateSeparator(messages, index) {
-  // Always show a separator above the oldest loaded message
-  if (index === messages.length - 1) return true;
+  if (index === messages.length - 1) return true;        // oldest message
 
   const current = messages[index];
-  const older   = messages[index + 1]; // next index = one step older (DESC order)
-
+  const older   = messages[index + 1]; // one step older in DESC order
   if (!current?.timestamp || !older?.timestamp) return false;
 
   const toDate = (ts) =>
     typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts);
-
   return toDate(current.timestamp).toDateString() !==
          toDate(older.timestamp).toDateString();
 }
@@ -248,37 +175,27 @@ function getInitials(name = '') {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Avatar — circular icon: initials on a colored circle
+// Avatar — initials on a colored circle
 // ─────────────────────────────────────────────────────────────────────────────
-const Avatar = memo(({ name = '', size = 36, style }) => {
-  const radius = size / 2;
-  return (
-    <View
-      style={[
-        {
-          width:           size,
-          height:          size,
-          borderRadius:    radius,
-          backgroundColor: Colors.primaryDark,
-          alignItems:      'center',
-          justifyContent:  'center',
-        },
-        style,
-      ]}
-    >
-      <Text
-        style={{
-          color:      Colors.white,
-          fontSize:   size * 0.38,
-          fontWeight: '700',
-          lineHeight: size * 0.48,
-        }}
-      >
-        {getInitials(name)}
-      </Text>
-    </View>
-  );
-});
+const Avatar = memo(({ name = '', size = 36, style }) => (
+  <View style={[{
+    width:           size,
+    height:          size,
+    borderRadius:    size / 2,
+    backgroundColor: colors.primaryDark,
+    alignItems:      'center',
+    justifyContent:  'center',
+  }, style]}>
+    <Text style={{
+      color:      colors.white,
+      fontSize:   size * 0.38,
+      fontWeight: '700',
+      lineHeight: size * 0.48,
+    }}>
+      {getInitials(name)}
+    </Text>
+  </View>
+));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ReadReceipt — single ✓ (sent) or double ✓✓ (read) inside "my" bubbles
@@ -293,13 +210,13 @@ const ReadReceipt = memo(({ read }) => (
 ));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DateSeparator — pill with horizontal lines on each side
+// DateSeparator — pill with lines, receives a pre-resolved label string
 // ─────────────────────────────────────────────────────────────────────────────
-const DateSeparator = memo(({ timestamp }) => (
+const DateSeparator = memo(({ label }) => (
   <View style={styles.dateSepRow}>
     <View style={styles.dateSepLine} />
     <View style={styles.dateSepPill}>
-      <Text style={styles.dateSepText}>{formatDateSeparator(timestamp)}</Text>
+      <Text style={styles.dateSepText}>{label}</Text>
     </View>
     <View style={styles.dateSepLine} />
   </View>
@@ -308,68 +225,57 @@ const DateSeparator = memo(({ timestamp }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // MessageBubble
 //
-// React.memo prevents re-renders unless the message object or isMine changes.
-// showSeparator is pre-computed outside renderItem (see messagesWithMeta useMemo)
-// so this component's prop surface is fully stable between snapshot updates.
+// React.memo prevents re-renders unless the message object changes.
+// showSeparator + dateLabel are pre-computed in messagesWithMeta useMemo so
+// this component's prop surface is stable between Firestore snapshot updates.
 //
-// RTL bubble tails:
-//   "My"    → borderBottomEndRadius: 0   (tail at logical END, right in LTR)
-//   "Their" → borderBottomStartRadius: 0 (tail at logical START, left in LTR)
-// In RTL layout React Native automatically mirrors the logical sides.
+// RTL bubble styling (per task spec):
+//   "My" message    → borderTopEndRadius   sharp (nearest to trailing edge)
+//   "Their" message → borderTopStartRadius sharp (nearest to leading edge)
+//
+// Tail corners (both sides use logical properties, auto-mirror in RTL):
+//   "My"    → borderBottomEndRadius:   0  (tail at logical END)
+//   "Their" → borderBottomStartRadius: 0  (tail at logical START)
 // ─────────────────────────────────────────────────────────────────────────────
-const MessageBubble = memo(({ message, isMine, showSeparator }) => {
-  const timeStr = formatTime(message.timestamp);
-  // Optimistic: timestamp is null while serverTimestamp is pending
-  const isPending = !message.timestamp;
+const MessageBubble = memo(({ message, isMine, showSeparator, dateLabel }) => {
+  const timeStr  = formatTime(message.timestamp);
+  const isPending = !message.timestamp; // optimistic: null while serverTimestamp pending
 
   return (
     <>
       {/*
-        * Date separator — rendered BELOW the bubble in JSX but appears ABOVE
-        * it on screen because the parent FlatList is physically inverted.
-        * This places "Today", "Yesterday", etc. between message groups visually.
-        */}
-      {showSeparator && <DateSeparator timestamp={message.timestamp} />}
+       * DateSeparator rendered BELOW the bubble in JSX.
+       * Because FlatList is physically inverted, "below in JSX" = "above on screen".
+       * This places "Today", "Yesterday", etc. between message groups visually.
+       */}
+      {showSeparator && dateLabel ? (
+        <DateSeparator label={dateLabel} />
+      ) : null}
 
-      <View
-        style={[
-          styles.bubbleWrapper,
-          isMine ? styles.bubbleWrapperMine : styles.bubbleWrapperTheirs,
-        ]}
-      >
-        {/* Avatar shown only for incoming (their) messages */}
+      <View style={[
+        styles.bubbleWrapper,
+        isMine ? styles.bubbleWrapperMine : styles.bubbleWrapperTheirs,
+      ]}>
+        {/* Avatar — shown only for incoming messages */}
         {!isMine && (
-          <Avatar
-            name={message.senderName}
-            size={28}
-            style={styles.bubbleAvatar}
-          />
+          <Avatar name={message.senderName} size={28} style={styles.bubbleAvatar} />
         )}
 
-        <View
-          style={[
-            styles.bubble,
-            isMine ? styles.bubbleMine : styles.bubbleTheirs,
-          ]}
-        >
+        <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
           {/* Message text */}
           <Text style={isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs}>
             {message.text}
           </Text>
 
-          {/* Meta row: time + read receipt */}
+          {/* Meta row: timestamp + read receipt */}
           <View style={styles.bubbleMeta}>
             {isPending ? (
               <ActivityIndicator size={9} color="rgba(255,255,255,0.55)" />
             ) : (
-              <Text
-                style={[
-                  styles.bubbleTime,
-                  isMine
-                    ? styles.bubbleTimeMine
-                    : styles.bubbleTimeTheirs,
-                ]}
-              >
+              <Text style={[
+                styles.bubbleTime,
+                isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs,
+              ]}>
                 {timeStr}
               </Text>
             )}
@@ -384,40 +290,36 @@ const MessageBubble = memo(({ message, isMine, showSeparator }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // ChatHeader
 //
-// Lives OUTSIDE the KeyboardAvoidingView so it never shifts when the
-// keyboard appears. Uses primary green background matching the app theme.
+// Rendered inside ScreenContainer but above the FlatList + InputBar.
+// With KAV behavior='padding', adding bottom padding compresses only the
+// FlatList — the header stays visually fixed at the top.
 // ─────────────────────────────────────────────────────────────────────────────
-const ChatHeader = memo(({ navigation, recipientName }) => (
-  <View style={styles.header}>
-    <StatusBar backgroundColor={Colors.primaryDark} barStyle="light-content" />
-
-    {/* Back button — adaptive icon per platform */}
+const ChatHeader = memo(({ navigation, recipientName, insetTop, t }) => (
+  <View style={[styles.header, { paddingTop: insetTop + spacing.xs }]}>
+    {/* Back button */}
     <TouchableOpacity
       style={styles.headerBackBtn}
       onPress={() => navigation.goBack()}
       hitSlop={{ top: 12, bottom: 12, start: 12, end: 12 }}
-      accessibilityLabel="رجوع"
       accessibilityRole="button"
     >
       <Ionicons
         name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
         size={24}
-        color={Colors.white}
+        color={colors.white}
       />
     </TouchableOpacity>
 
-    {/* Avatar + online indicator */}
+    {/* Avatar + online dot */}
     <View style={styles.headerAvatarWrap}>
       <Avatar name={recipientName} size={38} />
       <View style={styles.onlineDot} />
     </View>
 
-    {/* Recipient name + status */}
+    {/* Name + status */}
     <View style={styles.headerInfo}>
-      <Text style={styles.headerName} numberOfLines={1}>
-        {recipientName}
-      </Text>
-      <Text style={styles.headerStatus}>متاح الآن</Text>
+      <Text style={styles.headerName} numberOfLines={1}>{recipientName}</Text>
+      <Text style={styles.headerStatus}>{t('chat.online2')}</Text>
     </View>
   </View>
 ));
@@ -425,47 +327,41 @@ const ChatHeader = memo(({ navigation, recipientName }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // InputBar
 //
-// Multiline TextInput that grows up to 4 lines + a circular Send button.
-// Sits at the bottom of KeyboardAvoidingView so it rides up with the keyboard.
-// The Send button does NOT dismiss the keyboard (keyboardShouldPersistTaps
-// on the sibling FlatList handles this).
+// React.memo: onChangeText = setInputText (stable setState fn),
+// onSend = useCallback with stable deps.
+// Typing updates only InputBar — the FlatList stays untouched.
 // ─────────────────────────────────────────────────────────────────────────────
-const InputBar = memo(({ value, onChangeText, onSend, sending, inputRef }) => {
+const InputBar = memo(({ value, onChangeText, onSend, sending, inputRef, placeholder }) => {
   const canSend = value.trim().length > 0 && !sending;
 
   return (
     <View style={styles.inputBar}>
-      {/* Text field */}
       <View style={styles.inputWrap}>
         <TextInput
           ref={inputRef}
           style={styles.input}
           value={value}
           onChangeText={onChangeText}
-          placeholder="اكتب رسالة..."
-          placeholderTextColor={Colors.gray}
+          placeholder={placeholder}
+          placeholderTextColor={colors.gray}
           multiline
           maxLength={2000}
           returnKeyType="default"
           blurOnSubmit={false}
           textAlignVertical="center"
-          accessibilityLabel="حقل الرسالة"
-          accessibilityHint="اكتب رسالتك هنا"
         />
       </View>
 
-      {/* Send button */}
       <TouchableOpacity
         style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
         onPress={onSend}
         disabled={!canSend}
-        accessibilityLabel="إرسال الرسالة"
         accessibilityRole="button"
       >
         {sending ? (
-          <ActivityIndicator size={18} color={Colors.white} />
+          <ActivityIndicator size={18} color={colors.white} />
         ) : (
-          <Ionicons name="send" size={18} color={Colors.white} />
+          <Ionicons name="send" size={18} color={colors.white} />
         )}
       </TouchableOpacity>
     </View>
@@ -475,21 +371,21 @@ const InputBar = memo(({ value, onChangeText, onSend, sending, inputRef }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // ChatScreen — main component
 // ─────────────────────────────────────────────────────────────────────────────
+
 const ChatScreen = ({ route, navigation }) => {
+  const { t }             = useTranslation();
+  const insets            = useSafeAreaInsets();
   const { user, userProfile } = useAuth();
 
   const {
     recipientId,
-    recipientName   = 'مجهول',
+    recipientName   = t('common.noResults'),
     recipientAvatar = null,
   } = route.params ?? {};
 
-  // ── Derived / stable values ─────────────────────────────────────────────
+  // ── Derived / stable values ───────────────────────────────────────────────
   const chatId = useMemo(
-    () =>
-      user?.uid && recipientId
-        ? computeChatId(user.uid, recipientId)
-        : null,
+    () => (user?.uid && recipientId ? computeChatId(user.uid, recipientId) : null),
     [user?.uid, recipientId],
   );
 
@@ -497,16 +393,17 @@ const ChatScreen = ({ route, navigation }) => {
     userProfile?.name ??
     userProfile?.displayName ??
     user?.displayName ??
-    'مستخدم';
+    '';
 
   // Stable UID ref — keeps renderItem callback dep-free across auth updates
   const uidRef = useRef(user?.uid);
   useEffect(() => { uidRef.current = user?.uid; }, [user?.uid]);
 
-  // ── State ────────────────────────────────────────────────────────────────
+  // ── State ─────────────────────────────────────────────────────────────────
   const [messages,      setMessages]      = useState([]);
   const [inputText,     setInputText]     = useState('');
   const [isSending,     setIsSending]     = useState(false);
+  const [sendError,     setSendError]     = useState(null);
   const [isLoading,     setIsLoading]     = useState(true);
   const [messageLimit,  setMessageLimit]  = useState(MESSAGES_PER_PAGE);
   const [hasMore,       setHasMore]       = useState(true);
@@ -514,623 +411,553 @@ const ChatScreen = ({ route, navigation }) => {
 
   const inputRef     = useRef(null);
   const isMountedRef = useRef(true);
+  useEffect(() => () => { isMountedRef.current = false; }, []);
 
-  // ── Derived data: messages with pre-computed separator flags ─────────────
+  // ── Pre-computed message list with separator flags + date labels ──────────
   //
-  // Pre-computing showSeparator here (not inside renderItem) means renderItem
-  // has zero dependencies — it reads uid via the stable uidRef — and is never
-  // recreated. React.memo on MessageBubble prevents individual bubble re-renders
-  // unless the item's own data changes.
+  // Pre-computing here (not inside renderItem) means renderItem has zero
+  // reactive dependencies. React.memo on MessageBubble then prevents individual
+  // bubble re-renders unless the item's own data changes.
   const messagesWithMeta = useMemo(
     () =>
-      messages.map((msg, i) => ({
-        ...msg,
-        showSeparator: shouldShowDateSeparator(messages, i),
-      })),
-    [messages],
+      messages.map((msg, i) => {
+        const showSep = shouldShowDateSeparator(messages, i);
+        return {
+          ...msg,
+          showSeparator: showSep,
+          dateLabel:     showSep ? getDateLabel(msg.timestamp, t) : null,
+        };
+      }),
+    [messages, t],
   );
 
-  // ── onSnapshot listener ──────────────────────────────────────────────────
+  // ── Real-time listener ────────────────────────────────────────────────────
   //
-  // Dep array: [chatId, messageLimit]
-  //   chatId change      → re-subscribe to a different conversation
-  //   messageLimit change → re-subscribe with a larger window (pagination)
-  //
-  // The previous listener is safely torn down by the effect cleanup return.
+  // Re-subscribes when chatId or messageLimit changes.
+  // The previous listener is torn down by the effect cleanup return.
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId) { setIsLoading(false); return; }
 
-    const db          = getFirestore();
-    const messagesRef = collection(db, CHAT_COLLECTION, chatId, MESSAGE_COLLECTION);
-    const q           = query(
-      messagesRef,
-      orderBy('timestamp', 'desc'),
-      limit(messageLimit),
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
+    const unsubscribe = chatService.subscribeToChat(
+      chatId,
+      (docs) => {
         if (!isMountedRef.current) return;
-
-        const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setMessages(docs);
         setIsLoading(false);
-
-        // If we received fewer docs than the limit, all history is loaded
         if (docs.length < messageLimit) setHasMore(false);
         setIsLoadingMore(false);
       },
       (err) => {
+        console.error('[ChatScreen] listener error:', err);
         if (!isMountedRef.current) return;
-        console.error('[ChatScreen] onSnapshot error:', err);
         setIsLoading(false);
         setIsLoadingMore(false);
       },
+      messageLimit,
     );
 
-    return unsubscribe; // previous Firestore listener torn down on dep change
+    return unsubscribe;
   }, [chatId, messageLimit]);
 
-  // ── Mark messages as read (clear unread counter for current user) ────────
+  // ── Mark as read on focus ─────────────────────────────────────────────────
   const markAsRead = useCallback(async () => {
     if (!chatId || !user?.uid) return;
-    try {
-      const db = getFirestore();
-      // updateDoc with dot-notation path updates only the nested field,
-      // leaving all other unreadCounts entries (other UIDs) intact.
-      await updateDoc(doc(db, CHAT_COLLECTION, chatId), {
-        [`unreadCounts.${user.uid}`]: 0,
-      });
-    } catch {
-      // Chat document may not exist yet (no messages sent).
-      // updateDoc throws on missing doc — silently ignore.
-    }
+    await chatService.markAsRead(chatId, user.uid);
   }, [chatId, user?.uid]);
 
-  // Re-runs markAsRead every time the screen gains focus (back from another
-  // screen, returning from background, etc.)
-  useFocusEffect(
-    useCallback(() => {
-      markAsRead();
-    }, [markAsRead]),
-  );
+  useFocusEffect(useCallback(() => { markAsRead(); }, [markAsRead]));
 
-  // Cleanup: prevent setState calls after unmount
-  useEffect(() => () => { isMountedRef.current = false; }, []);
-
-  // ── sendMessage ──────────────────────────────────────────────────────────
-  const sendMessage = useCallback(async () => {
-    const trimmedText = inputText.trim();
-    if (!trimmedText || isSending || !user?.uid || !chatId || !recipientId) return;
+  // ── Send message ──────────────────────────────────────────────────────────
+  const handleSend = useCallback(async () => {
+    const trimmed = inputText.trim();
+    if (!trimmed || isSending || !user?.uid || !chatId || !recipientId) return;
 
     // Optimistic: clear input immediately for instant UX feedback
     setInputText('');
+    setSendError(null);
     setIsSending(true);
 
-    const db          = getFirestore();
-    const messagesRef = collection(db, CHAT_COLLECTION, chatId, MESSAGE_COLLECTION);
-    const chatRef     = doc(db, CHAT_COLLECTION, chatId);
+    const result = await chatService.sendMessage(chatId, user.uid, trimmed, {
+      senderName:      myDisplayName,
+      recipientId,
+      recipientName,
+      senderAvatar:    userProfile?.profileImage ?? null,
+      recipientAvatar,
+    });
 
-    try {
-      // ── Step 1: Write the message to the subcollection ─────────────────
-      await addDoc(messagesRef, {
-        text:       trimmedText,
-        senderId:   user.uid,
-        senderName: myDisplayName,
-        timestamp:  serverTimestamp(),
-        read:       false,
-      });
-
-      // ── Step 2: Update chat metadata (setDoc + merge = create-or-update) ─
-      // increment(1) is atomic: no race condition between concurrent writers.
-      await setDoc(
-        chatRef,
-        {
-          participants:        [user.uid, recipientId],
-          lastMessage:         trimmedText,
-          lastMessageTime:     serverTimestamp(),
-          lastMessageSenderId: user.uid,
-          unreadCounts: {
-            [recipientId]: increment(1), // recipient's unread count increments
-            [user.uid]:    0,            // sender's unread stays 0
-          },
-          participantInfo: {
-            [user.uid]: {
-              name:   myDisplayName,
-              avatar: userProfile?.profileImage ?? null,
-            },
-            [recipientId]: {
-              name:   recipientName,
-              avatar: recipientAvatar,
-            },
-          },
-        },
-        { merge: true }, // never clobber unrelated fields
-      );
-
-      // ── Step 3: Push notification to recipient (fire-and-forget) ────────
-      //
-      // Wrapped in an immediately-invoked async function so it NEVER blocks
-      // the "message sent" confirmation visible to the sender. Push delivery
-      // failure is non-fatal and transparent to the UI.
-      //
-      // Token lookup: reads users/{recipientId}.pushToken — the fast-lookup
-      // field maintained by notificationService.registerDeviceToken and
-      // syncTokenToUserDocument.
-      //
-      // channelId: 'messages' — matches the 'messages' Android notification
-      // channel registered in usePushNotifications.js ANDROID_CHANNELS.
+    if (!result.success) {
+      // Restore input so the user can retry without retyping
+      if (isMountedRef.current) {
+        setInputText(trimmed);
+        setSendError(t('chat.sendError'));
+      }
+    } else {
+      // Fire-and-forget push notification — never blocks UI
       (async () => {
         try {
-          const recipientSnap = await getDoc(
-            doc(db, COLLECTIONS.USERS, recipientId),
-          );
-          const pushToken = recipientSnap.data()?.pushToken;
-
+          const pushToken = await chatService.fetchPushToken(recipientId);
           if (pushToken) {
             await notificationService.sendPushNotification(
               pushToken,
-              myDisplayName,           // notification title = sender's name
-              trimmedText,             // notification body  = message text
-              {
-                type:     'new_message',
-                chatId,
-                senderId: user.uid,
-              },
-              {
-                channelId: 'messages', // Android channel for chat notifications
-                priority:  'high',     // wake screen / heads-up notification
-              },
+              myDisplayName,
+              trimmed,
+              { type: 'new_message', chatId, senderId: user.uid },
+              { channelId: 'messages', priority: 'high' },
             );
           }
         } catch (pushErr) {
-          if (pushErr?.code === 'DeviceNotRegistered') {
-            // Token is stale — will be refreshed on recipient's next login
-            console.warn(
-              '[ChatScreen] Stale push token for recipient:', recipientId,
-            );
-          } else {
-            console.warn(
-              '[ChatScreen] Push notification error:', pushErr?.message,
-            );
+          if (pushErr?.code !== 'DeviceNotRegistered') {
+            console.warn('[ChatScreen] push error:', pushErr?.message);
           }
         }
       })();
-
-    } catch (err) {
-      // Restore input text so the user can retry without retyping
-      if (isMountedRef.current) setInputText(trimmedText);
-      console.error('[ChatScreen] sendMessage error:', err);
-    } finally {
-      if (isMountedRef.current) setIsSending(false);
     }
+
+    if (isMountedRef.current) setIsSending(false);
   }, [
     inputText, isSending, user?.uid, chatId, recipientId,
-    recipientName, recipientAvatar, myDisplayName, userProfile,
+    recipientName, recipientAvatar, myDisplayName, userProfile, t,
   ]);
 
-  // ── Pagination ───────────────────────────────────────────────────────────
-  //
-  // onEndReached fires when the user scrolls to the oldest visible message
-  // (visual top of the inverted list = data array end). Incrementing the
-  // limit triggers the useEffect to re-subscribe with a larger Firestore query.
+  // Clear send error when user starts typing again
+  const handleChangeText = useCallback((text) => {
+    setInputText(text);
+    if (sendError) setSendError(null);
+  }, [sendError]);
+
+  // ── Pagination ────────────────────────────────────────────────────────────
   const loadMoreMessages = useCallback(() => {
     if (!hasMore || isLoadingMore) return;
     setIsLoadingMore(true);
     setMessageLimit((prev) => prev + MESSAGES_PER_PAGE);
   }, [hasMore, isLoadingMore]);
 
-  // ── FlatList renderItem — dependency-free, fully stable ─────────────────
-  //
-  // Reads uid via uidRef (stable ref) so this callback is never recreated.
-  // showSeparator is pre-computed on each item in messagesWithMeta.
+  // ── FlatList helpers ──────────────────────────────────────────────────────
+
+  // renderItem is dep-free — reads uid via stable uidRef; all other data
+  // pre-computed in messagesWithMeta. Combined with React.memo on MessageBubble,
+  // individual cells never re-render just because inputText changes.
   const renderItem = useCallback(
     ({ item }) => (
       <MessageBubble
         message={item}
         isMine={item.senderId === uidRef.current}
         showSeparator={item.showSeparator}
+        dateLabel={item.dateLabel}
       />
     ),
-    [], // intentionally empty — all data read via refs or pre-computed in item
+    [], // intentionally empty — all data via ref or pre-computed on item
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
 
   const ListFooterComponent = useCallback(
-    () =>
-      isLoadingMore ? (
-        <ActivityIndicator
-          size="small"
-          color={Colors.primary}
-          style={styles.loadMoreSpinner}
-        />
-      ) : null,
+    () => isLoadingMore ? (
+      <ActivityIndicator
+        size="small"
+        color={colors.primary}
+        style={styles.loadMoreSpinner}
+      />
+    ) : null,
     [isLoadingMore],
   );
 
   const ListEmptyComponent = useCallback(
-    () =>
-      !isLoading ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="chatbubbles-outline" size={60} color={Colors.border} />
-          <Text style={styles.emptyTitle}>ابدأ المحادثة</Text>
-          <Text style={styles.emptySubtitle}>
-            أرسل رسالة لـ {recipientName}
-          </Text>
+    () => !isLoading ? (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconBox}>
+          <Ionicons name="chatbubbles-outline" size={44} color={colors.primary} />
         </View>
-      ) : null,
-    [isLoading, recipientName],
+        <Text style={styles.emptyTitle}>{t('chat.startConversation')}</Text>
+        <Text style={styles.emptySub}>
+          {t('chat.startConversationSub', { name: recipientName })}
+        </Text>
+      </View>
+    ) : null,
+    [isLoading, recipientName, t],
   );
 
-  // ── Safety guard: recipientId is required ────────────────────────────────
+  // ── Safety guard ──────────────────────────────────────────────────────────
   if (!recipientId) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
-        <Text style={styles.errorText}>خطأ: لم يتم تحديد المستخدم</Text>
-      </View>
+      <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
+        <View style={[styles.header, { paddingTop: insets.top + spacing.xs }]}>
+          <TouchableOpacity style={styles.headerBackBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={colors.white} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centeredState}>
+          <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+          <Text style={styles.centeredStateText}>{t('chat.noRecipient')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.root}>
-      {/*
-        * ChatHeader is OUTSIDE KeyboardAvoidingView.
-        * It remains fixed at the top and never shifts when the keyboard appears.
-        * The KAV only controls the FlatList + InputBar region below.
-        */}
+    <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
+
+      {/* ══ Header — above the message list ══ */}
       <ChatHeader
         navigation={navigation}
         recipientName={recipientName}
-        recipientAvatar={recipientAvatar}
+        insetTop={insets.top}
+        t={t}
       />
 
-      <KeyboardAvoidingView
-        style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-        // keyboardVerticalOffset is 0 because the header is outside the KAV.
-        // If you use the native stack header, set this to the header height.
-      >
-        {/* Initial loading spinner */}
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-          </View>
-        ) : (
-          /*
-           * FlatList — the core of the chat UI
-           *
-           * inverted={true}
-           *   Physically rotates the scroll view 180°.
-           *   data[0] (newest) → visual bottom    ← user always lands here
-           *   data[N] (oldest) → visual top       ← revealed on scroll up
-           *
-           * keyboardShouldPersistTaps="handled"
-           *   Allows touches that land on interactive children (Send button)
-           *   to be processed without dismissing the keyboard. Without this,
-           *   tapping outside the TextInput (but inside the list area) would
-           *   dismiss the keyboard and the user would lose focus.
-           *
-           * onEndReached → loadMoreMessages (at visual top = oldest messages)
-           */
-          <FlatList
-            data={messagesWithMeta}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            inverted
-            keyboardShouldPersistTaps="handled"
-            onEndReached={loadMoreMessages}
-            onEndReachedThreshold={0.3}
-            ListFooterComponent={ListFooterComponent}
-            ListEmptyComponent={ListEmptyComponent}
-            contentContainerStyle={[
-              styles.listContent,
-              messagesWithMeta.length === 0 && styles.listContentEmpty,
-            ]}
-            // Performance tuning
-            removeClippedSubviews={Platform.OS === 'android'}
-            maxToRenderPerBatch={15}
-            updateCellsBatchingPeriod={50}
-            windowSize={10}
-            initialNumToRender={15}
-            style={styles.flatList}
-          />
-        )}
-
-        {/*
-          * InputBar sits at the bottom of the KAV region.
-          * On iOS with behavior="padding", the KAV adds bottom padding equal
-          * to the keyboard height → the InputBar rides up with the keyboard.
-          * On Android, the OS shrinks the window → same visual result.
-          */}
-        <InputBar
-          value={inputText}
-          onChangeText={setInputText}
-          onSend={sendMessage}
-          sending={isSending}
-          inputRef={inputRef}
+      {/* ══ Message list ══ */}
+      {isLoading ? (
+        <View style={styles.centeredState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        /*
+         * inverted={true}
+         *   Physically rotates scroll view 180°.
+         *   data[0] (newest) → visual bottom — user always lands here.
+         *   data[N] (oldest) → visual top — revealed on scroll up.
+         *
+         * keyboardShouldPersistTaps="handled"
+         *   Allows taps on the Send button (child of the InputBar, sibling of
+         *   the list) to be processed without dismissing the keyboard.
+         *
+         * onEndReached → loadMoreMessages
+         *   In an inverted list, "end" = visual top = oldest messages.
+         *   This is the natural "load more history" trigger.
+         */
+        <FlatList
+          data={messagesWithMeta}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          inverted
+          keyboardShouldPersistTaps="handled"
+          onEndReached={loadMoreMessages}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={ListFooterComponent}
+          ListEmptyComponent={ListEmptyComponent}
+          contentContainerStyle={[
+            styles.listContent,
+            messagesWithMeta.length === 0 && styles.listContentEmpty,
+          ]}
+          style={styles.flatList}
+          // Performance tuning
+          removeClippedSubviews={Platform.OS === 'android'}
+          maxToRenderPerBatch={15}
+          updateCellsBatchingPeriod={50}
+          windowSize={10}
+          initialNumToRender={15}
         />
-      </KeyboardAvoidingView>
-    </View>
+      )}
+
+      {/* ══ Send error inline banner ══ */}
+      {!!sendError && (
+        <TouchableOpacity
+          style={styles.sendErrorBanner}
+          onPress={handleSend}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="warning-outline" size={14} color={colors.error} />
+          <Text style={styles.sendErrorText}>{sendError}</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* ══ Input bar ══ */}
+      <InputBar
+        value={inputText}
+        onChangeText={handleChangeText}
+        onSend={handleSend}
+        sending={isSending}
+        inputRef={inputRef}
+        placeholder={t('chat.placeholder')}
+      />
+
+    </ScreenContainer>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles — RTL-compliant throughout
 //
-// All directional properties use logical values (RTL mirrors automatically):
-//   marginStart, marginEnd, paddingStart, paddingEnd
-//   borderTopStartRadius, borderTopEndRadius
-//   borderBottomStartRadius, borderBottomEndRadius
+// All directional properties use logical values (React Native mirrors in RTL):
+//   marginStart / marginEnd
+//   paddingStart / paddingEnd
+//   borderTopStartRadius / borderTopEndRadius
+//   borderBottomStartRadius / borderBottomEndRadius
 //   end: N  (absolute positioning — never 'right')
 // ─────────────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
 
-  // ── Root layout ────────────────────────────────────────────────────────────
-  root: {
-    flex:            1,
-    backgroundColor: Colors.background,
-  },
-  flex1: {
-    flex: 1,
-  },
-  flatList: {
-    flex: 1,
-  },
+  // ── Root / shared ─────────────────────────────────────────────────────────
+  flatList: { flex: 1 },
   listContent: {
-    paddingHorizontal: Spacing.xs,
-    paddingVertical:   Spacing.sm,
-    flexGrow:          1,       // needed for ListEmptyComponent to fill space
+    paddingHorizontal: spacing.xs,
+    paddingVertical:   spacing.sm,
+    flexGrow: 1,
   },
   listContentEmpty: {
     justifyContent: 'center',
     alignItems:     'center',
   },
 
-  // ── Chat header ─────────────────────────────────────────────────────────────
+  // ── Chat header ───────────────────────────────────────────────────────────
   header: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    height:           60,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.sm,
-    // Shadow (iOS) + elevation (Android)
-    elevation:    4,
-    shadowColor:  Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius:  3,
+    flexDirection:     'row',
+    alignItems:        'center',
+    minHeight:         60,
+    backgroundColor:   colors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingBottom:     spacing.sm,
+    elevation:         4,
+    shadowColor:       colors.black,
+    shadowOffset:      { width: 0, height: 2 },
+    shadowOpacity:     0.2,
+    shadowRadius:      3,
   },
   headerBackBtn: {
-    padding:   Spacing.xs,
-    marginEnd: Spacing.xs,      // logical: space between arrow and avatar
+    padding:   spacing.xs,
+    marginEnd: spacing.xs,       // logical gap between arrow and avatar
   },
   headerAvatarWrap: {
     position:  'relative',
-    marginEnd: Spacing.sm,      // logical: space between avatar and text
+    marginEnd: spacing.sm,       // logical gap between avatar and name block
   },
   onlineDot: {
     position:        'absolute',
-    bottom:           0,
-    end:              0,                // logical: bottom-end corner of avatar
-    width:            10,
-    height:           10,
-    borderRadius:     5,
-    backgroundColor: '#22c55e',        // green online indicator
-    borderWidth:      2,
-    borderColor:      Colors.primary,  // matches header background
+    bottom:          0,
+    end:             0,          // logical bottom-end corner of avatar
+    width:           10,
+    height:          10,
+    borderRadius:    5,
+    backgroundColor: '#22c55e',
+    borderWidth:     2,
+    borderColor:     colors.primary,
   },
   headerInfo: {
     flex:           1,
     justifyContent: 'center',
   },
   headerName: {
-    color:      Colors.white,
-    fontSize:   FontSizes.md,
+    color:      colors.white,
+    fontSize:   typography.sizes.md,
     fontWeight: '700',
   },
   headerStatus: {
     color:     'rgba(255,255,255,0.75)',
-    fontSize:  FontSizes.xs,
+    fontSize:  typography.sizes.xs,
     marginTop: 1,
   },
 
-  // ── Loading and empty states ────────────────────────────────────────────────
-  loadingContainer: {
+  // ── Centered states ───────────────────────────────────────────────────────
+  centeredState: {
     flex:           1,
     justifyContent: 'center',
     alignItems:     'center',
+    gap:            spacing.md,
+    padding:        spacing.xl,
   },
-  loadMoreSpinner: {
-    paddingVertical: Spacing.md,
-  },
-  emptyContainer: {
-    alignItems:     'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
-    gap:             Spacing.sm,
-  },
-  emptyTitle: {
-    color:      Colors.textSecondary,
-    fontSize:   FontSizes.lg,
-    fontWeight: '600',
-    marginTop:  Spacing.sm,
-  },
-  emptySubtitle: {
-    color:    Colors.gray,
-    fontSize: FontSizes.sm,
-  },
-  errorContainer: {
-    flex:           1,
-    justifyContent: 'center',
-    alignItems:     'center',
-    gap:            Spacing.sm,
-    padding:        Spacing.xl,
-  },
-  errorText: {
-    color:    Colors.error,
-    fontSize: FontSizes.md,
+  centeredStateText: {
+    color:    colors.error,
+    fontSize: typography.sizes.md,
     textAlign: 'center',
   },
 
-  // ── Message bubbles ─────────────────────────────────────────────────────────
+  // ── Loading more spinner (FlatList footer) ────────────────────────────────
+  loadMoreSpinner: { paddingVertical: spacing.md },
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  emptyContainer: {
+    alignItems:      'center',
+    justifyContent:  'center',
+    paddingVertical: spacing.xxl,
+    gap:             spacing.sm,
+  },
+  emptyIconBox: {
+    width:           72,
+    height:          72,
+    borderRadius:    BorderRadius.full,
+    backgroundColor: colors.primary + '15',
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginBottom:    spacing.xs,
+  },
+  emptyTitle: {
+    color:      colors.textSecondary,
+    fontSize:   typography.sizes.lg,
+    fontWeight: '600',
+  },
+  emptySub: {
+    color:     colors.gray,
+    fontSize:  typography.sizes.sm,
+    textAlign: 'center',
+  },
+
+  // ── Message bubbles ───────────────────────────────────────────────────────
   //
-  // bubbleWrapper: a full-width flex-row that justifies the bubble to one side.
-  //   bubbleWrapperMine   → justifyContent: 'flex-end'   (logical END, left in RTL)
-  //   bubbleWrapperTheirs → justifyContent: 'flex-start' (logical START, right in RTL)
+  // bubbleWrapper: full-width row that positions bubble to one side.
+  //   Mine   → justifyContent 'flex-end'   (logical END,   left in RTL)
+  //   Theirs → justifyContent 'flex-start' (logical START, right in RTL)
   //
-  // bubble: constrained to 75% of screen width, common top radii + side padding.
+  // Bubble tail corners (logical, auto-mirror in RTL):
+  //   Mine   → borderBottomEndRadius:   0  (tail at logical END)
+  //   Theirs → borderBottomStartRadius: 0  (tail at logical START)
   //
-  // Tail corners (RTL-logical):
-  //   "Mine"   → borderBottomEndRadius: 0    (tail at logical END)
-  //   "Theirs" → borderBottomStartRadius: 0  (tail at logical START)
+  // Per task spec, the "sharp" top corner faces the trailing/leading edge:
+  //   Mine   → borderTopEndRadius:   BorderRadius.sm  (sharp, trailing edge)
+  //   Theirs → borderTopStartRadius: BorderRadius.sm  (sharp, leading edge)
   bubbleWrapper: {
-    flexDirection: 'row',
-    alignItems:    'flex-end',
-    marginVertical: 2,
-    paddingHorizontal: Spacing.xs,
+    flexDirection:     'row',
+    alignItems:        'flex-end',
+    marginVertical:    2,
+    paddingHorizontal: spacing.xs,
   },
-  bubbleWrapperMine: {
-    justifyContent: 'flex-end',   // pushes bubble to logical end (left in RTL)
-  },
-  bubbleWrapperTheirs: {
-    justifyContent: 'flex-start', // pushes bubble to logical start (right in RTL)
-  },
+  bubbleWrapperMine:   { justifyContent: 'flex-end'   },
+  bubbleWrapperTheirs: { justifyContent: 'flex-start' },
   bubbleAvatar: {
-    marginEnd:  Spacing.xs,       // logical: gap between avatar and bubble
+    marginEnd:  spacing.xs,   // logical: gap between avatar and bubble
     flexShrink: 0,
   },
   bubble: {
     maxWidth:          '75%',
-    paddingVertical:    Spacing.sm,
-    paddingHorizontal:  Spacing.md,
-    // Rounded top corners (same for both sides)
-    borderTopStartRadius: BorderRadius.lg,
-    borderTopEndRadius:   BorderRadius.lg,
+    paddingVertical:   spacing.sm,
+    paddingHorizontal: spacing.md,
   },
+
+  // "My" bubble — primary green, white text
   bubbleMine: {
-    backgroundColor: Colors.primary,   // primary green
-    // Tail: flat bottom-END corner → points toward logical end
+    backgroundColor:      colors.primary,
+    // Task spec: sharp on borderTopEndRadius
+    borderTopStartRadius:  BorderRadius.lg,
+    borderTopEndRadius:    BorderRadius.sm,   // ← sharp (trailing / logical end)
     borderBottomStartRadius: BorderRadius.lg,
-    borderBottomEndRadius:   0,
-    // Margin pushes bubble away from logical start (leaves whitespace on start side)
-    marginStart: 52,
+    borderBottomEndRadius: 0,                 // tail at logical end
+    marginStart:           52,               // offset from start edge (room for avatar of theirs)
   },
+
+  // "Their" bubble — light gray from theme, dark text
   bubbleTheirs: {
-    backgroundColor: Colors.borderLight, // very light gray #f3f4f6
-    // Tail: flat bottom-START corner → points toward logical start
-    borderBottomStartRadius: 0,
-    borderBottomEndRadius:   BorderRadius.lg,
-    // Margin pushes bubble away from logical end (leaves whitespace on end side)
-    marginEnd: 52,
+    backgroundColor:       colors.borderLight,
+    // Task spec: sharp on borderTopStartRadius
+    borderTopStartRadius:  BorderRadius.sm,   // ← sharp (leading / logical start)
+    borderTopEndRadius:    BorderRadius.lg,
+    borderBottomStartRadius: 0,              // tail at logical start
+    borderBottomEndRadius: BorderRadius.lg,
+    marginEnd:             52,               // offset from end edge
   },
+
   bubbleTextMine: {
-    color:      Colors.white,
-    fontSize:   FontSizes.md,
-    lineHeight: FontSizes.md * 1.45,
+    color:      colors.white,
+    fontSize:   typography.sizes.md,
+    lineHeight: typography.sizes.md * 1.45,
   },
   bubbleTextTheirs: {
-    color:      Colors.text,
-    fontSize:   FontSizes.md,
-    lineHeight: FontSizes.md * 1.45,
+    color:      colors.text,
+    fontSize:   typography.sizes.md,
+    lineHeight: typography.sizes.md * 1.45,
   },
   bubbleMeta: {
     flexDirection:  'row',
     justifyContent: 'flex-end',
     alignItems:     'center',
-    marginTop:       3,
-    gap:             2,
+    marginTop:      3,
+    gap:            2,
   },
-  bubbleTime: {
-    fontSize: FontSizes.xs,
-  },
-  bubbleTimeMine: {
-    color: 'rgba(255,255,255,0.70)',
-  },
-  bubbleTimeTheirs: {
-    color: Colors.textSecondary,
-  },
+  bubbleTime:       { fontSize: typography.sizes.xs },
+  bubbleTimeMine:   { color: 'rgba(255,255,255,0.70)' },
+  bubbleTimeTheirs: { color: colors.textSecondary },
 
-  // ── Date separator ─────────────────────────────────────────────────────────
+  // ── Date separator ────────────────────────────────────────────────────────
   dateSepRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    marginVertical:    Spacing.md,
-    paddingHorizontal: Spacing.md,
+    flexDirection:     'row',
+    alignItems:        'center',
+    marginVertical:    spacing.md,
+    paddingHorizontal: spacing.md,
   },
   dateSepLine: {
     flex:            1,
     height:          StyleSheet.hairlineWidth,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   dateSepPill: {
-    backgroundColor:  Colors.background,
-    borderRadius:     BorderRadius.full,
-    borderWidth:      StyleSheet.hairlineWidth,
-    borderColor:      Colors.border,
-    paddingVertical:  3,
-    paddingHorizontal: Spacing.sm,
-    marginHorizontal:  Spacing.sm,
+    backgroundColor:   colors.background,
+    borderRadius:      BorderRadius.full,
+    borderWidth:       StyleSheet.hairlineWidth,
+    borderColor:       colors.border,
+    paddingVertical:   3,
+    paddingHorizontal: spacing.sm,
+    marginHorizontal:  spacing.sm,
   },
   dateSepText: {
-    color:      Colors.textSecondary,
-    fontSize:   FontSizes.xs,
+    color:      colors.textSecondary,
+    fontSize:   typography.sizes.xs,
     fontWeight: '500',
   },
 
-  // ── Input bar ───────────────────────────────────────────────────────────────
+  // ── Send error banner ─────────────────────────────────────────────────────
+  sendErrorBanner: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   colors.error + '15',
+    borderTopWidth:    1,
+    borderTopColor:    colors.error + '30',
+    paddingHorizontal: spacing.md,
+    paddingVertical:   6,
+    gap:               spacing.xs,
+  },
+  sendErrorText: {
+    flex:     1,
+    fontSize: typography.sizes.xs,
+    color:    colors.error,
+    fontWeight: '500',
+  },
+
+  // ── Input bar ─────────────────────────────────────────────────────────────
   inputBar: {
-    flexDirection:   'row',
-    alignItems:      'flex-end',
-    backgroundColor: Colors.white,
-    borderTopWidth:  StyleSheet.hairlineWidth,
-    borderTopColor:  Colors.border,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical:   Spacing.sm,
-    // Subtle shadow to lift it from the list
-    elevation:    4,
-    shadowColor:  Colors.black,
-    shadowOffset: { width: 0, height: -1 },
-    shadowOpacity: 0.06,
-    shadowRadius:  3,
+    flexDirection:     'row',
+    alignItems:        'flex-end',
+    backgroundColor:   colors.white,
+    borderTopWidth:    StyleSheet.hairlineWidth,
+    borderTopColor:    colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   spacing.sm,
+    elevation:         4,
+    shadowColor:       colors.black,
+    shadowOffset:      { width: 0, height: -1 },
+    shadowOpacity:     0.06,
+    shadowRadius:      3,
   },
   inputWrap: {
     flex:              1,
-    backgroundColor:   Colors.background,
+    backgroundColor:   colors.background,
     borderRadius:      BorderRadius.xl,
     borderWidth:       1,
-    borderColor:       Colors.border,
-    paddingHorizontal: Spacing.md,
-    paddingVertical:   Platform.OS === 'ios' ? Spacing.sm : 2,
-    marginEnd:         Spacing.sm,    // logical: gap between field and send button
+    borderColor:       colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical:   Platform.OS === 'ios' ? spacing.sm : 2,
+    marginEnd:         spacing.sm,   // logical: gap between field and send button
     minHeight:         40,
-    maxHeight:         110,           // ~4 lines before scrolling inside TextInput
+    maxHeight:         110,          // ~4 lines before scrolling inside TextInput
     justifyContent:    'center',
   },
   input: {
-    color:             Colors.text,
-    fontSize:          FontSizes.md,
+    color:             colors.text,
+    fontSize:          typography.sizes.md,
     textAlignVertical: 'center',
-    paddingTop:        0,             // normalise Android top padding
+    paddingTop:        0,
     paddingBottom:     0,
-    textAlign:         'right',       // Arabic content — explicitly right-aligned
+    textAlign:         'right',      // Arabic default — flips in LTR layouts
   },
   sendBtn: {
     width:           42,
     height:          42,
     borderRadius:    21,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     alignItems:      'center',
     justifyContent:  'center',
     flexShrink:      0,
   },
-  sendBtnDisabled: {
-    backgroundColor: Colors.gray,
-  },
+  sendBtnDisabled: { backgroundColor: colors.gray },
 });
 
 export default ChatScreen;

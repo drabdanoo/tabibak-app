@@ -14,11 +14,13 @@ import {
 import { getAuth } from 'firebase/auth';
 import { COLLECTIONS } from '../config/firebase';
 
-const db = getFirestore();
-
 class FirestoreService {
+  get db() {
+    if (!this._db) this._db = getFirestore();
+    return this._db;
+  }
+
   constructor() {
-    this.db = db;
     // Cache for specialties to avoid repeated queries
     this.specialtiesCache = {
       data: null,
@@ -38,73 +40,50 @@ class FirestoreService {
     try {
       let q = collection(this.db, COLLECTIONS.DOCTORS);
       const constraints = [];
+      const hasSpecialty = filters.specialty && filters.specialty !== 'All';
 
-      // If search text is provided, disable pagination and fetch larger set
+      // ── Search path: fetch a larger set, filter client-side ───────────────────
       if (filters.searchText) {
-        console.warn('Search text disables pagination. Consider using Algolia/Typesense for production.');
-        
-        // Build query without pagination
-        if (filters.specialty && filters.specialty !== 'All') {
+        if (hasSpecialty) {
           constraints.push(where('specialty', '==', filters.specialty));
         }
-        
-        if (filters.minRating) {
-          constraints.push(where('rating', '>=', filters.minRating));
-        }
-        
-        if (filters.location) {
-          constraints.push(where('city', '==', filters.location));
-        }
-        
-        constraints.push(orderBy('rating', 'desc'));
+        // Single-field orderBy — auto-indexed by Firestore, no composite needed
         constraints.push(orderBy('name', 'asc'));
-        constraints.push(limit(100)); // Fetch larger set for filtering
-        
+        constraints.push(limit(200));
+
         q = query(q, ...constraints);
-        const querySnapshot = await getDocs(q);
-        
-        // Client-side filtering
+        const snap = await getDocs(q);
+
         const searchLower = filters.searchText.toLowerCase();
-        const doctors = querySnapshot.docs
+        const doctors = snap.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(doctor =>
-            doctor.name?.toLowerCase().includes(searchLower) ||
-            doctor.specialty?.toLowerCase().includes(searchLower) ||
-            doctor.bio?.toLowerCase().includes(searchLower)
+          .filter(d =>
+            (d.name      || '').toLowerCase().includes(searchLower) ||
+            (d.specialty || '').toLowerCase().includes(searchLower) ||
+            (d.address   || '').toLowerCase().includes(searchLower) ||
+            (d.about     || '').toLowerCase().includes(searchLower),
           );
-        
+
         return {
           success: true,
           doctors: doctors.slice(0, limitCount),
-          lastVisible: null, // No pagination with search
-          hasMore: false
+          lastVisible: null,
+          hasMore: false,
         };
       }
 
-      // Normal paginated query (no search text)
-      // Filter by specialty
-      if (filters.specialty && filters.specialty !== 'All') {
+      // ── Normal paginated path ─────────────────────────────────────────────────
+      if (hasSpecialty) {
+        // When filtering by specialty, Firestore auto-handles equality + orderBy
+        // on the same field — or we skip orderBy to avoid composite requirement.
         constraints.push(where('specialty', '==', filters.specialty));
       }
 
-      // Filter by minimum rating
-      if (filters.minRating) {
-        constraints.push(where('rating', '>=', filters.minRating));
-      }
-
-      // Filter by location (city/area)
-      if (filters.location) {
-        constraints.push(where('city', '==', filters.location));
-      }
-
-      // Default ordering by rating (high to low)
-      constraints.push(orderBy('rating', 'desc'));
+      // orderBy('name') alone uses a single-field auto-index → works immediately
+      // for all documents regardless of whether averageRating exists.
       constraints.push(orderBy('name', 'asc'));
-
-      // Add limit
       constraints.push(limit(limitCount));
 
-      // Pagination
       if (lastDoc) {
         constraints.push(startAfter(lastDoc));
       }
@@ -112,19 +91,14 @@ class FirestoreService {
       q = query(q, ...constraints);
       const querySnapshot = await getDocs(q);
 
-      const doctors = [];
-      querySnapshot.forEach((doc) => {
-        doctors.push({ id: doc.id, ...doc.data() });
-      });
-
-      // Get last visible document for pagination
+      const doctors = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
 
-      return { 
-        success: true, 
-        doctors, 
+      return {
+        success: true,
+        doctors,
         lastVisible,
-        hasMore: doctors.length === limitCount
+        hasMore: doctors.length === limitCount,
       };
     } catch (error) {
       console.error('Error getting doctors:', error);

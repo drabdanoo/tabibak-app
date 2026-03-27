@@ -9,6 +9,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
   serverTimestamp,
   Timestamp
@@ -16,13 +17,18 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { COLLECTIONS } from '../config/firebase';
 
-const db = getFirestore();
-const functions = getFunctions();
-
 class AppointmentService {
-  constructor() {
-    this.db = db;
-    this.functions = functions;
+  // Lazy getters: called on first use, after authService has run initializeApp().
+  // Module-level getFirestore()/getFunctions() would execute before initializeApp()
+  // due to bundler import order, producing an invalid Firestore handle.
+  get db() {
+    if (!this._db) this._db = getFirestore();
+    return this._db;
+  }
+
+  get functions() {
+    if (!this._functions) this._functions = getFunctions();
+    return this._functions;
   }
 
   /**
@@ -178,23 +184,6 @@ class AppointmentService {
         ? new Date(appointmentData.appointmentDate)
         : appointmentData.appointmentDate;
 
-      // Parse time string to Date object
-      const parseTimeString = (timeStr) => {
-        const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-        if (!match) throw new Error('Invalid time format');
-        
-        let [, hours, minutes, period] = match;
-        hours = parseInt(hours);
-        minutes = parseInt(minutes);
-        
-        if (period) {
-          if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12;
-          if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
-        }
-        
-        return { hours, minutes };
-      };
-
       // Client-side validations
       const closureCheck = await this.checkClinicClosure(
         appointmentData.doctorId,
@@ -221,7 +210,56 @@ class AppointmentService {
         };
       }
 
-      // Parse time and create datetime for conflict check
+      // When no appointmentTime is provided, the receptionist will assign the
+      // time later. Skip time-parsing and conflict check; write directly to
+      // Firestore since the Cloud Function requires a time slot.
+      const hasTime = !!appointmentData.appointmentTime;
+
+      if (!hasTime) {
+        const docRef = await addDoc(
+          collection(this.db, COLLECTIONS.APPOINTMENTS),
+          {
+            patientId:       appointmentData.patientId,
+            patientName:     appointmentData.patientName,
+            patientPhone:    appointmentData.patientPhone ?? '',
+            doctorId:        appointmentData.doctorId,
+            doctorName:      appointmentData.doctorName,
+            appointmentDate: appointmentData.appointmentDate,
+            appointmentTime: '',  // receptionist assigns later
+            reason:          appointmentData.reason,
+            notes:           appointmentData.notes || '',
+            status:          'pending',
+            bookingFor:      appointmentData.bookingFor || 'self',
+            ...(appointmentData.familyMemberName ? { familyMemberName: appointmentData.familyMemberName } : {}),
+            medicalHistory:  appointmentData.medicalHistory || {
+              allergies: 'None',
+              currentMedications: 'None',
+              chronicConditions: 'None',
+            },
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }
+        );
+        return { success: true, appointmentId: docRef.id, message: 'Appointment request submitted' };
+      }
+
+      // Time-based flow: parse time and check conflicts
+      const parseTimeString = (timeStr) => {
+        const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+        if (!match) throw new Error('Invalid time format');
+        
+        let [, hours, minutes, period] = match;
+        hours = parseInt(hours);
+        minutes = parseInt(minutes);
+        
+        if (period) {
+          if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12;
+          if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
+        }
+        
+        return { hours, minutes };
+      };
+
       const { hours, minutes } = parseTimeString(appointmentData.appointmentTime);
       const appointmentDateTime = new Date(appointmentDate);
       appointmentDateTime.setHours(hours, minutes, 0, 0);
@@ -229,7 +267,7 @@ class AppointmentService {
       const conflictCheck = await this.checkAppointmentConflict(
         appointmentData.doctorId,
         appointmentDateTime,
-        appointmentData.excludeAppointmentId // Pass the exclude ID correctly
+        appointmentData.excludeAppointmentId
       );
 
       if (conflictCheck.hasConflict) {
@@ -529,7 +567,7 @@ class AppointmentService {
       const appointmentRef = doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId);
       
       await updateDoc(appointmentRef, {
-        status: 'Completed',
+        status: 'completed',
         diagnosis,
         prescription,
         completedAt: serverTimestamp(),
@@ -652,16 +690,21 @@ class AppointmentService {
    */
   subscribeTodaySchedule(uid, onChange, onError) {
     const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    // No orderBy here — avoids the composite index requirement.
+    // Sorting is done client-side on appointmentTime (HH:MM string, lexicographic = correct).
     const q = query(
       collection(this.db, COLLECTIONS.APPOINTMENTS),
       where('doctorId', '==', uid),
       where('appointmentDate', '==', today),
       where('status', 'in', ['confirmed', 'completed']),
-      orderBy('appointmentTime', 'asc'),
     );
     return onSnapshot(
       q,
-      (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      (snap) => {
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        docs.sort((a, b) => (a.appointmentTime ?? '').localeCompare(b.appointmentTime ?? ''));
+        onChange(docs);
+      },
       onError,
     );
   }
@@ -676,16 +719,25 @@ class AppointmentService {
    * @returns {function} unsubscribe — call in component cleanup
    */
   subscribePendingRequests(uid, onChange, onError) {
+    // No orderBy here — avoids composite index requirements.
+    // Sorting is done client-side: date first (YYYY-MM-DD lexicographic = correct),
+    // then time (HH:MM lexicographic = correct).
     const q = query(
       collection(this.db, COLLECTIONS.APPOINTMENTS),
       where('doctorId', '==', uid),
       where('status', '==', 'pending'),
-      orderBy('appointmentDate', 'asc'),
-      orderBy('appointmentTime', 'asc'),
     );
     return onSnapshot(
       q,
-      (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      (snap) => {
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        docs.sort((a, b) => {
+          const dateComp = (a.appointmentDate ?? '').localeCompare(b.appointmentDate ?? '');
+          if (dateComp !== 0) return dateComp;
+          return (a.appointmentTime ?? '').localeCompare(b.appointmentTime ?? '');
+        });
+        onChange(docs);
+      },
       onError,
     );
   }
@@ -762,7 +814,7 @@ class AppointmentService {
   async updateAppointmentStatus(appointmentId, status) {
     try {
       const appointmentRef = doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId);
-      
+
       await updateDoc(appointmentRef, {
         status,
         updatedAt: serverTimestamp(),
@@ -773,6 +825,387 @@ class AppointmentService {
       console.error('Error updating appointment status:', error);
       return { success: false, error: error.message };
     }
+  }
+
+  // ─── Receptionist workflow mutations ────────────────────────────────────────
+  //
+  // All four methods write directly to Firestore (no Cloud Function hop) because
+  // these are internal queue-management transitions — no patient notification is
+  // triggered.  Each method writes a status-specific timestamp alongside the
+  // generic `updatedAt` field so the audit trail stays clean.
+
+  /**
+   * Accept (confirm) a pending appointment — receptionist path.
+   * pending → confirmed.
+   *
+   * @param {string} appointmentId
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async receptionistAccept(appointmentId) {
+    try {
+      await updateDoc(doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId), {
+        status:      'confirmed',
+        confirmedAt: serverTimestamp(),
+        confirmedBy: 'receptionist',
+        updatedAt:   serverTimestamp(),
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[appointmentService.receptionistAccept]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Decline (cancel) a pending appointment — receptionist path.
+   * pending → cancelled.
+   *
+   * @param {string} appointmentId
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async receptionistDecline(appointmentId) {
+    try {
+      await updateDoc(doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId), {
+        status:      'cancelled',
+        cancelledAt: serverTimestamp(),
+        cancelledBy: 'receptionist',
+        updatedAt:   serverTimestamp(),
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[appointmentService.receptionistDecline]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Check in a confirmed patient — receptionist path.
+   * confirmed → waiting.
+   *
+   * @param {string} appointmentId
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async checkInPatient(appointmentId) {
+    try {
+      await updateDoc(doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId), {
+        status:    'waiting',
+        waitingAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[appointmentService.checkInPatient]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send a waiting patient to the doctor's room — receptionist path.
+   * waiting → in_progress.
+   *
+   * @param {string} appointmentId
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async sendToDoctor(appointmentId) {
+    try {
+      await updateDoc(doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId), {
+        status:       'in_progress',
+        inProgressAt: serverTimestamp(),
+        updatedAt:    serverTimestamp(),
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[appointmentService.sendToDoctor]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ─── Walk-In helpers (used by WalkInBookingScreen) ──────────────────────────
+
+  /**
+   * Search for an existing patient by their normalised phone number.
+   * The caller must pre-normalise to E.164 Iraqi format (+9647XXXXXXXXX).
+   * Returns the first matching patient document object, or null.
+   *
+   * @param {string} normalizedPhone — e.g. '+9647701234567'
+   * @returns {Promise<object|null>}
+   */
+  async searchPatientByPhone(normalizedPhone) {
+    try {
+      const snap = await getDocs(query(
+        collection(this.db, COLLECTIONS.PATIENTS),
+        where('phoneNumber', '==', normalizedPhone),
+        limit(1),
+      ));
+      if (snap.empty) return null;
+      const d = snap.docs[0];
+      return { id: d.id, ...d.data() };
+    } catch (error) {
+      console.error('[appointmentService.searchPatientByPhone]', error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch a lightweight doctor list for the walk-in doctor selector.
+   * Returns at most 50 doctors sorted by name ascending.
+   *
+   * @returns {Promise<Array<{ id: string, name: string, specialty: string }>>}
+   */
+  async fetchDoctorById(doctorId) {
+    try {
+      const snap = await getDoc(doc(this.db, COLLECTIONS.DOCTORS, doctorId));
+      if (!snap.exists()) return null;
+      return {
+        id:        snap.id,
+        name:      snap.data().name      ?? snap.data().fullName ?? '—',
+        specialty: snap.data().specialty ?? '',
+      };
+    } catch (error) {
+      console.error('[appointmentService.fetchDoctorById]', error);
+      return null;
+    }
+  }
+
+  async fetchAllDoctors() {
+    try {
+      const snap = await getDocs(query(
+        collection(this.db, COLLECTIONS.DOCTORS),
+        orderBy('name', 'asc'),
+        limit(50),
+      ));
+      return snap.docs.map(d => ({
+        id:        d.id,
+        name:      d.data().name      ?? d.data().fullName ?? '—',
+        specialty: d.data().specialty ?? '',
+      }));
+    } catch (error) {
+      console.error('[appointmentService.fetchAllDoctors]', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create a walk-in appointment for a receptionist-managed patient.
+   *
+   * Flow:
+   *   1. If `patientData.isNew` → create a lightweight patient document in
+   *      COLLECTIONS.PATIENTS and use the new document ID as patientId.
+   *   2. Create an appointment document with status: 'waiting' and
+   *      appointmentTime set to the current local time ('HH:MM'), so the
+   *      patient appears immediately in the receptionist's waiting queue.
+   *
+   * @param {object} patientData
+   *   { id?: string, fullName: string, phoneNumber: string, gender?: string, isNew: boolean }
+   * @param {string} doctorId
+   * @param {string} doctorName
+   * @returns {Promise<{ success: boolean, appointmentId?: string, error?: string }>}
+   */
+  async createWalkInAppointment(patientData, doctorId, doctorName) {
+    try {
+      let resolvedPatientId = patientData.id ?? null;
+
+      // ── 1. Register new patient document (walk-in, no Firebase Auth account) ─
+      if (patientData.isNew) {
+        const newPatientRef = await addDoc(
+          collection(this.db, COLLECTIONS.PATIENTS),
+          {
+            fullName:     patientData.fullName,
+            phoneNumber:  patientData.phoneNumber,
+            gender:       patientData.gender ?? '',
+            role:         'patient',
+            registeredBy: 'receptionist',
+            dateOfBirth:  '',
+            createdAt:    serverTimestamp(),
+            updatedAt:    serverTimestamp(),
+          },
+        );
+        resolvedPatientId = newPatientRef.id;
+      }
+
+      // ── 2. Build date + time strings from current local time ──────────────
+      const now     = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      // ── 3. Create the appointment document ────────────────────────────────
+      const apptRef = await addDoc(
+        collection(this.db, COLLECTIONS.APPOINTMENTS),
+        {
+          patientId:       resolvedPatientId,
+          patientName:     patientData.fullName,
+          patientPhone:    patientData.phoneNumber,
+          doctorId,
+          doctorName,
+          appointmentDate:    Timestamp.fromDate(now), // Timestamp — picked up by dashboard range query
+          appointmentDateStr: dateStr,                 // string   — used by AppointmentManagementScreen
+          appointmentTime: timeStr,
+          status:          'waiting',
+          reason:          'Walk-in',
+          walkIn:          true,
+          bookingFor:      'self',
+          notes:           '',
+          createdAt:       serverTimestamp(),
+          updatedAt:       serverTimestamp(),
+        },
+      );
+
+      return { success: true, appointmentId: apptRef.id };
+    } catch (error) {
+      console.error('[appointmentService.createWalkInAppointment]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ─── Receptionist real-time subscription ────────────────────────────────────
+
+  /**
+   * Real-time listener: ALL appointments for a given date (any status).
+   * Used by AppointmentManagementScreen to power the receptionist's daily queue.
+   *
+   * Sorted client-side by appointmentTime (HH:MM lexicographic = chronological).
+   * No orderBy in the query — avoids composite-index requirements.
+   *
+   * @param {string}   dateStr  — 'YYYY-MM-DD'
+   * @param {function} onChange — Receives sorted appointment array on every update
+   * @param {function} onError  — Receives Firestore error on listener failure
+   * @returns {function} unsubscribe — call in component cleanup
+   */
+  /**
+   * Fetch completed appointments + consultation fee for the past 7 days.
+   * Returns { dailyCounts: [{date, count}], totalRevenue, todayRevenue, consultationFee }
+   */
+  async getWeeklyStats(doctorId) {
+    try {
+      // Build last-7-days date strings (YYYY-MM-DD)
+      const today = new Date();
+      const dates = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        dates.push(d.toISOString().slice(0, 10));
+      }
+
+      const todayStr = dates[dates.length - 1];
+
+      // Fetch completed appointments for these dates
+      const q = query(
+        collection(this.db, COLLECTIONS.APPOINTMENTS),
+        where('doctorId', '==', doctorId),
+        where('status', '==', 'completed'),
+      );
+      const snap = await getDocs(q);
+      const all = snap.docs.map(d => ({ ...d.data() }));
+
+      // Count per day
+      const countMap = {};
+      dates.forEach(d => { countMap[d] = 0; });
+      all.forEach(a => {
+        if (countMap[a.appointmentDate] !== undefined) {
+          countMap[a.appointmentDate]++;
+        }
+      });
+
+      const dailyCounts = dates.map(date => ({
+        date,
+        dayLabel: new Date(date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short' }),
+        count: countMap[date],
+        isToday: date === todayStr,
+      }));
+
+      // Fetch consultation fee from doctors collection
+      let consultationFee = 0;
+      try {
+        const docSnap = await getDoc(doc(this.db, COLLECTIONS.DOCTORS, doctorId));
+        consultationFee = docSnap.exists() ? (docSnap.data().consultationFee ?? 0) : 0;
+      } catch { /* fee unavailable */ }
+
+      const todayCount = countMap[todayStr] ?? 0;
+      const weekTotal  = dates.reduce((s, d) => s + countMap[d], 0);
+
+      return {
+        dailyCounts,
+        consultationFee,
+        todayRevenue: todayCount * consultationFee,
+        totalRevenue: weekTotal  * consultationFee,
+      };
+    } catch (err) {
+      console.error('[appointmentService.getWeeklyStats]', err);
+      return { dailyCounts: [], consultationFee: 0, todayRevenue: 0, totalRevenue: 0 };
+    }
+  }
+
+  // ─── Mark No-Show ────────────────────────────────────────────────────────
+  async markNoShow(appointmentId) {
+    try {
+      await updateDoc(doc(this.db, COLLECTIONS.APPOINTMENTS, appointmentId), {
+        status:       'no_show',
+        noShowAt:     serverTimestamp(),
+        updatedAt:    serverTimestamp(),
+      });
+      return { success: true };
+    } catch (err) {
+      console.error('[appointmentService.markNoShow]', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  // ─── Emergency Override — cancel all pending/confirmed for a doctor on a date ─
+  async clearDayAppointments(doctorId, dateStr) {
+    try {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+      const end   = new Date(year, month - 1, day, 23, 59, 59, 999);
+
+      const snap = await getDocs(query(
+        collection(this.db, COLLECTIONS.APPOINTMENTS),
+        where('doctorId',        '==',  doctorId),
+        where('appointmentDate', '>=',  Timestamp.fromDate(start)),
+        where('appointmentDate', '<=',  Timestamp.fromDate(end)),
+        where('status',          'in',  ['pending', 'confirmed']),
+      ));
+
+      if (snap.empty) return { success: true, count: 0 };
+
+      await Promise.all(
+        snap.docs.map(d =>
+          updateDoc(d.ref, {
+            status:      'cancelled',
+            cancelledBy: 'doctor_emergency',
+            cancelledAt: serverTimestamp(),
+            updatedAt:   serverTimestamp(),
+          }),
+        ),
+      );
+
+      return { success: true, count: snap.docs.length };
+    } catch (err) {
+      console.error('[appointmentService.clearDayAppointments]', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  subscribeReceptionistAppointments(dateStr, onChange, onError) {
+    // Build Timestamp range for the selected date (00:00 → 23:59:59)
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+    const end   = new Date(year, month - 1, day, 23, 59, 59, 999);
+
+    const q = query(
+      collection(this.db, COLLECTIONS.APPOINTMENTS),
+      where('appointmentDate', '>=', Timestamp.fromDate(start)),
+      where('appointmentDate', '<=', Timestamp.fromDate(end)),
+      orderBy('appointmentDate', 'asc'),
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        docs.sort((a, b) => (a.appointmentTime ?? '').localeCompare(b.appointmentTime ?? ''));
+        onChange(docs);
+      },
+      onError,
+    );
   }
 }
 

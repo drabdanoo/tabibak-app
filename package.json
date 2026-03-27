@@ -9,10 +9,12 @@
     "delete-doctor": "node manage-doctors.js delete"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "firebase-functions": "^6.5.0"
   },
   "devDependencies": {
-    "firebase-admin": "^13.5.0"
+    "csv-parse": "^6.2.1",
+    "firebase-admin": "^13.7.0"
   },
   "keywords": [
     "firebase",

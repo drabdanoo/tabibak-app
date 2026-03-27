@@ -1,56 +1,43 @@
 /**
- * DoctorProfileScreen.js — Patient-Side Public Doctor Profile (Patient Stack)
+ * DoctorProfileScreen.js — Patient-Side Public Doctor Profile (Phase 4)
  *
- * ── Navigation Entry Points ──────────────────────────────────────────────────
+ * ╔══ ARCHITECTURE ════════════════════════════════════════════════════════════╗
  *
- *   From MyAppointmentsScreen (tap doctor name on a completed appointment):
- *     navigation.navigate('DoctorProfile', { doctorId, doctor })
- *
- *   From ChatScreen (tap participant header):
- *     navigation.navigate('DoctorProfile', { doctorId })
- *
- *   From any patient screen:
- *     navigation.navigate('DoctorProfile', { doctorId })
- *     navigation.navigate('DoctorProfile', { doctorId, doctor })  // preloaded
- *
- * ── Two-Phase Hydration ───────────────────────────────────────────────────────
- *
- *   Phase 1 (zero network cost): If route.params.doctor is present, its partial
+ * TWO-PHASE HYDRATION
+ * ───────────────────
+ *   Phase 1 (zero network): If route.params.doctor is present its partial
  *   fields (name, specialty, photoURL, rating, isAvailable) hydrate the hero
- *   section instantly — no loading spinner for above-the-fold content.
+ *   instantly — no loading spinner for above-the-fold content.
  *
- *   Phase 2 (background): firestoreService.getDoctorById(doctorId) fetches the
- *   full profile (bio, workingHours, hospital, education, consultationFee,
- *   languages). On resolve, state is merged via spread so Phase 1 fields are
- *   never regressed.
+ *   Phase 2 (background): firestoreService.getDoctorById(doctorId) fetches
+ *   the full profile (bio, workingHours, hospital, education, languages,
+ *   consultationFee). State is merged via spread so Phase 1 fields are never
+ *   regressed.
  *
- * ── Architecture ─────────────────────────────────────────────────────────────
+ * STICKY FOOTER PATTERN
+ * ──────────────────────
+ *   ScreenContainer scrollable={false} padded={false} edges={['bottom']}
+ *   └─ ScrollView  (flex:1)
+ *   └─ Footer View (sibling — always on screen)
  *
- *   ScrollView layout:
- *     · Hero card    — avatar initials (or photo), name, specialty, availability
- *     · Stats row    — rating, experience, consultationFee
- *     · Bio          — expandable (120-char collapse)
- *     · Working hours — day/time grid
- *     · Actions      — sticky footer (Book Appointment + Chat)
+ * WORKING HOURS FORMAT
+ * ─────────────────────
+ *   workingHours[day] may be:
+ *     { open: true,  start: 'HH:MM', end: 'HH:MM' }  — working day
+ *     { open: false }                                  — day off
+ *     null | undefined                                 — not configured
  *
- *   Sticky footer:
- *     Root View (flex:1) → ScrollView (flex:1) + Footer View (sibling)
- *     The ScrollView ends with a spacer equal to the footer height so the last
- *     content section is never obscured.
+ * CONTRACTS ENFORCED
+ * ───────────────────
+ *   ✅ ScreenContainer (scrollable=false, padded=false, edges=['bottom'])
+ *   ✅ RTL logical properties throughout (marginStart/End, paddingStart/End)
+ *   ✅ All strings via t() — zero hardcoded text
+ *   ✅ colors / spacing / typography / BorderRadius from theme.js only
+ *   ✅ Zero Firebase imports — reads via firestoreService
+ *   ✅ Zero Alert.alert — unavailable state shown as inline notice
+ *   ✅ Zero SafeAreaView from react-native — ScreenContainer handles it
  *
- * ── Key Distinction From DoctorDetailsScreen ─────────────────────────────────
- *
- *   DoctorDetailsScreen  — Doctor-browsing/booking funnel (DoctorList → Details
- *     → Book). Heavy layout with tab strip, photo hero, full review list.
- *   DoctorProfileScreen  — Context-driven profile card (accessed from appt
- *     history or chat). Lighter single-scroll layout focused on identity +
- *     quick actions.
- *
- * ── RTL COMPLIANCE ────────────────────────────────────────────────────────────
- *   marginStart / marginEnd          → never marginLeft / marginRight
- *   paddingStart / paddingEnd        → never paddingLeft / paddingRight
- *   borderStartWidth                 → never borderLeftWidth
- *   borderTopStartRadius / End       → never borderTopLeftRadius / Right
+ * ╚════════════════════════════════════════════════════════════════════════════╝
  */
 
 import React, {
@@ -66,75 +53,102 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
-  StatusBar,
   Image,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import firestoreService from '../../services/firestoreService';
+import { useTranslation } from 'react-i18next';
+
+import ScreenContainer         from '../../components/ui/ScreenContainer';
+import PrimaryButton           from '../../components/ui/PrimaryButton';
+import firestoreService        from '../../services/firestoreService';
 import {
-  Colors,
-  Spacing,
+  colors,
+  spacing,
+  typography,
   BorderRadius,
-  FontSizes,
+  shadows,
 } from '../../config/theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const FOOTER_HEIGHT = 80; // approximate footer area height for scroll spacer
+const FOOTER_HEIGHT = 84;
 
+/**
+ * Canonical day order + key map.
+ * Keys match the Firestore workingHours object AND the locale days.* keys.
+ */
 const DAY_ORDER = [
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-  'Friday', 'Saturday', 'Sunday',
+  'monday', 'tuesday', 'wednesday', 'thursday',
+  'friday', 'saturday', 'sunday',
 ];
 
-const DAY_AR = {
-  Monday:    'الاثنين',
-  Tuesday:   'الثلاثاء',
-  Wednesday: 'الأربعاء',
-  Thursday:  'الخميس',
-  Friday:    'الجمعة',
-  Saturday:  'السبت',
-  Sunday:    'الأحد',
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Normalise a working-hours slot entry to { open, label } shape.
+ * Handles both the structured { open, start, end } format and legacy string
+ * arrays / null values from older Firestore documents.
+ */
+const resolveSlot = (slot) => {
+  if (!slot) return { open: false, label: null };
+
+  // Structured format: { open: bool, start: 'HH:MM', end: 'HH:MM' }
+  if (typeof slot === 'object' && !Array.isArray(slot)) {
+    if (!slot.open) return { open: false, label: null };
+    const label =
+      slot.start && slot.end ? `${slot.start} – ${slot.end}` : null;
+    return { open: true, label };
+  }
+
+  // Legacy string format: "09:00 - 17:00"
+  if (typeof slot === 'string') return { open: true, label: slot };
+
+  // Legacy array of strings: ["09:00 - 13:00", "15:00 - 18:00"]
+  if (Array.isArray(slot) && slot.length > 0) {
+    return { open: true, label: slot.join(' / ') };
+  }
+
+  return { open: false, label: null };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Single star-rating display */
-const StarRating = memo(({ rating = 0 }) => {
-  const rounded = Math.round(rating);
+/** Compact star row (5 stars, half-star not needed at this fidelity) */
+const StarRow = memo(({ rating = 0 }) => {
+  const filled = Math.round(rating);
   return (
     <View style={styles.starRow}>
-      {[1, 2, 3, 4, 5].map(i => (
+      {[1, 2, 3, 4, 5].map((i) => (
         <Ionicons
           key={i}
-          name={i <= rounded ? 'star' : 'star-outline'}
-          size={14}
-          color={Colors.warning}
+          name={i <= filled ? 'star' : 'star-outline'}
+          size={13}
+          color={colors.warning}
         />
       ))}
     </View>
   );
 });
 
-/** Stat chip: icon + number + label */
-const StatChip = memo(({ icon, value, label, color }) => (
+/** One stat chip: icon + value + label */
+const StatChip = memo(({ icon, value, label, iconColor }) => (
   <View style={styles.statChip}>
-    <View style={[styles.statIconBox, { backgroundColor: (color ?? Colors.primary) + '18' }]}>
-      <Ionicons name={icon} size={18} color={color ?? Colors.primary} />
+    <View style={[styles.statIconBox, { backgroundColor: (iconColor ?? colors.primary) + '1A' }]}>
+      <Ionicons name={icon} size={18} color={iconColor ?? colors.primary} />
     </View>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
+    <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
+    <Text style={styles.statLabel} numberOfLines={1}>{label}</Text>
   </View>
 ));
 
-/** Section card wrapper */
+/** Card wrapper with a title bar */
 const SectionCard = memo(({ title, children }) => (
   <View style={styles.sectionCard}>
     <Text style={styles.sectionTitle}>{title}</Text>
@@ -142,22 +156,22 @@ const SectionCard = memo(({ title, children }) => (
   </View>
 ));
 
-/** Working-hours row (one day) */
-const HourRow = memo(({ day, slots }) => {
-  const isOff = !slots || (Array.isArray(slots) && slots.length === 0);
+/** One working-hours row */
+const HourRow = memo(({ dayKey, slot, dayLabel, dayOffLabel }) => {
+  const { open, label } = resolveSlot(slot);
   return (
     <View style={styles.hourRow}>
-      <Text style={styles.hourDay}>{DAY_AR[day] ?? day}</Text>
-      {isOff ? (
-        <Text style={styles.hourOff}>إجازة</Text>
+      <Text style={styles.hourDay}>{dayLabel}</Text>
+      {open ? (
+        label ? (
+          <View style={styles.hourPill}>
+            <Text style={styles.hourPillText}>{label}</Text>
+          </View>
+        ) : (
+          <Ionicons name="checkmark-circle-outline" size={16} color={colors.success} />
+        )
       ) : (
-        <View style={styles.hourSlots}>
-          {(Array.isArray(slots) ? slots : [slots]).map((slot, i) => (
-            <View key={i} style={styles.hourSlotPill}>
-              <Text style={styles.hourSlotText}>{slot}</Text>
-            </View>
-          ))}
-        </View>
+        <Text style={styles.hourOff}>{dayOffLabel}</Text>
       )}
     </View>
   );
@@ -168,22 +182,25 @@ const HourRow = memo(({ day, slots }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DoctorProfileScreen = ({ route, navigation }) => {
+  const { t }   = useTranslation();
+  const insets  = useSafeAreaInsets();
+
   const { doctor: paramDoctor, doctorId: paramDoctorId } = route.params ?? {};
   const resolvedId = paramDoctorId ?? paramDoctor?.id;
 
-  const insets = useSafeAreaInsets();
-
-  // Phase 1: seed with partial data from route params
+  // ── State ──────────────────────────────────────────────────────────────────
+  // Phase 1 seed
   const [doctor,       setDoctor]       = useState(paramDoctor ?? null);
   const [isFullLoaded, setIsFullLoaded] = useState(false);
-  const [isLoading,    setIsLoading]    = useState(true);
+  // Only true while Phase 2 is running AND no Phase 1 data exists
+  const [isLoading,    setIsLoading]    = useState(!paramDoctor);
   const [error,        setError]        = useState(null);
   const [bioExpanded,  setBioExpanded]  = useState(false);
 
-  // ── Phase 2: fetch full profile ───────────────────────────────────────────
+  // ── Phase 2: fetch full profile ────────────────────────────────────────────
   useEffect(() => {
     if (!resolvedId) {
-      setError('معرّف الطبيب غير موجود');
+      setError(t('doctors.profileLoadError'));
       setIsLoading(false);
       return;
     }
@@ -191,27 +208,27 @@ const DoctorProfileScreen = ({ route, navigation }) => {
     let isMounted = true;
 
     firestoreService.getDoctorById(resolvedId)
-      .then(res => {
+      .then((res) => {
         if (!isMounted) return;
         if (res.success && res.doctor) {
-          // Merge: full profile overwrites partial but never deletes Phase 1 fields
-          setDoctor(prev => ({ ...(prev ?? {}), ...res.doctor }));
+          // Merge: full profile extends Phase 1 data without regressing any field
+          setDoctor((prev) => ({ ...(prev ?? {}), ...res.doctor }));
           setIsFullLoaded(true);
         } else {
-          if (!doctor) setError('تعذّر تحميل بيانات الطبيب');
+          if (!doctor) setError(t('doctors.profileLoadError'));
         }
       })
       .catch(() => {
-        if (isMounted && !doctor) setError('تعذّر تحميل بيانات الطبيب');
+        if (isMounted && !doctor) setError(t('doctors.profileLoadError'));
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
       });
 
     return () => { isMounted = false; };
-  }, [resolvedId]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [resolvedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Actions ────────────────────────────────────────────────────────────────
   const handleBook = useCallback(() => {
     if (!doctor) return;
     navigation.navigate('BookAppointment', { doctor });
@@ -220,14 +237,16 @@ const DoctorProfileScreen = ({ route, navigation }) => {
   const handleChat = useCallback(() => {
     if (!resolvedId) return;
     navigation.navigate('Chat', {
-      recipientId:   resolvedId,
-      recipientName: doctor?.name ? `د. ${doctor.name}` : 'الطبيب',
+      recipientId:     resolvedId,
+      recipientName:   doctor?.name
+        ? `${t('doctors.drPrefix')} ${doctor.name}`
+        : t('doctors.drPrefix'),
       recipientAvatar: doctor?.photoURL ?? null,
     });
-  }, [navigation, resolvedId, doctor]);
+  }, [navigation, resolvedId, doctor, t]);
 
-  // ── Derived values ────────────────────────────────────────────────────────
-  const name        = doctor?.name ?? doctor?.displayName ?? 'الطبيب';
+  // ── Derived values ─────────────────────────────────────────────────────────
+  const name        = doctor?.name ?? doctor?.displayName ?? t('doctors.drPrefix');
   const specialty   = doctor?.specialty ?? '';
   const bio         = doctor?.bio ?? doctor?.about ?? '';
   const rating      = doctor?.rating ?? 0;
@@ -235,65 +254,96 @@ const DoctorProfileScreen = ({ route, navigation }) => {
   const experience  = doctor?.yearsOfExperience ?? doctor?.experience ?? null;
   const fee         = doctor?.consultationFee ?? null;
   const hospital    = doctor?.hospital ?? doctor?.workplace ?? null;
-  const education   = doctor?.education ?? [];
-  const languages   = doctor?.languages ?? [];
+  const education   = Array.isArray(doctor?.education) ? doctor.education : [];
+  const languages   = Array.isArray(doctor?.languages) ? doctor.languages : [];
   const isAvailable = doctor?.isAvailable ?? false;
 
   const workingHours = doctor?.workingHours ?? {};
-  const sortedDays   = DAY_ORDER.filter(d => d in workingHours);
+  const sortedDays   = DAY_ORDER.filter((d) => d in workingHours);
 
   const isLongBio  = bio.length > 140;
-  const displayBio = isLongBio && !bioExpanded ? bio.slice(0, 140) + '…' : bio;
+  const displayBio = isLongBio && !bioExpanded ? `${bio.slice(0, 140)}…` : bio;
 
-  const avatarLetter = name[0]?.toUpperCase() ?? 'د';
+  const avatarLetter = name.trim()[0]?.toUpperCase() ?? 'D';
 
-  // ── Loading / error states ────────────────────────────────────────────────
+  // ── Loading state (no Phase 1 data yet) ───────────────────────────────────
   if (isLoading && !doctor) {
     return (
-      <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
-        <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>جاري تحميل الملف الشخصي…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error && !doctor) {
-    return (
-      <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
-        <View style={styles.centeredState}>
-          <Ionicons name="alert-circle-outline" size={52} color={Colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
+      <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
+        {/* Green header strip */}
+        <View style={[styles.loadingHeader, { paddingTop: insets.top + spacing.md }]}>
           <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={() => { setIsLoading(true); setError(null); }}
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
             activeOpacity={0.8}
           >
-            <Text style={styles.retryBtnText}>إعادة المحاولة</Text>
+            <Ionicons name="arrow-back" size={22} color={colors.white} />
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+        <View style={styles.centeredState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.centeredStateText}>{t('common.loading')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
-  // ── Full render ───────────────────────────────────────────────────────────
-  const footerPadding = Math.max(insets.bottom, Spacing.md);
+  // ── Error state (no Phase 1 data) ─────────────────────────────────────────
+  if (error && !doctor) {
+    return (
+      <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
+        <View style={[styles.loadingHeader, { paddingTop: insets.top + spacing.md }]}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.white} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centeredState}>
+          <Ionicons name="alert-circle-outline" size={52} color={colors.error} />
+          <Text style={styles.centeredStateError}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => {
+              setError(null);
+              setIsLoading(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenContainer>
+    );
+  }
+
+  // ── Full render ────────────────────────────────────────────────────────────
+  const footerBottomPad = Math.max(insets.bottom, spacing.sm);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+    <ScreenContainer scrollable={false} padded={false} edges={['bottom']}>
 
-      {/* ── Scrollable content ── */}
+      {/* ── Scrollable body ── */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+
         {/* ══ Hero card ══ */}
-        <View style={styles.heroCard}>
+        <View style={[styles.heroCard, { paddingTop: insets.top + spacing.md }]}>
+
+          {/* Back button */}
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.white} />
+          </TouchableOpacity>
+
           {/* Avatar */}
           <View style={styles.avatarRing}>
             {doctor?.photoURL ? (
@@ -307,51 +357,54 @@ const DoctorProfileScreen = ({ route, navigation }) => {
 
           {/* Availability badge */}
           <View style={[
-            styles.availabilityBadge,
-            isAvailable ? styles.availabilityOn : styles.availabilityOff,
+            styles.availBadge,
+            isAvailable ? styles.availBadgeOn : styles.availBadgeOff,
           ]}>
             <View style={[
-              styles.availabilityDot,
-              { backgroundColor: isAvailable ? Colors.primary : Colors.gray },
+              styles.availDot,
+              { backgroundColor: isAvailable ? colors.success : colors.gray },
             ]} />
             <Text style={[
-              styles.availabilityText,
-              { color: isAvailable ? Colors.primary : Colors.gray },
+              styles.availText,
+              { color: isAvailable ? colors.success : colors.gray },
             ]}>
-              {isAvailable ? 'متاح للحجز' : 'غير متاح الآن'}
+              {isAvailable ? t('doctors.availableNow') : t('doctors.unavailableNow')}
             </Text>
           </View>
 
-          {/* Name + specialty */}
-          <Text style={styles.heroName}>د. {name}</Text>
-          {specialty ? (
+          {/* Name */}
+          <Text style={styles.heroName}>
+            {t('doctors.drPrefix')} {name}
+          </Text>
+
+          {/* Specialty */}
+          {!!specialty && (
             <Text style={styles.heroSpecialty}>{specialty}</Text>
-          ) : null}
+          )}
 
           {/* Star rating */}
-          <View style={styles.heroRating}>
-            <StarRating rating={rating} />
-            <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
+          <View style={styles.heroRatingRow}>
+            <StarRow rating={rating} />
+            <Text style={styles.heroRatingValue}>{rating.toFixed(1)}</Text>
             {reviewCount > 0 && (
-              <Text style={styles.ratingCount}>({reviewCount})</Text>
+              <Text style={styles.heroReviewCount}>({reviewCount})</Text>
             )}
           </View>
 
           {/* Hospital */}
-          {hospital ? (
-            <View style={styles.heroHospital}>
-              <Ionicons name="business-outline" size={13} color={Colors.textSecondary} />
+          {!!hospital && (
+            <View style={styles.heroHospitalRow}>
+              <Ionicons name="business-outline" size={12} color="rgba(255,255,255,0.8)" />
               <Text style={styles.heroHospitalText}>{hospital}</Text>
             </View>
-          ) : null}
+          )}
 
-          {/* Loading overlay — shows only if full profile hasn't arrived yet
-              but Phase 1 data is already rendered */}
-          {isLoading && (
+          {/* Phase 2 loading shimmer (small spinner) */}
+          {!isFullLoaded && !isLoading && (
             <ActivityIndicator
               size="small"
-              color={Colors.primary}
-              style={styles.heroLoadingIndicator}
+              color="rgba(255,255,255,0.7)"
+              style={{ marginTop: spacing.sm }}
             />
           )}
         </View>
@@ -361,58 +414,72 @@ const DoctorProfileScreen = ({ route, navigation }) => {
           <StatChip
             icon="star"
             value={rating.toFixed(1)}
-            label="التقييم"
-            color={Colors.warning}
+            label={t('doctors.ratingLabel')}
+            iconColor={colors.warning}
           />
           {experience !== null && (
             <StatChip
               icon="briefcase-outline"
               value={`${experience}+`}
-              label="سنوات خبرة"
+              label={t('doctors.experienceSuffix')}
             />
           )}
           {fee !== null && (
             <StatChip
               icon="cash-outline"
-              value={`${fee} ر.س`}
-              label="سعر الاستشارة"
-              color="#3b82f6"
+              value={`${fee}`}
+              label={t('doctors.feeLabel')}
+              iconColor={colors.secondary}
             />
           )}
         </View>
 
+        {/* ══ Unavailable notice ══ */}
+        {!isAvailable && (
+          <View style={styles.unavailableBanner}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.warning} />
+            <Text style={styles.unavailableText}>{t('doctors.unavailableNote')}</Text>
+          </View>
+        )}
+
         {/* ══ Bio ══ */}
-        {bio ? (
-          <SectionCard title="نبذة عن الطبيب">
+        {!!bio && (
+          <SectionCard title={t('doctors.bioTitle')}>
             <Text style={styles.bioText}>{displayBio}</Text>
             {isLongBio && (
               <TouchableOpacity
-                onPress={() => setBioExpanded(v => !v)}
+                onPress={() => setBioExpanded((v) => !v)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.bioToggle}>
-                  {bioExpanded ? 'عرض أقل' : 'عرض المزيد'}
+                  {bioExpanded ? t('doctors.showLess') : t('doctors.showMore')}
                 </Text>
               </TouchableOpacity>
             )}
           </SectionCard>
-        ) : null}
+        )}
 
         {/* ══ Working hours ══ */}
         {sortedDays.length > 0 && (
-          <SectionCard title="ساعات العمل">
-            {sortedDays.map(day => (
-              <HourRow key={day} day={day} slots={workingHours[day]} />
+          <SectionCard title={t('doctors.hoursTitle')}>
+            {sortedDays.map((dayKey) => (
+              <HourRow
+                key={dayKey}
+                dayKey={dayKey}
+                slot={workingHours[dayKey]}
+                dayLabel={t(`doctors.days.${dayKey}`)}
+                dayOffLabel={t('doctors.dayOff')}
+              />
             ))}
           </SectionCard>
         )}
 
         {/* ══ Education ══ */}
         {education.length > 0 && (
-          <SectionCard title="التعليم والشهادات">
+          <SectionCard title={t('doctors.eduTitle')}>
             {education.map((item, i) => (
               <View key={i} style={styles.eduRow}>
-                <Ionicons name="school-outline" size={15} color={Colors.primary} />
+                <Ionicons name="school-outline" size={14} color={colors.primary} />
                 <Text style={styles.eduText}>{item}</Text>
               </View>
             ))}
@@ -421,7 +488,7 @@ const DoctorProfileScreen = ({ route, navigation }) => {
 
         {/* ══ Languages ══ */}
         {languages.length > 0 && (
-          <SectionCard title="اللغات">
+          <SectionCard title={t('doctors.langTitle')}>
             <View style={styles.langRow}>
               {languages.map((lang, i) => (
                 <View key={i} style={styles.langPill}>
@@ -433,156 +500,180 @@ const DoctorProfileScreen = ({ route, navigation }) => {
         )}
 
         {/* Spacer so footer never covers last section */}
-        <View style={{ height: FOOTER_HEIGHT + footerPadding }} />
+        <View style={{ height: FOOTER_HEIGHT + footerBottomPad }} />
       </ScrollView>
 
       {/* ══ Sticky footer ══ */}
-      <View style={[styles.footer, { paddingBottom: footerPadding }]}>
+      <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
+        {/* Chat outline button */}
         <TouchableOpacity
           style={styles.chatBtn}
           onPress={handleChat}
           activeOpacity={0.8}
         >
-          <Ionicons name="chatbubble-outline" size={18} color={Colors.primary} />
-          <Text style={styles.chatBtnText}>مراسلة</Text>
+          <Ionicons name="chatbubble-outline" size={18} color={colors.primary} />
+          <Text style={styles.chatBtnText}>{t('doctors.chatAction')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.bookBtn, !isAvailable && styles.bookBtnDisabled]}
-          onPress={isAvailable ? handleBook : () => Alert.alert('غير متاح', 'الطبيب غير متاح للحجز حالياً.')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="calendar-outline" size={18} color={Colors.white} />
-          <Text style={styles.bookBtnText}>احجز موعداً</Text>
-        </TouchableOpacity>
+        {/* Book appointment filled button */}
+        <View style={styles.bookBtnWrapper}>
+          <PrimaryButton
+            label={t('doctors.bookAppointment')}
+            onPress={handleBook}
+            disabled={!isAvailable}
+            style={!isAvailable ? styles.bookBtnDisabled : undefined}
+          />
+        </View>
       </View>
-    </SafeAreaView>
+
+    </ScreenContainer>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Styles
+// Styles — RTL logical properties throughout
 // ─────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
 
-  screen: { flex: 1, backgroundColor: Colors.background },
-
-  // ── Centered states ────────────────────────────────────────────────────────
+  // ── Centered states ─────────────────────────────────────────────────────────
+  loadingHeader: {
+    backgroundColor:   colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingBottom:     spacing.md,
+  },
   centeredState: {
     flex:           1,
     alignItems:     'center',
     justifyContent: 'center',
-    padding:        Spacing.lg,
-    gap:            Spacing.sm,
+    padding:        spacing.lg,
+    gap:            spacing.md,
   },
-  loadingText: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  errorText:   { fontSize: FontSizes.md, color: Colors.error, textAlign: 'center' },
+  centeredStateText: {
+    fontSize: typography.sizes.sm,
+    color:    colors.textSecondary,
+  },
+  centeredStateError: {
+    fontSize:  typography.sizes.md,
+    color:     colors.error,
+    textAlign: 'center',
+  },
   retryBtn: {
-    backgroundColor:   Colors.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical:   Spacing.sm,
+    backgroundColor:   colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical:   spacing.sm,
     borderRadius:      BorderRadius.full,
   },
-  retryBtnText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.sm },
+  retryBtnText: {
+    color:      colors.white,
+    fontWeight: '600',
+    fontSize:   typography.sizes.sm,
+  },
 
-  // ── Scroll ─────────────────────────────────────────────────────────────────
-  scroll:        { flex: 1 },
-  scrollContent: { paddingBottom: Spacing.sm },
-
-  // ── Hero card ──────────────────────────────────────────────────────────────
-  heroCard: {
-    backgroundColor: Colors.white,
+  // ── Back button ─────────────────────────────────────────────────────────────
+  backBtn: {
+    position:        'absolute',
+    top:             spacing.sm,
+    start:           spacing.md,
+    width:           36,
+    height:          36,
+    borderRadius:    BorderRadius.full,
+    backgroundColor: 'rgba(0,0,0,0.18)',
     alignItems:      'center',
-    paddingTop:      Spacing.xl,
-    paddingBottom:   Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-    marginBottom:    Spacing.sm,
-    elevation:       2,
-    shadowColor:     Colors.black,
-    shadowOffset:    { width: 0, height: 2 },
-    shadowOpacity:   0.07,
-    shadowRadius:    4,
+    justifyContent:  'center',
+    zIndex:          10,
+  },
+
+  // ── Scroll ──────────────────────────────────────────────────────────────────
+  scroll:        { flex: 1 },
+  scrollContent: { paddingBottom: spacing.xs },
+
+  // ── Hero card ───────────────────────────────────────────────────────────────
+  heroCard: {
+    backgroundColor:   colors.primary,
+    alignItems:        'center',
+    paddingHorizontal: spacing.lg,
+    paddingBottom:     spacing.xl,
+    marginBottom:      spacing.sm,
   },
   avatarRing: {
-    width:        100,
-    height:       100,
+    width:        96,
+    height:       96,
     borderRadius: BorderRadius.full,
     borderWidth:  3,
-    borderColor:  Colors.primary,
-    marginBottom: Spacing.md,
+    borderColor:  'rgba(255,255,255,0.6)',
+    marginBottom: spacing.sm,
     overflow:     'hidden',
   },
   avatarImage:   { width: '100%', height: '100%' },
   avatarFallback: {
-    flex:           1,
-    backgroundColor: Colors.primary,
-    alignItems:     'center',
-    justifyContent: 'center',
+    flex:            1,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    alignItems:      'center',
+    justifyContent:  'center',
   },
-  avatarLetter: { fontSize: 40, fontWeight: '700', color: Colors.white },
+  avatarLetter: { fontSize: 40, fontWeight: '700', color: colors.white },
 
-  // Availability badge
-  availabilityBadge: {
+  availBadge: {
     flexDirection:     'row',
     alignItems:        'center',
     borderRadius:      BorderRadius.full,
-    paddingHorizontal: 10,
+    paddingHorizontal: spacing.sm,
     paddingVertical:   3,
-    marginBottom:      Spacing.sm,
+    marginBottom:      spacing.xs,
     gap:               5,
   },
-  availabilityOn:  { backgroundColor: Colors.primary + '15' },
-  availabilityOff: { backgroundColor: Colors.gray + '18' },
-  availabilityDot: { width: 7, height: 7, borderRadius: 4 },
-  availabilityText: { fontSize: FontSizes.xs, fontWeight: '600' },
+  availBadgeOn:  { backgroundColor: 'rgba(255,255,255,0.9)' },
+  availBadgeOff: { backgroundColor: 'rgba(255,255,255,0.7)' },
+  availDot:     { width: 7, height: 7, borderRadius: 4 },
+  availText:    { fontSize: typography.sizes.xs, fontWeight: '700' },
 
-  heroName:      { fontSize: FontSizes.xl, fontWeight: '700', color: Colors.text },
-  heroSpecialty: {
-    fontSize:    FontSizes.sm,
-    color:       Colors.textSecondary,
-    marginTop:   3,
-    marginBottom: Spacing.sm,
+  heroName: {
+    fontSize:   typography.sizes.xl,
+    fontWeight: '800',
+    color:      colors.white,
+    textAlign:  'center',
   },
-
-  heroRating: {
+  heroSpecialty: {
+    fontSize:     typography.sizes.sm,
+    color:        'rgba(255,255,255,0.85)',
+    marginTop:    3,
+    marginBottom: spacing.xs,
+  },
+  heroRatingRow: {
     flexDirection: 'row',
     alignItems:    'center',
     gap:           5,
-    marginBottom:  Spacing.sm,
+    marginBottom:  spacing.xs,
   },
-  starRow:      { flexDirection: 'row', gap: 2 },
-  ratingValue:  { fontSize: FontSizes.sm, fontWeight: '700', color: Colors.text },
-  ratingCount:  { fontSize: FontSizes.xs, color: Colors.textSecondary },
+  starRow:         { flexDirection: 'row', gap: 2 },
+  heroRatingValue: { fontSize: typography.sizes.sm, fontWeight: '700', color: colors.white },
+  heroReviewCount: { fontSize: typography.sizes.xs, color: 'rgba(255,255,255,0.8)' },
 
-  heroHospital: {
+  heroHospitalRow: {
     flexDirection: 'row',
     alignItems:    'center',
     gap:           4,
-    marginTop:     4,
+    marginTop:     3,
   },
-  heroHospitalText: { fontSize: FontSizes.xs, color: Colors.textSecondary },
+  heroHospitalText: { fontSize: typography.sizes.xs, color: 'rgba(255,255,255,0.8)' },
 
-  heroLoadingIndicator: { marginTop: Spacing.sm },
-
-  // ── Stats row ──────────────────────────────────────────────────────────────
+  // ── Stats row ───────────────────────────────────────────────────────────────
   statsRow: {
-    flexDirection:   'row',
-    backgroundColor: Colors.white,
-    marginBottom:    Spacing.sm,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-    justifyContent:  'space-around',
-    elevation:       1,
-    shadowColor:     Colors.black,
-    shadowOffset:    { width: 0, height: 1 },
-    shadowOpacity:   0.05,
-    shadowRadius:    2,
+    flexDirection:     'row',
+    backgroundColor:   colors.white,
+    marginHorizontal:  spacing.md,
+    marginBottom:      spacing.sm,
+    borderRadius:      BorderRadius.xl,
+    paddingVertical:   spacing.md,
+    paddingHorizontal: spacing.sm,
+    justifyContent:    'space-around',
+    ...shadows.sm,
   },
   statChip: {
-    alignItems:  'center',
-    gap:         4,
-    flex:        1,
+    flex:       1,
+    alignItems: 'center',
+    gap:        4,
   },
   statIconBox: {
     width:          40,
@@ -591,145 +682,168 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  statValue: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text },
-  statLabel: { fontSize: 10, color: Colors.textSecondary, textAlign: 'center' },
+  statValue: {
+    fontSize:   typography.sizes.md,
+    fontWeight: '700',
+    color:      colors.text,
+  },
+  statLabel: {
+    fontSize:  10,
+    color:     colors.textSecondary,
+    textAlign: 'center',
+  },
 
-  // ── Section card ───────────────────────────────────────────────────────────
+  // ── Unavailable notice ──────────────────────────────────────────────────────
+  unavailableBanner: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   colors.warning + '18',
+    borderRadius:      BorderRadius.md,
+    marginHorizontal:  spacing.md,
+    marginBottom:      spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.sm,
+    gap:               spacing.xs,
+    borderStartWidth:  3,
+    borderStartColor:  colors.warning,
+  },
+  unavailableText: {
+    flex:     1,
+    fontSize: typography.sizes.sm,
+    color:    colors.warning,
+  },
+
+  // ── Section card ────────────────────────────────────────────────────────────
   sectionCard: {
-    backgroundColor:   Colors.white,
-    marginHorizontal:  Spacing.md,
-    marginBottom:      Spacing.sm,
+    backgroundColor:   colors.white,
+    marginHorizontal:  spacing.md,
+    marginBottom:      spacing.sm,
     borderRadius:      BorderRadius.xl,
-    padding:           Spacing.md,
-    elevation:         1,
-    shadowColor:       Colors.black,
-    shadowOffset:      { width: 0, height: 1 },
-    shadowOpacity:     0.05,
-    shadowRadius:      2,
+    padding:           spacing.md,
+    ...shadows.sm,
   },
   sectionTitle: {
-    fontSize:     FontSizes.sm,
+    fontSize:     typography.sizes.sm,
     fontWeight:   '700',
-    color:        Colors.textSecondary,
-    marginBottom: Spacing.sm,
-    textAlign:    'right',
+    color:        colors.textSecondary,
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 
-  // ── Bio ────────────────────────────────────────────────────────────────────
+  // ── Bio ─────────────────────────────────────────────────────────────────────
   bioText: {
-    fontSize:  FontSizes.sm,
-    color:     Colors.text,
+    fontSize:   typography.sizes.sm,
+    color:      colors.text,
     lineHeight: 22,
-    textAlign: 'right',
   },
   bioToggle: {
-    fontSize:   FontSizes.xs,
-    color:      Colors.primary,
+    fontSize:   typography.sizes.xs,
+    color:      colors.primary,
     fontWeight: '600',
-    marginTop:  Spacing.xs,
-    textAlign:  'right',
+    marginTop:  spacing.xs,
   },
 
-  // ── Working hours ──────────────────────────────────────────────────────────
+  // ── Working hours ────────────────────────────────────────────────────────────
   hourRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    paddingVertical: 6,
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
+    paddingVertical:   7,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: colors.borderLight,
   },
-  hourDay:  {
+  hourDay: {
     flex:       1,
-    fontSize:   FontSizes.sm,
-    color:      Colors.text,
+    fontSize:   typography.sizes.sm,
     fontWeight: '500',
-    textAlign:  'right',
+    color:      colors.text,
   },
-  hourOff:  { fontSize: FontSizes.sm, color: Colors.gray, fontStyle: 'italic' },
-  hourSlots: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, justifyContent: 'flex-end' },
-  hourSlotPill: {
-    backgroundColor:   Colors.primary + '15',
+  hourOff: {
+    fontSize:   typography.sizes.sm,
+    color:      colors.gray,
+    fontStyle:  'italic',
+  },
+  hourPill: {
+    backgroundColor:   colors.primary + '15',
     borderRadius:      BorderRadius.full,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.sm,
     paddingVertical:   2,
   },
-  hourSlotText: { fontSize: FontSizes.xs, color: Colors.primary, fontWeight: '600' },
+  hourPillText: {
+    fontSize:   typography.sizes.xs,
+    fontWeight: '600',
+    color:      colors.primary,
+  },
 
-  // ── Education ──────────────────────────────────────────────────────────────
+  // ── Education ───────────────────────────────────────────────────────────────
   eduRow: {
     flexDirection: 'row',
     alignItems:    'flex-start',
-    gap:           Spacing.sm,
+    gap:           spacing.sm,
     paddingVertical: 4,
   },
   eduText: {
     flex:       1,
-    fontSize:   FontSizes.sm,
-    color:      Colors.text,
-    textAlign:  'right',
+    fontSize:   typography.sizes.sm,
+    color:      colors.text,
     lineHeight: 20,
   },
 
-  // ── Languages ──────────────────────────────────────────────────────────────
-  langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, justifyContent: 'flex-end' },
+  // ── Languages ────────────────────────────────────────────────────────────────
+  langRow: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:           spacing.xs,
+  },
   langPill: {
-    backgroundColor:   Colors.primary + '15',
+    backgroundColor:   colors.secondary + '15',
     borderRadius:      BorderRadius.full,
     paddingHorizontal: 12,
     paddingVertical:   4,
   },
-  langText: { fontSize: FontSizes.sm, color: Colors.primary, fontWeight: '500' },
+  langText: {
+    fontSize:   typography.sizes.sm,
+    color:      colors.secondary,
+    fontWeight: '500',
+  },
 
-  // ── Sticky footer ──────────────────────────────────────────────────────────
+  // ── Sticky footer ────────────────────────────────────────────────────────────
   footer: {
     flexDirection:     'row',
-    backgroundColor:   Colors.white,
-    paddingHorizontal: Spacing.md,
-    paddingTop:        Spacing.sm,
+    alignItems:        'center',
+    backgroundColor:   colors.white,
+    paddingHorizontal: spacing.md,
+    paddingTop:        spacing.sm,
     borderTopWidth:    1,
-    borderTopColor:    Colors.border,
-    gap:               Spacing.sm,
-    elevation:         8,
-    shadowColor:       Colors.black,
-    shadowOffset:      { width: 0, height: -2 },
-    shadowOpacity:     0.07,
-    shadowRadius:      4,
+    borderTopColor:    colors.border,
+    gap:               spacing.sm,
+    ...shadows.md,
   },
 
-  // "Chat" outline button
   chatBtn: {
-    flex:           1,
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'center',
-    borderWidth:    1.5,
-    borderColor:    Colors.primary,
-    borderRadius:   BorderRadius.xl,
-    paddingVertical: Spacing.sm,
-    gap:            6,
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderWidth:     1.5,
+    borderColor:     colors.primary,
+    borderRadius:    BorderRadius.xl,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap:             6,
+    height:          48,
   },
   chatBtnText: {
-    fontSize:   FontSizes.md,
-    color:      Colors.primary,
+    fontSize:   typography.sizes.md,
     fontWeight: '700',
+    color:      colors.primary,
   },
 
-  // "Book" filled button
-  bookBtn: {
-    flex:           2,
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius:   BorderRadius.xl,
-    paddingVertical: Spacing.sm,
-    gap:            6,
+  bookBtnWrapper: {
+    flex: 2,
   },
-  bookBtnDisabled: { backgroundColor: Colors.gray },
-  bookBtnText: {
-    fontSize:   FontSizes.md,
-    color:      Colors.white,
-    fontWeight: '700',
+  bookBtnDisabled: {
+    backgroundColor: colors.gray,
   },
 });
 
