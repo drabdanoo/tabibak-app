@@ -38,8 +38,16 @@ function getOrInitAuth(firebaseApp) {
       : require('@firebase/auth').getReactNativePersistence(AsyncStorage);
     return initializeAuth(firebaseApp, { persistence: _persistence });
   } catch (e) {
-    // auth/already-initialized — return the already-created instance
-    return getAuth(firebaseApp);
+    // Check for specific Firebase persistence error codes
+    if (e.code === 'auth/already-initialized' || 
+        e.message?.includes('already initialized') ||
+        e.message?.includes('already exists')) {
+      // auth/already-initialized — return the already-created instance
+      return getAuth(firebaseApp);
+    }
+    // Re-throw for any other persistence initialization errors
+    console.error('Failed to initialize Firebase Auth persistence:', e);
+    throw e;
   }
 }
 

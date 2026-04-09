@@ -44,6 +44,7 @@ import {
   Image,
   TouchableOpacity,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -238,7 +239,7 @@ export default function DoctorDetailsScreen({ route, navigation }) {
   if (!doctor && !deepLoading) {
     return (
       <View style={S.root}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
         <View style={S.centered}>
           <Ionicons name="alert-circle-outline" size={64} color={Colors.error} />
           <Text style={S.errorTitle}>Doctor not found</Text>
@@ -252,7 +253,11 @@ export default function DoctorDetailsScreen({ route, navigation }) {
 
   return (
     <View style={S.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={Colors.primary}
+        translucent={Platform.OS === 'android'}
+      />
 
       {/* ── SCROLLABLE CONTENT ────────────────────────────────────── */}
       <ScrollView
@@ -263,7 +268,7 @@ export default function DoctorDetailsScreen({ route, navigation }) {
         {/* ── HERO ─────────────────────────────────────────────────── */}
         <View style={S.hero}>
           {/* Status bar spacer — replaces SafeAreaView top edge */}
-          <View style={{ height: insets.top }} />
+          <View style={{ height: insets.top, backgroundColor: Colors.primary }} />
 
           {/* Top bar: back button (flow-based, RTL-safe) */}
           <View style={S.heroTopBar}>
@@ -583,8 +588,17 @@ const S = StyleSheet.create({
     marginTop: Spacing.md,
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,
-    boxShadow: '0px 2px 8px rgba(0,0,0,0.06)',
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   sectionTitle: {
     fontSize: FontSizes.md,

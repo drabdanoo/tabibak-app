@@ -1,0 +1,26 @@
+appId: com.abdullah.reacttabibok
+---
+# Test Doctor logout — clears state, logs in as Doctor, then taps Sign Out
+- clearState
+- launchApp
+- waitForAnimationToEnd
+- assertVisible: "Choose your role to continue"
+- waitForAnimationToEnd
+- tapOn:
+    id: "role-card-doctor"
+- waitForAnimationToEnd
+- assertVisible: "Email Address"
+- tapOn: "Enter your email"
+- inputText: ${TEST_DOCTOR_EMAIL}
+- tapOn: "Enter your password"
+- inputText: ${TEST_PASSWORD}
+- tapOn: "Sign In"
+- waitForAnimationToEnd
+- takeScreenshot: "logged_in_as_doctor"
+- tapOn: "Profile"
+- waitForAnimationToEnd
+- tapOn: "Sign Out"
+- waitForAnimationToEnd
+- takeScreenshot: "after_sign_out"
+- assertVisible: "Choose your role to continue"
+- takeScreenshot: "role_selection_after_logout"

@@ -53,6 +53,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -303,7 +304,7 @@ const NotificationsScreen = () => {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={Platform.OS === 'ios' ? ['top'] : undefined}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
 
       {/* ══ Header ══ */}

@@ -54,6 +54,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,7 +68,6 @@ import {
   spacing,
   typography,
   BorderRadius,
-  shadows,
 } from '../../config/theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,6 +84,31 @@ const DAY_ORDER = [
   'monday', 'tuesday', 'wednesday', 'thursday',
   'friday', 'saturday', 'sunday',
 ];
+
+// Platform-specific shadow definitions
+const shadowSm = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 2,
+  },
+  android: {
+    elevation: 3,
+  },
+});
+
+const shadowMd = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  android: {
+    elevation: 5,
+  },
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -668,7 +693,7 @@ const styles = StyleSheet.create({
     paddingVertical:   spacing.md,
     paddingHorizontal: spacing.sm,
     justifyContent:    'space-around',
-    ...shadows.sm,
+    ...shadowSm,
   },
   statChip: {
     flex:       1,
@@ -720,7 +745,7 @@ const styles = StyleSheet.create({
     marginBottom:      spacing.sm,
     borderRadius:      BorderRadius.xl,
     padding:           spacing.md,
-    ...shadows.sm,
+    ...shadowSm,
   },
   sectionTitle: {
     fontSize:     typography.sizes.sm,
@@ -818,7 +843,7 @@ const styles = StyleSheet.create({
     borderTopWidth:    1,
     borderTopColor:    colors.border,
     gap:               spacing.sm,
-    ...shadows.md,
+    ...shadowMd,
   },
 
   chatBtn: {

@@ -1,0 +1,65 @@
+﻿appId: com.abdullah.reacttabibok
+---
+
+# 🔐 Auto-injected login (doctor)
+- clearState
+- launchApp
+- waitForAnimationToEnd
+# Handle possible iOS permission alerts
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Don’t Allow"
+    commands:
+      - tapOn: "Don’t Allow"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+      - waitForAnimationToEnd
+- assertVisible: "Choose your role to continue"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "role-card-doctor"
+    commands:
+      - tapOn:
+          id: "role-card-doctor"
+- runFlow:
+    when:
+      visible: "Doctor"
+    commands:
+      - tapOn: "Doctor"
+- waitForAnimationToEnd
+- assertVisible: "Email Address"
+- tapOn: "Enter your email"
+- inputText: ${TEST_DOCTOR_EMAIL}
+- tapOn: "Enter your password"
+- inputText: ${TEST_PASSWORD}
+- tapOn: "Sign In"
+- waitForAnimationToEnd
+# 🔐 End login
+
+# ⚙️ Doctor Settings
+- assertVisible: "Profile"
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Doctor Settings"
+    direction: DOWN
+- takeScreenshot: "doctor_settings_screen"
+- takeScreenshot: "settings_area"
+- waitForAnimationToEnd
+- tapOn: "Availability"
+- tapOn: "Save Changes"
+- assertVisible: "Settings Updated"
+- takeScreenshot: "settings_updated"
+- back

@@ -28,7 +28,7 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
-import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -145,7 +145,7 @@ const DoctorMapScreen = ({ navigation, route }) => {
         { edgePadding: { top: 80, right: 40, bottom: 80, left: 40 }, animated: true },
       );
     }
-  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, focusDoctor, filtered]); // Fixed: added filtered dependency
 
   // ── Filter by search text ────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -220,7 +220,7 @@ const DoctorMapScreen = ({ navigation, route }) => {
       <MapView
         ref={mapRef}
         style={S.map}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
         initialRegion={INITIAL_REGION}
         showsUserLocation
         showsMyLocationButton

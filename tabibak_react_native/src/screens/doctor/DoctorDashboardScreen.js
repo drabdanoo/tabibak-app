@@ -50,6 +50,7 @@ import {
   ActivityIndicator,
   StatusBar,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -622,18 +623,22 @@ export default function DoctorDashboardScreen({ navigation }) {
             <Text style={S.headerDate}>{formatTodayLong()}</Text>
           </View>
           <View style={S.headerAvatar}>
-            <Text style={S.headerAvatarText}>
-              {getInitials(userProfile?.fullName ?? user?.displayName)}
-            </Text>
+            {userProfile?.photoURL ? (
+              <Image
+                source={{ uri: userProfile.photoURL }}
+                style={{ width: 52, height: 52, borderRadius: 26 }}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={S.headerAvatarText}>
+                {getInitials(userProfile?.fullName ?? user?.displayName)}
+              </Text>
+            )}
           </View>
         </View>
 
         {/* ── STATS ROW ──────────────────────────────────────────────────── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={S.statsRow}
-        >
+        <View style={S.statsRow}>
           <StatCard
             icon="people-outline"
             label={t('doctor.stats.today')}
@@ -658,7 +663,7 @@ export default function DoctorDashboardScreen({ navigation }) {
             value={stats.remaining}
             accent={STAT_ACCENTS.remaining}
           />
-        </ScrollView>
+        </View>
 
         {/* ── ANALYTICS ──────────────────────────────────────────────────── */}
         <AnalyticsCard weeklyStats={weeklyStats} t={t} />
@@ -816,13 +821,14 @@ const S = StyleSheet.create({
 
   // ── Stats Row ────────────────────────────────────────────────────────────
   statsRow: {
+    flexDirection: 'row',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginTop: -spacing.lg,        // pulls cards up into the green header band
   },
   statCard: {
-    width: 110,
+    flex: 1,
     backgroundColor: colors.white,
     borderRadius: BorderRadius.lg,
     borderTopWidth: 4,

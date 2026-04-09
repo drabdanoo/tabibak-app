@@ -8,6 +8,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import storageService from '../services/storageService';
@@ -55,11 +56,23 @@ export default function DocumentUploader({ patientId, onUploadComplete }) {
         setSelectedImage(result);
         setShowModal(true);
       } else if (result.error) {
-        Alert.alert('Error', result.error);
+        // Handle iOS cancellation - don't show error alert for user cancellation
+        const isIOSCancellation = Platform.OS === 'ios' && 
+          (result.error.includes('cancel') || result.error.includes('permission') || result.error.includes('user'));
+        
+        if (!isIOSCancellation) {
+          Alert.alert('Error', result.error);
+        }
       }
     } catch (error) {
-      console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo');
+      // Handle iOS cancellation in catch block
+      const isIOSCancellation = Platform.OS === 'ios' && 
+        (error.message.includes('cancel') || error.message.includes('permission') || error.message.includes('user'));
+      
+      if (!isIOSCancellation) {
+        console.error('Error taking photo:', error);
+        Alert.alert('Error', 'Failed to take photo');
+      }
     }
   };
 
@@ -76,11 +89,23 @@ export default function DocumentUploader({ patientId, onUploadComplete }) {
         setSelectedImage(result);
         setShowModal(true);
       } else if (result.error) {
-        Alert.alert('Error', result.error);
+        // Handle iOS cancellation - don't show error alert for user cancellation
+        const isIOSCancellation = Platform.OS === 'ios' && 
+          (result.error.includes('cancel') || result.error.includes('permission') || result.error.includes('user'));
+        
+        if (!isIOSCancellation) {
+          Alert.alert('Error', result.error);
+        }
       }
     } catch (error) {
-      console.error('Error choosing from gallery:', error);
-      Alert.alert('Error', 'Failed to select image');
+      // Handle iOS cancellation in catch block
+      const isIOSCancellation = Platform.OS === 'ios' && 
+        (error.message.includes('cancel') || error.message.includes('permission') || error.message.includes('user'));
+      
+      if (!isIOSCancellation) {
+        console.error('Error choosing from gallery:', error);
+        Alert.alert('Error', 'Failed to select image');
+      }
     }
   };
 
@@ -153,7 +178,18 @@ export default function DocumentUploader({ patientId, onUploadComplete }) {
 
   return (
     <>
-      <TouchableOpacity style={styles.uploadButton} onPress={showUploadOptions}>
+      <TouchableOpacity 
+        style={[
+          styles.uploadButton,
+          Platform.OS === 'ios' && {
+            shadowColor: colors.shadow || '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+          }
+        ]} 
+        onPress={showUploadOptions}
+      >
         <Ionicons name="cloud-upload-outline" size={24} color={colors.white} />
         <Text style={styles.uploadButtonText}>Upload Document</Text>
       </TouchableOpacity>
@@ -204,6 +240,12 @@ export default function DocumentUploader({ patientId, onUploadComplete }) {
                     style={[
                       styles.categoryButton,
                       documentCategory === cat && styles.categoryButtonActive,
+                      Platform.OS === 'ios' && {
+                        shadowColor: colors.shadow || '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 1.41,
+                      }
                     ]}
                     onPress={() => setDocumentCategory(cat)}
                   >
@@ -222,14 +264,32 @@ export default function DocumentUploader({ patientId, onUploadComplete }) {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[
+                  styles.modalButton, 
+                  styles.cancelButton,
+                  Platform.OS === 'ios' && {
+                    shadowColor: colors.shadow || '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 1.41,
+                  }
+                ]}
                 onPress={() => setShowModal(false)}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, styles.uploadModalButton]}
+                style={[
+                  styles.modalButton, 
+                  styles.uploadModalButton,
+                  Platform.OS === 'ios' && {
+                    shadowColor: colors.shadow || '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 1.41,
+                  }
+                ]}
                 onPress={handleUpload}
               >
                 <Text style={styles.uploadModalButtonText}>Upload</Text>
@@ -252,6 +312,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: 12,
     marginVertical: spacing.md,
+    elevation: 4,
   },
   uploadButtonText: {
     color: colors.white,
@@ -291,6 +352,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 16,
     padding: spacing.lg,
+    elevation: 5,
+    shadowColor: colors.shadow || '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -349,6 +415,7 @@ const styles = StyleSheet.create({
     margin: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border || '#e0e0e0',
+    elevation: 2,
   },
   categoryButtonActive: {
     backgroundColor: colors.primary,
@@ -371,6 +438,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: 8,
     alignItems: 'center',
+    elevation: 2,
   },
   cancelButton: {
     backgroundColor: colors.background,

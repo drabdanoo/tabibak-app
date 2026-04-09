@@ -63,7 +63,7 @@ class StorageService {
         : true;
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: allowsEditing,
         aspect: options.aspect || [4, 3],
         quality: options.quality || 0.8,
@@ -105,7 +105,7 @@ class StorageService {
         : true;
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ['images', 'videos'],
         allowsEditing: allowsEditing,
         aspect: options.aspect || [4, 3],
         quality: options.quality || 0.8,

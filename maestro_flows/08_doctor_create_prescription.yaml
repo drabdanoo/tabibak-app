@@ -1,0 +1,53 @@
+appId: com.abdullah.reacttabibok
+---
+
+# ── Auto-injected login (doctor) ──────────────────────
+- clearState
+- launchApp
+- waitForAnimationToEnd
+- assertVisible: "Choose your role to continue"
+- waitForAnimationToEnd
+- tapOn:
+    id: "role-card-doctor"
+- waitForAnimationToEnd
+- assertVisible: "Email Address"
+- tapOn: "Enter your email"
+- inputText: ${TEST_DOCTOR_EMAIL}
+- tapOn: "Enter your password"
+- inputText: ${TEST_PASSWORD}
+- tapOn: "Sign In"
+- waitForAnimationToEnd
+# ── End login ────────────────────────────────────────────────────────
+
+- assertVisible: "Appointments"
+- tapOn: "Appointments"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+- waitForAnimationToEnd
+- assertVisible: "Patient Details"
+- assertVisible: "Write Prescription"
+- tapOn: "Write Prescription"
+- waitForAnimationToEnd
+- assertVisible: "New Prescription"
+- takeScreenshot: "new_prescription_screen"
+- tapOn: "medication_name_input"
+- inputText: "Amoxicillin"
+- waitForAnimationToEnd
+# Verify partial match shows up in search results
+- assertVisible: "Amoxicillin"
+- tapOn: "Amoxicillin"
+- waitForAnimationToEnd
+- tapOn: "dosage_input"
+- inputText: "500mg"
+- tapOn: "frequency_input"
+- inputText: "Twice daily"
+- tapOn: "duration_input"
+- inputText: "7 days"
+- tapOn: "notes_input"
+- inputText: "Take with food"
+- takeScreenshot: "prescription_form_filled"
+- tapOn: "Save Prescription"
+- waitForAnimationToEnd
+- assertVisible: "Prescription Saved"
+- takeScreenshot: "prescription_saved_success"

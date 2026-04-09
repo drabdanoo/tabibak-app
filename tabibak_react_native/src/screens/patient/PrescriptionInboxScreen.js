@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,9 +50,16 @@ function formatDateTime(ts) {
 
 const PrescriptionBubble = React.memo(function PrescriptionBubble({ item, onMarkRead }) {
   const isUnread = item.status === 'unread';
+  const bubbleStyle = [S.bubble, isUnread && S.bubbleUnread];
+  
+  // Platform-specific shadow offset
+  const shadowOffset = Platform.select({
+    ios: { width: 0, height: 3 },
+    android: { width: 0, height: 1 },
+  });
 
   return (
-    <View style={[S.bubble, isUnread && S.bubbleUnread]}>
+    <View style={[...bubbleStyle, { shadowOffset }]}>
       {/* Doctor header */}
       <View style={S.bubbleHeader}>
         <View style={S.bubbleDoctorIcon}>
@@ -310,9 +318,9 @@ const S = StyleSheet.create({
     borderStartColor: Colors.primary + '55',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
+    // shadowOffset is now set conditionally in the component
   },
   bubbleUnread: {
     borderStartColor: Colors.primary,

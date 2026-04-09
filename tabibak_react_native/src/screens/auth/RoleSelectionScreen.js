@@ -70,6 +70,8 @@ const RoleSelectionScreen = ({ navigation }) => {
         {ROLE_CARDS.map(({ role, icon, accentColor, titleKey, descKey }) => (
           <TouchableOpacity
             key={role}
+            testID={`role-card-${role}`}
+            accessibilityLabel={t(titleKey)}
             style={[styles.roleCard, { borderColor: accentColor + '30' }]}
             onPress={() => handleRoleSelect(role)}
             activeOpacity={0.75}
