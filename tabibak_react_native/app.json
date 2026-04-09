@@ -6,19 +6,29 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#10b981"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.abdullah.reacttabibok",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "1",
+      "buildNumber": "2",
+      "config": {
+        "googleMapsApiKey": "AIzaSyAnsDB584i5_CDzAyTOjRnLFdeoTti6Yew"
+      },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Allow camera access to take photos for profile pictures and document uploads",
+        "NSPhotoLibraryUsageDescription": "Allow access to photo library to select profile pictures and documents",
+        "NSPhotoLibraryAddUsageDescription": "Tabibok needs permission to save documents to your photo library.",
+        "NSLocationWhenInUseUsageDescription": "Tabibok uses your location to show nearby doctors on the map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Tabibok uses your location to show nearby doctors on the map.",
+        "NSMicrophoneUsageDescription": "Allow microphone access for video recording (if applicable)",
+        "NSUserNotificationsUsageDescription": "Tabibok sends notifications for appointment reminders and messages."
       }
     },
     "android": {
@@ -29,7 +39,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.abdullah.reacttabibok",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 3
+      "versionCode": 7
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,6 +51,7 @@
     },
     "owner": "abdanoo",
     "plugins": [
+      "./plugins/withFirebaseFix",
       "expo-localization",
       [
         "expo-notifications",
@@ -54,6 +65,13 @@
       [
         "expo-build-properties",
         {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "1.9.25"
+          },
           "ios": {
             "useFrameworks": "static"
           }

@@ -3,10 +3,18 @@
 
 # ─── Dependencies ────────────────────────────────────────────────────────────
 node_modules/
+**/node_modules/
 
 # ─── Generated native folders (Expo Prebuild output) ─────────────────────────
 android/
+/android
+**/android/
+android/app/build/
+android/.gradle/
+android/build/
 ios/
+/ios
+**/ios/
 .kotlin/
 
 # ─── Expo / Metro cache ───────────────────────────────────────────────────────
