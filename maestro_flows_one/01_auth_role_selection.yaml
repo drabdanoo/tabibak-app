@@ -1,0 +1,34 @@
+﻿appId: com.abdullah.reacttabibok
+---
+- clearState
+- launchApp
+- waitForAnimationToEnd
+# Handle possible iOS permission alerts on first launch
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Don’t Allow"
+    commands:
+      - tapOn: "Don’t Allow"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+      - waitForAnimationToEnd
+- assertVisible: "Choose your role to continue"
+- takeScreenshot: "role_selection_screen"
+- waitForAnimationToEnd
+- assertVisible: "Patient"
+- assertVisible: "Doctor"
+- assertVisible: "Receptionist"
+- takeScreenshot: "all_roles_visible"
+- tapOn: "Patient"
+- waitForAnimationToEnd
+- takeScreenshot: "phone_auth_screen"

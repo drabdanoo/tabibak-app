@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../config/theme';
 
 /**
@@ -26,6 +26,8 @@ const ScreenContainer = ({
   style,
   edges = ['top', 'bottom'],
 }) => {
+  const insets = useSafeAreaInsets();
+
   // For a plain View, flex:1 fills the available space (correct).
   // For a ScrollView, flex:1 on contentContainerStyle caps the content to the
   // viewport height and prevents scrolling — use flexGrow:1 instead so the
@@ -50,7 +52,8 @@ const ScreenContainer = ({
     <SafeAreaView style={styles.safe} edges={edges}>
       <KeyboardAvoidingView
         style={styles.kav}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
       >
         {content}
       </KeyboardAvoidingView>

@@ -59,9 +59,9 @@ const ReceptionistTabs = () => {
 const ReceptionistStack = () => {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="ReceptionistTabs" 
-        component={ReceptionistTabs} 
+      <Stack.Screen
+        name="ReceptionistTabs"
+        component={ReceptionistTabs}
         options={{ headerShown: false }}
       />
       <Stack.Screen

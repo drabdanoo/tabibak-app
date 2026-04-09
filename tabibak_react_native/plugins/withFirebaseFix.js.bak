@@ -1,0 +1,98 @@
+﻿/**
+ * withFirebaseFix.js
+ *
+ * Config plugin that injects CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES
+ * into the existing post_install block of the iOS Podfile. Required when using
+ * @react-native-firebase with useFrameworks: "static" and New Architecture
+ * enabled on Expo SDK 54+ / React Native 0.76+.
+ *
+ * Error fixed:
+ *   include of non-modular header inside framework module 'RNFBApp.*'
+ *   [-Werror,-Wnon-modular-include-in-framework-module]
+ *
+ * IMPORTANT: CocoaPods only executes the LAST post_install block in the Podfile.
+ * We must inject into the existing block, not append a new one. The Expo-generated
+ * Podfile has post_install as the very last block, so its closing 'end' is the
+ * last bare 'end' line in the file.
+ */
+
+const { withDangerousMod } = require('@expo/config-plugins');
+const fs = require('fs');
+const path = require('path');
+
+const PATCH_MARKER = '# withFirebaseFix: CLANG_ALLOW_NON_MODULAR_INCLUDES';
+
+const INJECTED_LINES = [
+  '  ' + PATCH_MARKER,
+  '  installer.pods_project.targets.each do |target|',
+  '    target.build_configurations.each do |config|',
+  "      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'",
+  '    end',
+  '  end',
+];
+
+module.exports = function withFirebaseFix(config) {
+  return withDangerousMod(config, [
+    'ios',
+    async (config) => {
+      const podfilePath = path.join(
+        config.modRequest.platformProjectRoot,
+        'Podfile'
+      );
+
+      if (!fs.existsSync(podfilePath)) {
+        console.warn('[withFirebaseFix] Podfile not found, skipping patch');
+        return config;
+      }
+
+      let contents = fs.readFileSync(podfilePath, 'utf8');
+
+      // Idempotent: skip if already patched
+      if (contents.includes(PATCH_MARKER)) {
+        return config;
+      }
+
+      const lines = contents.split('\n');
+
+      // The Expo Podfile ends with the post_install block.
+      // Find the LAST line that is exactly 'end' (with optional surrounding whitespace)
+      // and insert our code just before it. This is the closing end of post_install.
+      let lastEndLineIdx = -1;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        if (/^\s*end\s*$/.test(lines[i])) {
+          lastEndLineIdx = i;
+          break;
+        }
+      }
+
+      if (lastEndLineIdx < 0) {
+        console.warn('[withFirebaseFix] Could not find closing end in Podfile, skipping');
+        return config;
+      }
+
+      // Verify this end closes a post_install block by scanning backwards to find
+      // "post_install do" â€” this confirms we're inside the right block
+      let foundPostInstall = false;
+      for (let i = lastEndLineIdx - 1; i >= 0; i--) {
+        if (/post_install\s+do/.test(lines[i])) {
+          foundPostInstall = true;
+          break;
+        }
+      }
+
+      if (!foundPostInstall) {
+        console.warn('[withFirebaseFix] Could not confirm post_install block, skipping');
+        return config;
+      }
+
+      // Insert our lines just before the closing 'end'
+      lines.splice(lastEndLineIdx, 0, ...INJECTED_LINES);
+
+      fs.writeFileSync(podfilePath, lines.join('\n'), 'utf8');
+      console.log('[withFirebaseFix] Injected CLANG_ALLOW_NON_MODULAR_INCLUDES into post_install');
+
+      return config;
+    },
+  ]);
+};
+

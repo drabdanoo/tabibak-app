@@ -39,7 +39,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.abdullah.reacttabibok",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 7
+      "versionCode": 9
     },
     "web": {
       "favicon": "./assets/favicon.png"

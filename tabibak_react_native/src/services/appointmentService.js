@@ -39,7 +39,9 @@ class AppointmentService {
    */
   async checkClinicClosure(doctorId, date) {
     try {
-      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+      // Fixed: Use explicit English day names instead of locale-dependent formatting
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayOfWeek = days[date.getDay()];
       
       // Get doctor's working hours
       const doctorDoc = await getDoc(doc(this.db, COLLECTIONS.DOCTORS, doctorId));
@@ -469,7 +471,9 @@ class AppointmentService {
       }
 
       const doctorData = doctorDoc.data();
-      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+      // Fixed: Use explicit English day names instead of locale-dependent formatting
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayOfWeek = days[date.getDay()];
       const workingHours = doctorData.workingHours?.[dayOfWeek];
 
       if (!workingHours || !workingHours.open) {
@@ -609,8 +613,10 @@ class AppointmentService {
       if (!doctorSnap.exists()) return [];
 
       const [y, m, d] = dateStr.split('-').map(Number);
-      const dayName = new Date(y, m - 1, d)
-        .toLocaleDateString('en-US', { weekday: 'long' }); // e.g. 'Monday'
+      // Fixed: Use explicit English day names instead of locale-dependent formatting
+      const dateObj = new Date(y, m - 1, d);
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayName = days[dateObj.getDay()];
 
       const dayHours = doctorSnap.data().workingHours?.[dayName];
       // Doctor not working this day

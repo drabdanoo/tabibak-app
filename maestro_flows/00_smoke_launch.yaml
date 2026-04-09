@@ -1,0 +1,12 @@
+﻿appId: com.abdullah.reacttabibok
+---
+- clearState
+- launchApp
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+      - waitForAnimationToEnd
+- takeScreenshot: "launch_screen"

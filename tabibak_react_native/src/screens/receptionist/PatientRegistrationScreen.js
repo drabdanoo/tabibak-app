@@ -302,7 +302,7 @@ const PatientRegistrationScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.screen}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
         <ScrollView
@@ -572,7 +572,7 @@ const PatientRegistrationScreen = ({ navigation, route }) => {
                   mode="time"
                   display="spinner"
                   onChange={handleTimePickerChange}
-                  locale="ar"
+                  locale="ar-SA"
                   minuteInterval={5}
                 />
               </View>
@@ -584,6 +584,7 @@ const PatientRegistrationScreen = ({ navigation, route }) => {
             mode="time"
             display="default"
             onChange={handleTimePickerChange}
+            locale="ar-SA"
             minuteInterval={5}
           />
         )

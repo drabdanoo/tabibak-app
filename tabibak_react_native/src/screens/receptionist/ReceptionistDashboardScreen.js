@@ -779,7 +779,7 @@ export default function ReceptionistDashboardScreen({ navigation }) {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      <StatusBar backgroundColor={Colors.primaryDark} barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={Platform.OS === 'android' ? Colors.primaryDark : undefined} />
 
       {/* ════════════════════════════════════════════════════════════════════
           HEADER — greeting + live clock + stats pills

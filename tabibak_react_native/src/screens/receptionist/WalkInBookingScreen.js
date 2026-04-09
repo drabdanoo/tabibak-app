@@ -55,6 +55,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   I18nManager,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -685,7 +686,17 @@ const styles = StyleSheet.create({
     marginBottom:    spacing.md,
     borderWidth:     1.5,
     borderColor:     colors.border,
-    ...shadows.sm,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   lockedCard: {
     borderColor: colors.primary,
@@ -790,7 +801,7 @@ const styles = StyleSheet.create({
   },
   genderBtn: {
     flex:           1,
-    flexDirection:  'row',
+    flexDirection:  I18nManager.isRTL ? 'row-reverse' : 'row',
     alignItems:     'center',
     justifyContent: 'center',
     gap:            spacing.xs,
@@ -830,7 +841,17 @@ const styles = StyleSheet.create({
     backgroundColor:   colors.white,
     minWidth:          110,
     alignItems:        'center',
-    ...shadows.sm,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   doctorChipSelected: {
     borderColor:     colors.primary,
@@ -855,7 +876,7 @@ const styles = StyleSheet.create({
     color: colors.primary + 'BB',
   },
   assignedDoctorRow: {
-    flexDirection:  'row',
+    flexDirection:  I18nManager.isRTL ? 'row-reverse' : 'row',
     alignItems:     'center',
     gap:             6,
     paddingVertical: spacing.sm,
@@ -869,7 +890,7 @@ const styles = StyleSheet.create({
     color:      colors.primary,
     fontWeight: '600',
     flex:       1,
-    textAlign:  'right',
+    textAlign: I18nManager.isRTL ? 'right' : 'left',
   },
   doctorsLoading: {
     paddingVertical: spacing.md,

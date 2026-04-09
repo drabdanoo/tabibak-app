@@ -385,7 +385,7 @@ export function usePushNotifications(options = {}) {
     // Fired by Expo's infrastructure when the push token changes (e.g., app
     // reinstall, device transfer, APNs / FCM credential rotation).
     // We update local state AND call the onTokenRefresh callback so the caller
-    // can re-sync Firestore without needing to remount the hook.
+    // can re-sync Firestore without needing to unmount / remount the hook.
     tokenListenerRef.current = Notifications.addPushTokenListener(({ data: newToken }) => {
       if (!isMounted || !newToken) return;
       console.log('[usePushNotifications] Token rotated:', newToken);

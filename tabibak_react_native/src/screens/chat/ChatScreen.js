@@ -349,6 +349,7 @@ const InputBar = memo(({ value, onChangeText, onSend, sending, inputRef, placeho
           returnKeyType="default"
           blurOnSubmit={false}
           textAlignVertical="center"
+          testID="message-input"
         />
       </View>
 

@@ -1,4 +1,4 @@
-{
+﻿{
   "cli": {
     "version": ">= 10.2.0",
     "appVersionSource": "local"
@@ -20,6 +20,11 @@
         "buildType": "apk"
       },
       "ios": {
+        "simulator": false
+      }
+    },
+    "maestro": {
+      "ios": {
         "simulator": true
       }
     },
@@ -34,6 +39,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "obaidaalluhebe@gmail.com",
+        "ascAppId": "6761834600",
+        "appleTeamId": "Q444HLRBL9"
+      }
+    }
   }
 }

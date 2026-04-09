@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" tests="1" failures="1" time="127.772" timestamp="2026-04-08T12:24:53.267">
+    <testcase id="03_auth_email_login_doctor" name="03_auth_email_login_doctor" classname="03_auth_email_login_doctor" time="126.659" timestamp="2026-04-08T12:24:54.287" status="ERROR">
+      <failure>Element not found: Text matching regex: Doctor</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

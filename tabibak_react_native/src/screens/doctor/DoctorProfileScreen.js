@@ -253,7 +253,7 @@ function useDoctorProfile(uid) {
     return () => { cancelled = true; };
   }, [uid]);
 
-  return { profile, loading };
+  return { profile, loading, setProfile };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -424,7 +424,7 @@ export default function DoctorProfileScreen({ navigation }) {
   const uid    = user?.uid;
   const insets = useSafeAreaInsets();
 
-  const { profile, loading: profileLoading } = useDoctorProfile(uid);
+  const { profile, loading: profileLoading, setProfile } = useDoctorProfile(uid);
 
   // ── Profile edit state ────────────────────────────────────────────────────
   const [editMode,      setEditMode]      = useState(false);
@@ -622,6 +622,9 @@ export default function DoctorProfileScreen({ navigation }) {
         }),
       ]);
 
+      // Update local state so the new photo/name/bio renders immediately
+      setProfile(prev => ({ ...prev, ...updates, photoURL }));
+
       setEditMode(false);
       setEditPhoto(null);
       Alert.alert('Saved ✓', 'Profile updated successfully.');
@@ -632,7 +635,7 @@ export default function DoctorProfileScreen({ navigation }) {
       setSavingProfile(false);
       setPhotoUploading(false);
     }
-  }, [uid, editName, editBio, editPhoto, profile, doctorName]);
+  }, [uid, editName, editBio, editPhoto, profile, doctorName, setProfile]);
 
   // ── Handler: sign out with confirmation ───────────────────────────────────
   const handleSignOut = useCallback(() => {

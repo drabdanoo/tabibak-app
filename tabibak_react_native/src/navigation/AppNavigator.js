@@ -64,7 +64,7 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Platform } from 'react-native';
 
 import { useAuth }              from '../contexts/AuthContext';
 import { USER_ROLES }           from '../config/firebase';
@@ -216,7 +216,12 @@ const AppNavigator = () => {
   // AuthContext → notificationService.registerDeviceToken.
   const handleTokenRefresh = useCallback((newToken) => {
     const uid = userRef.current?.uid;
-    if (!uid || !newToken) return;
+    const role = userRoleRef.current;
+    // Fix: Added explicit null checks for uid and role before token sync
+    if (!uid || !role || !newToken) {
+      console.log('[AppNavigator] Token refresh skipped - missing uid or role');
+      return;
+    }
 
     notificationService.syncTokenToUserDocument(uid, newToken).catch((err) =>
       console.warn('[AppNavigator] Token refresh Firestore sync failed:', err),
