@@ -22,6 +22,10 @@ _sim_app.zip
 public/
 functions/
 
+# ─── Dependencies (untracked but belt-and-suspenders) ────────────────────────
+node_modules/
+**/node_modules/
+
 # ─── Firebase / credentials (security) ───────────────────────────────────────
 service-account-key.json
 *.json
