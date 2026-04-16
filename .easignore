@@ -46,6 +46,20 @@ seed/
 .DS_Store
 %USERPROFILE%/
 
+# ─── Cached simulator/device builds ─────────────────────────────────────────
+.cached_sim_app/
+.cached_build*/
+
+# ─── Git internals (inspect tool includes these; real EAS upload strips .git) ─
+.git/
+
+# ─── Log files ───────────────────────────────────────────────────────────────
+*.log
+replay_pid*.log
+hs_err_pid*.log
+firestore-debug.log
+database-debug.log
+
 # ─── Misc root files ─────────────────────────────────────────────────────────
 *.bat
 *.ps1
@@ -56,3 +70,5 @@ recaptcha.txt
 settings.txt
 PATH.txt
 temp_view.txt
+.env
+.env.*
