@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.abdullah.vanbook",
+      "bundleIdentifier": "com.vantaq.vanbook",
       "googleServicesFile": "./GoogleService-Info.plist",
       "buildNumber": "2",
       "config": {
