@@ -148,7 +148,7 @@ const DoctorSettingsScreen = ({ navigation }) => {
     );
   }, [signOut]);
 
-  const doctorName = userProfile?.name ?? userProfile?.displayName ?? 'الطبيب';
+  const doctorName = userProfile?.name ?? userProfile?.displayName ?? '—';
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -161,12 +161,12 @@ const DoctorSettingsScreen = ({ navigation }) => {
         <View style={styles.profileCard}>
           <View style={styles.miniAvatar}>
             <Text style={styles.miniAvatarText}>
-              {(doctorName[0] ?? 'د').toUpperCase()}
+              {(doctorName[0] ?? 'أ').toUpperCase()}
             </Text>
           </View>
           <View>
-            <Text style={styles.profileName}>Dr. {doctorName}</Text>
-            <Text style={styles.profileSpec}>{userProfile?.specialty ?? 'طبيب'}</Text>
+            <Text style={styles.profileName}>{doctorName}</Text>
+            <Text style={styles.profileSpec}>{userProfile?.specialty ?? '—'}</Text>
           </View>
         </View>
 

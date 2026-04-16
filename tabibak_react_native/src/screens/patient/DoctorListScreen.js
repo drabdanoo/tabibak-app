@@ -160,7 +160,7 @@ export default function DoctorListScreen({ navigation }) {
         </View>
 
         <View style={styles.doctorInfo}>
-          <Text style={styles.doctorName}>{item.name || 'Dr. Unknown'}</Text>
+          <Text style={styles.doctorName}>{item.name || 'Unknown Provider'}</Text>
           <Text style={styles.doctorSpecialty}>{item.specialty || 'General'}</Text>
           
           {item.hospital && (
