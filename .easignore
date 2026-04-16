@@ -1,0 +1,58 @@
+# Root-level EAS archive exclusions
+# Keeps the upload to tabibak_react_native/ only.
+# The app-level .easignore at tabibak_react_native/.easignore handles
+# exclusions inside the app folder.
+
+# ─── Testing infrastructure (248 MB) ─────────────────────────────────────────
+maestro_cli/
+maestro_flows/
+maestro_flows_*/
+maestro_flows_smoke/
+maestro_install.zip
+_maestro_flows.zip
+maestro_report*.xml
+
+# ─── Build artefacts / zips ───────────────────────────────────────────────────
+.cached_build.tar.gz
+tabibak_native.zip
+_sim_app.zip
+*.zip
+
+# ─── Web app (separate project) ───────────────────────────────────────────────
+public/
+functions/
+
+# ─── Firebase / credentials (security) ───────────────────────────────────────
+service-account-key.json
+*.json
+!tabibak_react_native/**/*.json
+
+# ─── Documentation / markdown ─────────────────────────────────────────────────
+*.md
+*.txt
+*.pdf
+
+# ─── Scripts / seed / debug ───────────────────────────────────────────────────
+scripts/
+seed/
+*.py
+*.js
+!tabibak_react_native/**/*.js
+
+# ─── IDE / OS artefacts ───────────────────────────────────────────────────────
+.idea/
+.vscode/
+.expo/
+.DS_Store
+%USERPROFILE%/
+
+# ─── Misc root files ─────────────────────────────────────────────────────────
+*.bat
+*.ps1
+*.xml
+*.txt
+*.code-workspace
+recaptcha.txt
+settings.txt
+PATH.txt
+temp_view.txt
