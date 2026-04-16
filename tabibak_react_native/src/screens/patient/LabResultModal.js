@@ -153,7 +153,7 @@ export default function LabResultModal({ visible, order, onClose, doctorView = f
               {/* Doctor's order bubble — LEFT */}
               <View style={S.bubbleRowLeft}>
                 <View style={S.doctorAvatar}>
-                  <Ionicons name="medkit-outline" size={16} color={Colors.primary} />
+                  <Ionicons name="briefcase-outline" size={16} color={Colors.primary} />
                 </View>
                 <View style={[S.bubble, S.bubbleLeft]}>
                   <Text style={S.bubbleSender}>

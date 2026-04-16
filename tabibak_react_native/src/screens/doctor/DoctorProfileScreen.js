@@ -770,7 +770,7 @@ export default function DoctorProfileScreen({ navigation }) {
           {/* Specialty badge */}
           {specialty ? (
             <View style={S.specialtyBadge}>
-              <Ionicons name="medkit-outline" size={12} color={Colors.primary} />
+              <Ionicons name="briefcase-outline" size={12} color={Colors.primary} />
               <Text style={S.specialtyText}>{specialty}</Text>
             </View>
           ) : null}

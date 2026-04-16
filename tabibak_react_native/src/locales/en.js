@@ -1,5 +1,5 @@
 /**
- * English (LTR) translation dictionary — Tabibok Health
+ * English (LTR) translation dictionary — Vanbook
  * Canonical source: all new keys go here first, then mirrored to ar.js
  */
 export default {
@@ -44,23 +44,23 @@ export default {
 
   // ─── Role selection ────────────────────────────────────────────────────────
   roles: {
-    patient:             'Patient',
-    patientDesc:         'Book appointments, view medical records',
-    doctor:              'Doctor',
-    doctorDesc:          'Manage appointments, patient records',
-    receptionist:        'Receptionist',
-    receptionistDesc:    'Confirm appointments, manage schedule',
+    patient:             'Client',
+    patientDesc:         'Book appointments and manage your schedule',
+    doctor:              'Provider',
+    doctorDesc:          'Manage your availability and client appointments',
+    receptionist:        'Staff',
+    receptionistDesc:    'Front desk appointment management',
   },
 
   // ─── Authentication ────────────────────────────────────────────────────────
   auth: {
-    welcome:             'Welcome to Tabibok',
+    welcome:             'Welcome to Vanbook',
     selectRole:          'Choose your role to continue',
-    patient:             'Patient',
-    doctor:              'Doctor',
-    receptionist:        'Receptionist',
+    patient:             'Client',
+    doctor:              'Provider',
+    receptionist:        'Staff',
     phoneNumber:         'Phone Number',
-    phoneHint:           'Enter your Iraqi phone number',
+    phoneHint:           'Enter your phone number',
     sendOtp:             'Send Code',
     otpTitle:            'Enter Verification Code',
     otpSubtitle:         'We sent a 6-digit code to {{phone}}',
@@ -80,9 +80,9 @@ export default {
     male:                'Male',
     female:              'Female',
     completeProfile:     'Continue',
-    profileSubtitle:     'A few details so your doctor knows you',
-    profileDoctorNote:   'Required by your doctor — name and date of birth help provide accurate care.',
-    fullNamePlaceholder: 'As written on your ID',
+    profileSubtitle:     'A few details to set up your account',
+    profileDoctorNote:   'Your name and date of birth are used to identify your account.',
+    fullNamePlaceholder: 'Your full name',
     dobHint:             'Tap to select your date of birth',
     dobFuture:           'Date of birth cannot be in the future.',
     profileRequired:     'Please fill in all required fields.',
@@ -95,10 +95,10 @@ export default {
     loginFailed:         'Invalid credentials. Please try again.',
     loginError:          'Something went wrong. Please try again.',
 
-    invalidPhone:        'Enter a valid Iraqi phone number',
+    invalidPhone:        'Enter a valid phone number',
     invalidOtp:          'Invalid code. Please try again.',
     authError:           'Authentication failed. Please try again.',
-    phoneHelper:         '10-digit Iraqi number, without the leading zero',
+    phoneHelper:         '10-digit number, without the leading zero',
     errors: {
       invalidCode:     'Invalid code. Please check and try again.',
       codeExpired:     'Code has expired. Please request a new one.',
@@ -121,23 +121,23 @@ export default {
     time:            'Time',
     reason:          'Reason for Visit',
     notes:           'Notes',
-    fee:             'Consultation Fee',
+    fee:             'Service Fee',
     duration:        'Duration',
     cancel:          'Cancel Appointment',
     cancelConfirm:   'Are you sure you want to cancel this appointment?',
     confirmAction:   'Confirm',
     declineAction:   'Decline',
     checkInAction:   'Check In',
-    sendToDoctorAction: 'Send to Doctor',
-    viewEMR:         'View Medical Record',
+    sendToDoctorAction: 'Send to Provider',
+    viewEMR:         'View Record',
     writeNotes:      'Write Notes',
-    prescription:    'Prescription',
+    prescription:    'Treatment Plan',
     walkIn:          'Walk-in',
     status: {
       pending:       'Pending',
       confirmed:     'Confirmed',
       waiting:       'Waiting',
-      in_progress:   'With Doctor',
+      in_progress:   'In Session',
       completed:     'Completed',
       cancelled:     'Cancelled',
       no_show:       'No Show',
@@ -149,26 +149,26 @@ export default {
     today:                 'Today',
     loadingSlots:          'Loading available slots…',
     noSlotsTitle:          'No Slots Available',
-    noSlotsSub:            'This date is fully booked or the clinic is closed. Try another day.',
+    noSlotsSub:            'This date is fully booked or unavailable. Try another day.',
     bookingFor:            'Booking For',
     forMyself:             'For Myself',
     forFamilyMember:       'Family Member',
     familyMemberName:      "Family Member's Full Name",
     familyNamePlaceholder: 'Enter their full name',
     reasonTitle:           'Reason for Visit',
-    reasonLabel:           'Describe your symptoms or concern',
-    reasonPlaceholder:     'E.g. routine check-up, persistent headache, follow-up on lab results…',
-    medicalHistoryTitle:   'Medical History',
-    medicalHistorySub:     'Help the doctor prepare for your visit. All information is confidential.',
-    allergiesLabel:        'Allergies',
-    allergiesPlaceholder:  'E.g. Penicillin, peanuts, latex — or None',
-    medicationsLabel:      'Current Medications',
-    medicationsPlaceholder:'List all medications you are taking — or None',
-    conditionsLabel:       'Chronic Conditions',
-    conditionsPlaceholder: 'E.g. Diabetes, hypertension, asthma — or None',
+    reasonLabel:           'Describe your concern',
+    reasonPlaceholder:     'E.g. routine check-up, follow-up visit…',
+    medicalHistoryTitle:   'Additional Information',
+    medicalHistorySub:     'Help your provider prepare for the appointment. All information is confidential.',
+    allergiesLabel:        'Health Notes',
+    allergiesPlaceholder:  'Any relevant health notes for the provider (optional)',
+    medicationsLabel:      'Current Treatments',
+    medicationsPlaceholder:'List any ongoing treatments — or None',
+    conditionsLabel:       'Health Conditions',
+    conditionsPlaceholder: 'List any ongoing health conditions — or None',
     additionalNotesTitle:  'Additional Notes',
-    notesPlaceholder:      'Any further details, preferred language, accessibility needs…',
-    privacyNote:           'Your medical information is encrypted and only visible to your treating doctor.',
+    notesPlaceholder:      'Any further details or accessibility needs…',
+    privacyNote:           'Your information is encrypted and only visible to your assigned provider.',
     confirmBooking:        'Confirm Booking',
     bookingSuccess:        'Appointment Submitted',
     bookingSuccessMsg:     'Your appointment with {{doctor}} on {{date}} at {{time}} has been submitted. You will be notified once confirmed.',
@@ -177,12 +177,12 @@ export default {
     familyNameRequired:    "Please enter the family member's full name.",
   },
 
-  // ─── Doctors ───────────────────────────────────────────────────────────────
+  // ─── Providers ─────────────────────────────────────────────────────────────
   doctors: {
-    title:           'Doctors',
-    findDoctor:      'Find a Doctor',
+    title:           'Providers',
+    findDoctor:      'Find a Provider',
     specialty:       'Specialty',
-    allSpecialties:  'All Specialties',
+    allSpecialties:  'All',
     rating:          'Rating',
     experience:      'Experience',
     experienceYears: '{{n}} years',
@@ -195,16 +195,16 @@ export default {
     education:       'Education',
     languages:       'Languages',
     about:           'About',
-    noResults:       'No doctors found for "{{query}}"',
+    noResults:       'No providers found for "{{query}}"',
 
-    // ── Doctor Profile Screen (patient-side public view) ──────────────────
+    // ── Provider Profile Screen (client-side public view) ────────────────
     drPrefix:        'Dr.',
     availableNow:    'Available Now',
     unavailableNow:  'Unavailable',
     ratingLabel:     'Rating',
     experienceSuffix: 'yrs exp',
     feeLabel:        'Fee',
-    bioTitle:        'About Doctor',
+    bioTitle:        'About',
     hoursTitle:      'Working Hours',
     eduTitle:        'Education & Qualifications',
     langTitle:       'Languages',
@@ -213,8 +213,8 @@ export default {
     showLess:        'Show less',
     bookAppointment: 'Book Appointment',
     chatAction:      'Message',
-    unavailableNote: 'This doctor is not currently accepting appointments.',
-    profileLoadError:'Could not load doctor profile.',
+    unavailableNote: 'This provider is not currently accepting appointments.',
+    profileLoadError:'Could not load provider profile.',
     days: {
       monday:    'Monday',
       tuesday:   'Tuesday',
@@ -226,20 +226,20 @@ export default {
     },
   },
 
-  // ─── Patient ───────────────────────────────────────────────────────────────
+  // ─── Client (Patient) ──────────────────────────────────────────────────────
   patient: {
     profile:         'My Profile',
-    medicalDocuments:'Medical Documents',
+    medicalDocuments:'Documents',
     uploadDocument:  'Upload Document',
     noDocuments:     'No documents yet',
     bloodType:       'Blood Type',
-    allergies:       'Allergies',
-    medications:     'Current Medications',
-    conditions:      'Chronic Conditions',
+    allergies:       'Health Notes',
+    medications:     'Current Treatments',
+    conditions:      'Health Conditions',
 
-    // ── Patient Profile Screen ────────────────────────────────────────────
+    // ── Client Profile Screen ─────────────────────────────────────────────
     profileScreen: {
-      patientLabel:        'Patient',
+      patientLabel:        'Client',
       personalInfo:        'Personal Information',
       fullName:            'Full Name',
       fullNamePlaceholder: 'Enter your full name',
@@ -260,18 +260,18 @@ export default {
     },
   },
 
-  // ─── Doctor ────────────────────────────────────────────────────────────────
+  // ─── Provider (Doctor) ─────────────────────────────────────────────────────
   doctor: {
     dashboard:          'Dashboard',
     todaySchedule:      "Today's Schedule",
     pendingRequests:    'Pending Requests',
     stats: {
-      today:            "Today's Patients",
+      today:            "Today's Clients",
       pending:          'Pending',
       completed:        'Completed',
       remaining:        'Remaining',
     },
-    patientDetails:     'Patient Details',
+    patientDetails:     'Client Details',
     visitNotes:         'Visit Notes',
     noSchedule:         'No appointments today',
     noScheduleSub:      'Enjoy the day or check pending requests above.',
@@ -300,7 +300,7 @@ export default {
 
     // Decline confirmation alert
     declineTitle:       'Decline Request',
-    declineMessage:     "Decline {{patient}}'s request on {{date}}?\n\nThe patient will be notified.",
+    declineMessage:     "Decline {{patient}}'s request on {{date}}?\n\nThe client will be notified.",
     declineKeep:        'Keep',
     declineConfirm:     'Yes, Decline',
 
@@ -310,7 +310,7 @@ export default {
       todayRevenue:      "Today's Revenue",
       weekRevenue:       'This Week',
       feePerVisit:       'Fee / Visit',
-      patientsThisWeek:  'Patients This Week',
+      patientsThisWeek:  'Clients This Week',
     },
 
     // Error messages
@@ -319,18 +319,18 @@ export default {
     markDoneError:      'Could not update the appointment. Please try again.',
     loadError:          'Failed to load dashboard. Please try again.',
 
-    // ── EMR (Electronic Medical Record) ──────────────────────────────────────
+    // ── Visit Record ──────────────────────────────────────────────────────────
     emr: {
-      title:              'Medical Record',
-      loadError:          'Failed to load medical record. Please try again.',
+      title:              'Client Record',
+      loadError:          'Failed to load record. Please try again.',
 
       // Tabs
       tabOverview:        'Overview',
-      tabEncounters:      'Encounters',
+      tabEncounters:      'History',
       tabDocuments:       'Documents',
 
       // Overview — demographics
-      demographics:       'Patient Info',
+      demographics:       'Client Info',
       name:               'Name',
       phone:              'Phone',
       email:              'Email',
@@ -342,27 +342,27 @@ export default {
       bloodType:          'Blood Type',
       city:               'City',
 
-      // Overview — medical history
-      allergies:          'Allergies',
-      medications:        'Current Medications',
-      conditions:         'Chronic Conditions',
-      noAllergies:        'No recorded allergies',
-      noMedications:      'No recorded medications',
-      noConditions:       'No chronic conditions recorded',
+      // Overview — additional info
+      allergies:          'Health Notes',
+      medications:        'Current Treatments',
+      conditions:         'Health Conditions',
+      noAllergies:        'No health notes recorded',
+      noMedications:      'No treatments recorded',
+      noConditions:       'No health conditions recorded',
 
-      // Encounters
+      // History
       noEncounters:       'No past visits',
       noEncountersSub:    'Completed appointments will appear here',
       reason:             'Reason',
-      clinicalNotes:      'Clinical Notes',
-      diagnosis:          'Diagnosis',
-      prescriptions:      'Prescribed Medications',
+      clinicalNotes:      'Visit Notes',
+      diagnosis:          'Assessment',
+      prescriptions:      'Treatment Plan',
       showMore:           'Show more',
       showLess:           'Show less',
 
       // Documents
       noDocuments:        'No documents',
-      noDocumentsSub:     'The patient has not uploaded any documents yet',
+      noDocumentsSub:     'The client has not uploaded any documents yet',
       docDefaultTitle:    'Document',
       cannotOpen:         'Cannot open this file. No supported app found.',
       openError:          'Could not open the document.',
@@ -370,77 +370,77 @@ export default {
       // Document categories
       catLab:             'Lab',
       catImaging:         'Imaging',
-      catPrescription:    'Prescription',
+      catPrescription:    'Treatment',
       catReport:          'Report',
       catGeneral:         'General',
     },
   },
 
-  // ─── Receptionist ──────────────────────────────────────────────────────────
+  // ─── Staff (Receptionist) ──────────────────────────────────────────────────
   receptionist: {
     dashboard:       'Dashboard',
     walkInBooking:   'Walk-in Booking',
-    registerPatient: 'Register Patient',
-    allDoctors:      'All Doctors',
-    searchPatient:   'Search patient by name or phone…',
-    createPatient:   'Create New Patient',
-    selectDoctor:    'Select a Doctor',
+    registerPatient: 'Register Client',
+    allDoctors:      'All Providers',
+    searchPatient:   'Search client by name or phone…',
+    createPatient:   'Create New Client',
+    selectDoctor:    'Select a Provider',
     selectTimeSlot:  'Select Time Slot',
     forceFit:        'Walk-in (no slot)',
-    forceFitHint:    'Patient will wait in queue',
+    forceFitHint:    'Client will wait in queue',
     bookAppointment: 'Book Appointment',
     noSlots:         'No available slots',
 
     // ── Walk-In Booking Screen ────────────────────────────────────────────
     walkIn: {
       title:               'Walk-In Booking',
-      stepPatient:         'Step 1 — Find Patient',
-      stepDoctor:          'Step 2 — Assign Doctor',
+      stepPatient:         'Step 1 — Find Client',
+      stepDoctor:          'Step 2 — Assign Provider',
 
       // Phone search
       phoneLabel:          'Phone Number',
-      phonePlaceholder:    'Enter patient phone number',
+      phonePlaceholder:    'Enter client phone number',
       searching:           'Searching…',
-      patientFound:        'Existing patient — tap to select',
-      patientNotFound:     'No patient found — please register below',
+      patientFound:        'Existing client — tap to select',
+      patientNotFound:     'No client found — please register below',
       select:              'Select',
       changePatient:       'Change',
 
       // Fast registration
       fastReg:             'Quick Registration',
       fullName:            'Full Name',
-      fullNamePlaceholder: 'Patient full name',
+      fullNamePlaceholder: 'Client full name',
       gender:              'Gender',
       male:                'Male',
       female:              'Female',
 
-      // Doctor selector
-      selectDoctor:        'Select Doctor',
-      noDoctor:            'No doctors available',
-      loadDoctorsError:    'Could not load doctors.',
+      // Provider selector
+      selectDoctor:        'Select Provider',
+      noDoctor:            'No providers available',
+      loadDoctorsError:    'Could not load providers.',
 
       // Submit
       addToQueue:          'Add to Queue (Walk-In)',
-      successMsg:          'Patient added to the waiting queue.',
+      successMsg:          'Client added to the waiting queue.',
 
       // Validation errors
-      nameRequired:        'Please enter the patient\'s full name.',
+      nameRequired:        "Please enter the client's full name.",
       genderRequired:      'Please select a gender.',
-      doctorRequired:      'Please select a doctor.',
+      doctorRequired:      'Please select a provider.',
       submitError:         'Could not add to queue. Please try again.',
     },
 
     // ── Appointment Management Screen ─────────────────────────────────────
     apptMgmt: {
       title:                'Appointment Management',
-      searchPlaceholder:    'Search patient by name or phone…',
+      searchPlaceholder:    'Search client by name or phone…',
 
       // Status filter chips
       filterAll:            'All',
 
       // No appointment state
       noAppointments:       'No appointments for this day',
-      noAppointmentsSub:    'Select a different date or add a walk-in patient.',
+      noAppointmentsSub:    'Select a different date or add a walk-in client.',
 
       // Load error
       loadError:            'Failed to load appointments. Please try again.',
@@ -448,24 +448,24 @@ export default {
       // Action buttons
       accept:               'Accept',
       decline:              'Decline',
-      checkIn:              'Check-In Patient',
-      sendToDoctor:         'Send to Doctor',
+      checkIn:              'Check-In Client',
+      sendToDoctor:         'Send to Provider',
 
       // Terminal status messages (no action buttons)
-      statusInProgress:     'Currently with the doctor',
+      statusInProgress:     'Currently with the provider',
       statusCompleted:      'Visit completed',
       statusCancelled:      'Appointment cancelled',
 
       // Inline action errors
       acceptError:          'Could not accept the appointment. Please try again.',
       declineError:         'Could not decline the appointment. Please try again.',
-      checkInError:         'Could not check in the patient. Please try again.',
-      sendError:            'Could not send to doctor. Please try again.',
+      checkInError:         'Could not check in the client. Please try again.',
+      sendError:            'Could not send to provider. Please try again.',
 
       // Detail modal field labels
       dateLabel:            'Date',
       timeLabel:            'Time',
-      doctorLabel:          'Doctor',
+      doctorLabel:          'Provider',
       reasonLabel:          'Reason',
       notesLabel:           'Notes',
     },
@@ -488,12 +488,12 @@ export default {
     loadError:            'Could not load messages. Please try again.',
     sendError:            'Message failed to send. Tap to retry.',
     noRecipient:          'No recipient specified.',
-    online2:              'Online',     // header status line
+    online2:              'Online',
   },
 
   // ─── Documents ─────────────────────────────────────────────────────────────
   documents: {
-    title:           'Medical Documents',
+    title:           'Documents',
     upload:          'Upload Document',
     noDocuments:     'No documents uploaded yet',
     pdf:             'PDF',
@@ -503,11 +503,11 @@ export default {
     delete:          'Delete',
     deleteConfirm:   'Delete this document permanently?',
 
-    // ── Medical Documents Vault (Phase 4) ─────────────────────────────────
+    // ── Documents Vault (Phase 4) ─────────────────────────────────────────
 
     // Empty state
-    emptyState:      'No medical documents yet',
-    emptyStateSub:   'Upload your test results, prescriptions, and reports to keep them safe.',
+    emptyState:      'No documents yet',
+    emptyStateSub:   'Upload your files and reports to keep them organized.',
 
     // FAB / header action
     uploadNew:       'Upload New Document',
@@ -529,7 +529,7 @@ export default {
     // Details form modal
     docDetails:      'Document Details',
     titleLabel:      'Document Title',
-    titlePlaceholder:'e.g. Blood test results',
+    titlePlaceholder:'e.g. Test results',
     titleRequired:   'Please enter a document title.',
     categoryLabel:   'Category',
     descLabel:       'Description (optional)',
@@ -551,7 +551,7 @@ export default {
     catAll:          'All',
     catLab:          'Lab',
     catImaging:      'Imaging',
-    catPrescription: 'Prescription',
+    catPrescription: 'Treatment',
     catReport:       'Report',
     catGeneral:      'General',
 
@@ -563,26 +563,26 @@ export default {
     pdfPreviewUnavailable:'PDF preview is not available in-app.',
     openInBrowser:        'Open in browser',
 
-    // ── Share to doctor ─────────────────────────────────────────────────────
-    shareToDoctor:        'Share with Doctor',
-    selectDoctor:         'Select a Doctor',
-    sharedMessage:        '📎 Shared a medical document',
+    // ── Share to provider ───────────────────────────────────────────────────
+    shareToDoctor:        'Share with Provider',
+    selectDoctor:         'Select a Provider',
+    sharedMessage:        '📎 Shared a document',
     sharing:              'Sharing…',
     shareError:           'Could not share the document. Please try again.',
-    loadDoctorsError:     'Could not load doctors. Please try again.',
-    noDoctors:            'No doctors found.',
+    loadDoctorsError:     'Could not load providers. Please try again.',
+    noDoctors:            'No providers found.',
 
     // ── Consent-Based Access Control ────────────────────────────────────────
     manageAccess:         'Manage Access',
-    accessControl:        'Doctor Access Control',
-    accessControlSub:     'Toggle which doctors can view this document.',
-    sharedWith:           'Shared with {{n}} doctor(s)',
-    notShared:            'Not shared with any doctor',
+    accessControl:        'Provider Access Control',
+    accessControlSub:     'Toggle which providers can view this document.',
+    sharedWith:           'Shared with {{n}} provider(s)',
+    notShared:            'Not shared with any provider',
     grantAccess:          'Grant access',
     revokeAccess:         'Revoke access',
     accessUpdated:        'Access updated.',
     accessError:          'Could not update access. Please try again.',
-    noAppointmentDoctors: 'No doctors from your appointments yet.',
+    noAppointmentDoctors: 'No providers from your appointments yet.',
   },
 
   // ─── Notifications ─────────────────────────────────────────────────────────
@@ -616,7 +616,7 @@ export default {
     uploadFailed:    'Upload failed. Please try again.',
     bookingFailed:   'Booking failed. Please try again.',
     alreadyBooked:   'You already have an appointment on this date.',
-    clinicClosed:    'The clinic is closed on this date.',
+    clinicClosed:    'No availability on this date.',
     noSlots:         'No available time slots.',
   },
 };

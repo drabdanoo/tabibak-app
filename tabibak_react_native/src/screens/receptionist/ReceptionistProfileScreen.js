@@ -72,14 +72,14 @@ const ReceptionistProfileScreen = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Derived display values from the Firestore receptionists/{uid} document
-  const name        = userProfile?.name        ?? userProfile?.displayName ?? 'المستقبِل';
-  const phone       = userProfile?.phoneNumber ?? user?.phoneNumber         ?? '—';
-  const email       = userProfile?.email       ?? user?.email               ?? '—';
-  const clinicName  = userProfile?.clinicName  ?? userProfile?.clinic        ?? '—';
-  const clinicId    = userProfile?.clinicId    ?? '—';
-  const joinedAt    = userProfile?.createdAt
+  const name = userProfile?.name ?? userProfile?.displayName ?? 'المستقبِل';
+  const phone = userProfile?.phoneNumber ?? user?.phoneNumber ?? '—';
+  const email = userProfile?.email ?? user?.email ?? '—';
+  const clinicName = userProfile?.clinicName ?? userProfile?.clinic ?? '—';
+  const clinicId = userProfile?.clinicId ?? '—';
+  const joinedAt = userProfile?.createdAt
     ? (userProfile.createdAt.toDate?.() ?? new Date(userProfile.createdAt))
-        .toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })
+      .toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })
     : '—';
 
   // Avatar initials
@@ -98,7 +98,7 @@ const ReceptionistProfileScreen = () => {
       [
         { text: 'إلغاء', style: 'cancel' },
         {
-          text:  'تسجيل الخروج',
+          text: 'تسجيل الخروج',
           style: 'destructive',
           onPress: async () => {
             setIsSigningOut(true);
@@ -143,23 +143,23 @@ const ReceptionistProfileScreen = () => {
         {/* ══ Personal Info ══ */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>المعلومات الشخصية</Text>
-          <InfoRow icon="person-outline"    label="الاسم الكامل"    value={name}       />
+          <InfoRow icon="person-outline" label="الاسم الكامل" value={name} />
           <View style={styles.rowDivider} />
-          <InfoRow icon="call-outline"      label="رقم الهاتف"      value={phone}      />
+          <InfoRow icon="call-outline" label="رقم الهاتف" value={phone} />
           <View style={styles.rowDivider} />
-          <InfoRow icon="mail-outline"      label="البريد الإلكتروني" value={email}     />
+          <InfoRow icon="mail-outline" label="البريد الإلكتروني" value={email} />
           <View style={styles.rowDivider} />
-          <InfoRow icon="calendar-outline"  label="تاريخ الانضمام"   value={joinedAt}  />
+          <InfoRow icon="calendar-outline" label="تاريخ الانضمام" value={joinedAt} />
         </View>
 
         {/* ══ Clinic Info ══ */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>معلومات العيادة</Text>
-          <InfoRow icon="business-outline"  label="اسم العيادة"     value={clinicName} />
+          <InfoRow icon="business-outline" label="اسم العيادة" value={clinicName} />
           {clinicId !== '—' && (
             <>
               <View style={styles.rowDivider} />
-              <InfoRow icon="barcode-outline" label="رقم العيادة"   value={clinicId}   />
+              <InfoRow icon="barcode-outline" label="رقم العيادة" value={clinicId} />
             </>
           )}
         </View>
@@ -197,7 +197,7 @@ const ReceptionistProfileScreen = () => {
         </View>
 
         {/* App version */}
-        <Text style={styles.versionText}>Tabibak v1.0.0</Text>
+        <Text style={styles.versionText}>Vanbook v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -210,56 +210,56 @@ const ReceptionistProfileScreen = () => {
 const styles = StyleSheet.create({
 
   screen: {
-    flex:            1,
+    flex: 1,
     backgroundColor: Colors.background,
   },
   scrollContent: {
-    gap:           Spacing.md,
+    gap: Spacing.md,
     paddingBottom: Spacing.xxl,
   },
 
   // ── Hero header ──────────────────────────────────────────────────────────
 
   hero: {
-    backgroundColor:  Colors.primary,
-    alignItems:       'center',
-    paddingTop:       Spacing.xl,
-    paddingBottom:    Spacing.xxl,
-    gap:              Spacing.sm,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xxl,
+    gap: Spacing.sm,
   },
   avatarCircle: {
-    width:           88,
-    height:          88,
-    borderRadius:    BorderRadius.full,
+    width: 88,
+    height: 88,
+    borderRadius: BorderRadius.full,
     backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth:     3,
-    borderColor:     'rgba(255,255,255,0.6)',
-    alignItems:      'center',
-    justifyContent:  'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarText: {
-    fontSize:   36,
+    fontSize: 36,
     fontWeight: '700',
-    color:      Colors.white,
+    color: Colors.white,
   },
   heroName: {
-    fontSize:   FontSizes.xl,
+    fontSize: FontSizes.xl,
     fontWeight: '800',
-    color:      Colors.white,
+    color: Colors.white,
   },
   roleBadge: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    backgroundColor:  'rgba(255,255,255,0.9)',
-    borderRadius:     BorderRadius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.sm,
-    paddingVertical:  4,
-    gap:              4,
+    paddingVertical: 4,
+    gap: 4,
   },
   roleBadgeText: {
-    fontSize:   FontSizes.xs,
+    fontSize: FontSizes.xs,
     fontWeight: '700',
-    color:      Colors.primary,
+    color: Colors.primary,
   },
 
   // ── Cards ─────────────────────────────────────────────────────────────────
@@ -267,111 +267,111 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
     marginHorizontal: Spacing.md,
-    borderRadius:    BorderRadius.xl,
+    borderRadius: BorderRadius.xl,
     paddingVertical: Spacing.xs,
-    elevation:       1,
-    shadowColor:     Colors.black,
-    shadowOffset:    { width: 0, height: 1 },
-    shadowOpacity:   0.05,
-    shadowRadius:    2,
+    elevation: 1,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   cardTitle: {
-    fontSize:         FontSizes.sm,
-    fontWeight:       '700',
-    color:            Colors.textSecondary,
-    textAlign:        'right',
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textAlign: 'right',
     paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    letterSpacing:    0.5,
+    paddingVertical: Spacing.sm,
+    letterSpacing: 0.5,
   },
   rowDivider: {
-    height:           1,
-    backgroundColor:  Colors.borderLight,
+    height: 1,
+    backgroundColor: Colors.borderLight,
     marginHorizontal: Spacing.md,
   },
 
   // ── Info rows ─────────────────────────────────────────────────────────────
 
   infoRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    gap:              Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
   infoIconBox: {
-    width:          36,
-    height:         36,
-    borderRadius:   BorderRadius.md,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.primaryLight + '20',
-    alignItems:     'center',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   infoText: {
     flex: 1,
-    gap:  2,
+    gap: 2,
   },
   infoLabel: {
     fontSize: FontSizes.xs,
-    color:    Colors.textSecondary,
+    color: Colors.textSecondary,
   },
   infoValue: {
-    fontSize:   FontSizes.sm,
+    fontSize: FontSizes.sm,
     fontWeight: '600',
-    color:      Colors.text,
+    color: Colors.text,
   },
 
   // ── Menu rows ─────────────────────────────────────────────────────────────
 
   menuRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    gap:              Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
   menuIconBox: {
-    width:          36,
-    height:         36,
-    borderRadius:   BorderRadius.md,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.primaryLight + '20',
-    alignItems:     'center',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   menuIconBoxDestructive: {
     backgroundColor: '#fee2e2',
   },
   menuLabel: {
-    flex:       1,
-    fontSize:   FontSizes.md,
-    color:      Colors.text,
+    flex: 1,
+    fontSize: FontSizes.md,
+    color: Colors.text,
     fontWeight: '500',
   },
   menuLabelDestructive: {
-    color:      Colors.error,
+    color: Colors.error,
     fontWeight: '600',
   },
 
   // ── Sign out loading ──────────────────────────────────────────────────────
 
   signOutLoading: {
-    flexDirection:    'row',
-    alignItems:       'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    gap:              Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
   signOutLoadingText: {
     fontSize: FontSizes.sm,
-    color:    Colors.error,
+    color: Colors.error,
   },
 
   // ── Footer ────────────────────────────────────────────────────────────────
 
   versionText: {
     textAlign: 'center',
-    fontSize:  FontSizes.xs,
-    color:     Colors.gray,
+    fontSize: FontSizes.xs,
+    color: Colors.gray,
   },
 });
 

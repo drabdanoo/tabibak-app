@@ -105,9 +105,9 @@ const MenuRow = memo(({ icon, label, subtitle, onPress, destructive }) => (
 const DoctorSettingsScreen = ({ navigation }) => {
   const { user, userProfile, signOut } = useAuth();
 
-  const [prefs, setPrefs]           = useState(DEFAULT_PREFS);
+  const [prefs, setPrefs] = useState(DEFAULT_PREFS);
   const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
-  const [isSigningOut, setIsSigningOut]     = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // ── Load saved prefs ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -115,7 +115,7 @@ const DoctorSettingsScreen = ({ navigation }) => {
       .then((raw) => {
         if (raw) setPrefs({ ...DEFAULT_PREFS, ...JSON.parse(raw) });
       })
-      .catch(() => {/* ignore read errors — use defaults */})
+      .catch(() => {/* ignore read errors — use defaults */ })
       .finally(() => setIsLoadingPrefs(false));
   }, []);
 
@@ -123,7 +123,7 @@ const DoctorSettingsScreen = ({ navigation }) => {
   const togglePref = useCallback((key) => {
     setPrefs((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next)).catch(() => {});
+      AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next)).catch(() => { });
       return next;
     });
   }, []);
@@ -285,7 +285,7 @@ const DoctorSettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.footerText}>Tabibak — نظام إدارة العيادات</Text>
+        <Text style={styles.footerText}>Vanbook v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -302,80 +302,80 @@ const styles = StyleSheet.create({
 
   // ── Mini profile card ──────────────────────────────────────────────────────
   profileCard: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    backgroundColor:  Colors.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
     marginHorizontal: Spacing.md,
-    borderRadius:     BorderRadius.xl,
-    padding:          Spacing.md,
-    gap:              Spacing.sm,
-    elevation:        1,
-    shadowColor:      Colors.black,
-    shadowOffset:     { width: 0, height: 1 },
-    shadowOpacity:    0.06,
-    shadowRadius:     2,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    elevation: 1,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
   },
   miniAvatar: {
-    width:           52,
-    height:          52,
-    borderRadius:    BorderRadius.full,
+    width: 52,
+    height: 52,
+    borderRadius: BorderRadius.full,
     backgroundColor: Colors.primary,
-    alignItems:      'center',
-    justifyContent:  'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   miniAvatarText: { fontSize: FontSizes.xl, fontWeight: '700', color: Colors.white },
-  profileName:    { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text },
-  profileSpec:    { fontSize: FontSizes.sm, color: Colors.textSecondary },
+  profileName: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text },
+  profileSpec: { fontSize: FontSizes.sm, color: Colors.textSecondary },
 
   // ── Cards ─────────────────────────────────────────────────────────────────
   card: {
-    backgroundColor:  Colors.white,
+    backgroundColor: Colors.white,
     marginHorizontal: Spacing.md,
-    borderRadius:     BorderRadius.xl,
-    paddingVertical:  Spacing.xs,
-    elevation:        1,
-    shadowColor:      Colors.black,
-    shadowOffset:     { width: 0, height: 1 },
-    shadowOpacity:    0.05,
-    shadowRadius:     2,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.xs,
+    elevation: 1,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   sectionTitle: {
-    fontSize:          FontSizes.sm,
-    fontWeight:        '700',
-    color:             Colors.textSecondary,
-    textAlign:         'right',
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textAlign: 'right',
     paddingHorizontal: Spacing.md,
-    paddingTop:        Spacing.sm,
-    paddingBottom:     Spacing.xs,
-    letterSpacing:     0.5,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+    letterSpacing: 0.5,
   },
   divider: {
-    height:           1,
-    backgroundColor:  Colors.borderLight,
+    height: 1,
+    backgroundColor: Colors.borderLight,
     marginHorizontal: Spacing.md,
   },
 
   // ── Setting rows ──────────────────────────────────────────────────────────
   settingRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    gap:              Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
   rowIconBox: {
-    width:          36,
-    height:         36,
-    borderRadius:   BorderRadius.md,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.primaryLight + '20',
-    alignItems:     'center',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  rowIconBoxRed:  { backgroundColor: '#fee2e2' },
-  rowContent:     { flex: 1, gap: 2 },
-  rowLabel:       { fontSize: FontSizes.md, color: Colors.text, fontWeight: '500' },
-  rowLabelRed:    { color: Colors.error, fontWeight: '600' },
-  rowSubtitle:    { fontSize: FontSizes.xs, color: Colors.textSecondary },
+  rowIconBoxRed: { backgroundColor: '#fee2e2' },
+  rowContent: { flex: 1, gap: 2 },
+  rowLabel: { fontSize: FontSizes.md, color: Colors.text, fontWeight: '500' },
+  rowLabelRed: { color: Colors.error, fontWeight: '600' },
+  rowSubtitle: { fontSize: FontSizes.xs, color: Colors.textSecondary },
 
   // ── Prefs loading ─────────────────────────────────────────────────────────
   prefsLoading: {
@@ -385,30 +385,30 @@ const styles = StyleSheet.create({
 
   // ── About rows ────────────────────────────────────────────────────────────
   aboutRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    justifyContent:   'space-between',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
   aboutLabel: { fontSize: FontSizes.md, color: Colors.text, fontWeight: '500' },
   aboutValue: { fontSize: FontSizes.sm, color: Colors.textSecondary },
 
   // ── Sign-out row ──────────────────────────────────────────────────────────
   signOutRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical:  Spacing.sm,
-    gap:              Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
   signOutText: { fontSize: FontSizes.sm, color: Colors.error },
 
   // ── Footer ────────────────────────────────────────────────────────────────
   footerText: {
     textAlign: 'center',
-    fontSize:  FontSizes.xs,
-    color:     Colors.gray,
+    fontSize: FontSizes.xs,
+    color: Colors.gray,
   },
 });
 
