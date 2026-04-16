@@ -281,7 +281,8 @@ export default {
     greetingMorning:    'Good morning',
     greetingAfternoon:  'Good afternoon',
     greetingEvening:    'Good evening',
-    drPrefix:           'Dr.',
+    drPrefix:           '',
+    MrPrefix:           '',
 
     // Pending carousel empty state
     allCaughtUp:        'All caught up!',

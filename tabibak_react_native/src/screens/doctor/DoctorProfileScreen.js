@@ -763,7 +763,7 @@ export default function DoctorProfileScreen({ navigation }) {
             />
           ) : (
             <Text style={S.profileName} numberOfLines={2}>
-              Dr. {doctorName}
+              {doctorName}
             </Text>
           )}
 
@@ -898,7 +898,7 @@ export default function DoctorProfileScreen({ navigation }) {
             })}
           </View>
 
-          {/* ── Consultation Duration ──────────────────────────────────────── */}
+          {/* ── Session Duration ──────────────────────────────────────────── */}
           <View style={S.durationSection}>
             <View style={S.durationSectionHeader}>
               <Ionicons
@@ -906,7 +906,7 @@ export default function DoctorProfileScreen({ navigation }) {
                 size={16}
                 color={Colors.textSecondary}
               />
-              <Text style={S.durationSectionTitle}>Consultation Duration</Text>
+              <Text style={S.durationSectionTitle}>Session Duration</Text>
             </View>
             <Text style={S.durationSectionHint}>
               Duration of each bookable appointment slot.
