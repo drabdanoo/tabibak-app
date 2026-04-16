@@ -62,6 +62,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import { FEATURES } from '../../config/features';
 import firestoreService from '../../services/firestoreService';
 
 const PAGE_SIZE = 30;
@@ -422,27 +423,33 @@ const PatientHomeHeader = React.memo(({
 
     {/* ── Quick Access ─────────────────────────────────────────────── */}
     <View style={S.quickAccessGrid}>
-      <TouchableOpacity style={S.quickCard} onPress={onNavigateLabOrders} activeOpacity={0.85}>
-        <View style={[S.quickIcon, { backgroundColor: Colors.warning + '1A' }]}>
-          <Ionicons name="flask-outline" size={22} color={Colors.warning} />
-        </View>
-        <Text style={S.quickLabel}>Lab Orders</Text>
-        <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
-      </TouchableOpacity>
+      {/* ── FEATURE FLAG: Lab Orders card ── */}
+      {FEATURES.LAB_ORDERS && (
+        <TouchableOpacity style={S.quickCard} onPress={onNavigateLabOrders} activeOpacity={0.85}>
+          <View style={[S.quickIcon, { backgroundColor: Colors.warning + '1A' }]}>
+            <Ionicons name="flask-outline" size={22} color={Colors.warning} />
+          </View>
+          <Text style={S.quickLabel}>Lab Orders</Text>
+          <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+        </TouchableOpacity>
+      )}
 
-      <TouchableOpacity style={S.quickCard} onPress={onNavigatePrescriptions} activeOpacity={0.85}>
-        <View style={[S.quickIcon, { backgroundColor: Colors.primary + '1A' }]}>
-          <Ionicons name="document-text-outline" size={22} color={Colors.primary} />
-        </View>
-        <Text style={S.quickLabel}>Prescriptions</Text>
-        <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
-      </TouchableOpacity>
+      {/* ── FEATURE FLAG: Prescription Inbox card ── */}
+      {FEATURES.PRESCRIPTION_INBOX && (
+        <TouchableOpacity style={S.quickCard} onPress={onNavigatePrescriptions} activeOpacity={0.85}>
+          <View style={[S.quickIcon, { backgroundColor: Colors.primary + '1A' }]}>
+            <Ionicons name="document-text-outline" size={22} color={Colors.primary} />
+          </View>
+          <Text style={S.quickLabel}>Prescriptions</Text>
+          <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={[S.quickCard, S.quickCardWide]} onPress={onNavigateMap} activeOpacity={0.85}>
         <View style={[S.quickIcon, { backgroundColor: Colors.secondary + '1A' }]}>
           <Ionicons name="map-outline" size={22} color={Colors.secondary} />
         </View>
-        <Text style={S.quickLabel}>Doctors Map</Text>
+        <Text style={S.quickLabel}>Find Nearby</Text>
         <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
       </TouchableOpacity>
     </View>
@@ -515,9 +522,9 @@ const PatientHomeScreen = ({ navigation }) => {
       appointments,
       aptLoading,
       onNavigateAppointments: () => navigation.navigate('Appointments'),
-      onNavigateLabOrders: () => navigation.navigate('LabOrders'),
-      onNavigatePrescriptions: () => navigation.navigate('PrescriptionInbox'),
-      onNavigateMap: () => navigation.navigate('DoctorMap'),
+      onNavigateLabOrders:    () => navigation.navigate('LabOrders'),
+      onNavigatePrescriptions:() => navigation.navigate('PrescriptionInbox'),
+      onNavigateMap:          () => navigation.navigate('DoctorMap'),
       debouncedSearch,
       doctorCount: doctors.length,
       doctorsLoading: loading,

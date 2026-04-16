@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tabibok Health",
+    "name": "Vanbook",
     "slug": "tabibok-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,11 +24,11 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Allow camera access to take photos for profile pictures and document uploads",
         "NSPhotoLibraryUsageDescription": "Allow access to photo library to select profile pictures and documents",
-        "NSPhotoLibraryAddUsageDescription": "Tabibok needs permission to save documents to your photo library.",
-        "NSLocationWhenInUseUsageDescription": "Tabibok uses your location to show nearby doctors on the map.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Tabibok uses your location to show nearby doctors on the map.",
+        "NSPhotoLibraryAddUsageDescription": "Vanbook needs permission to save documents to your photo library.",
+        "NSLocationWhenInUseUsageDescription": "Vanbook uses your location to show nearby providers on the map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Vanbook uses your location to show nearby providers on the map.",
         "NSMicrophoneUsageDescription": "Allow microphone access for video recording (if applicable)",
-        "NSUserNotificationsUsageDescription": "Tabibok sends notifications for appointment reminders and messages."
+        "NSUserNotificationsUsageDescription": "Vanbook sends notifications for appointment reminders and messages."
       }
     },
     "android": {
@@ -39,7 +39,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.abdullah.reacttabibok",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 10
+      "versionCode": 15
     },
     "web": {
       "favicon": "./assets/favicon.png"

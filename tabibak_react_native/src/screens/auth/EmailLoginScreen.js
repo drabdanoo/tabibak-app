@@ -16,7 +16,7 @@ import { USER_ROLES } from '../../config/firebase';
 
 /** Resolve icon name from role */
 const roleIcon = (role) =>
-  role === USER_ROLES.DOCTOR ? 'medkit-outline' : 'desktop-outline';
+  role === USER_ROLES.DOCTOR ? 'briefcase-outline' : 'desktop-outline';
 
 /** Resolve role title key from role */
 const roleTitleKey = (role) =>

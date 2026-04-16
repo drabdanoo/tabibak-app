@@ -336,7 +336,7 @@ const ActionButtons = React.memo(({
             <ActivityIndicator color={colors.white} size="small" />
           ) : (
             <>
-              <Ionicons name="medkit-outline" size={18} color={colors.white} />
+              <Ionicons name="arrow-forward-outline" size={18} color={colors.white} />
               <Text style={[styles.actionBtnText, { marginStart: spacing.xs }]}>
                 {t('receptionist.apptMgmt.sendToDoctor')}
               </Text>

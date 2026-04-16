@@ -311,31 +311,31 @@ const OverviewTab = React.memo(({ appointment, profile, insets }) => {
       showsVerticalScrollIndicator={false}
     >
       {/* ── Patient Info ────────────────────────────────────────── */}
-      <SectionCard title="Patient Information" icon="person-circle-outline" accent={Colors.primary}>
+      <SectionCard title="Client Information" icon="person-circle-outline" accent={Colors.primary}>
         <DataRow label="Full Name"   value={appointment?.patientName ?? profile?.fullName} />
         <DataRow label="Phone"       value={appointment?.patientPhone ?? profile?.phoneNumber} />
         {!!profile?.dateOfBirth && (
           <DataRow label="Date of Birth" value={profile.dateOfBirth} />
         )}
-        {!!profile?.bloodType && (
-          <DataRow label="Blood Type" value={profile.bloodType} />
+        {!!profile?.dateOfBirth && (
+          <DataRow label="Date of Birth" value={profile.dateOfBirth} />
         )}
         {appointment?.bookingFor === 'family' && !!appointment?.familyMemberName && (
-          <DataRow label="Patient (Family)" value={appointment.familyMemberName} />
+          <DataRow label="For (Family)" value={appointment.familyMemberName} />
         )}
       </SectionCard>
 
       {/* ── Allergies ───────────────────────────────────────────── */}
-      <SectionCard title="Allergies" icon="alert-circle-outline" accent="#EF4444">
+      <SectionCard title="Health Notes" icon="information-circle-outline" accent="#EF4444">
         {allergies ? (
           <Text style={S.medHistoryText}>{allergies}</Text>
         ) : (
-          <Text style={S.medHistoryNone}>No known allergies</Text>
+          <Text style={S.medHistoryNone}>No health notes provided</Text>
         )}
       </SectionCard>
 
       {/* ── Current Medications ─────────────────────────────────── */}
-      <SectionCard title="Current Medications" icon="medical-outline" accent="#8B5CF6">
+      <SectionCard title="Current Treatments" icon="bandage-outline" accent="#8B5CF6">
         {medications ? (
           <Text style={S.medHistoryText}>{medications}</Text>
         ) : (
@@ -344,7 +344,7 @@ const OverviewTab = React.memo(({ appointment, profile, insets }) => {
       </SectionCard>
 
       {/* ── Chronic Conditions ──────────────────────────────────── */}
-      <SectionCard title="Chronic Conditions" icon="heart-outline" accent="#F59E0B">
+      <SectionCard title="Health Conditions" icon="clipboard-outline" accent="#F59E0B">
         {conditions ? (
           <Text style={S.medHistoryText}>{conditions}</Text>
         ) : (
@@ -397,7 +397,7 @@ const EncounterCard = React.memo(({ item }) => {
       {/* Diagnosis */}
       {!!item.diagnosis && (
         <View style={S.encounterReasonRow}>
-          <Ionicons name="medkit-outline" size={13} color={Colors.primary} />
+          <Ionicons name="checkmark-circle-outline" size={13} color={Colors.primary} />
           <Text style={S.encounterDiagnosis} numberOfLines={1}>{item.diagnosis}</Text>
         </View>
       )}
@@ -433,7 +433,7 @@ const EncounterCard = React.memo(({ item }) => {
         <View style={S.rxSummaryWrap}>
           <Ionicons name="receipt-outline" size={13} color={Colors.textSecondary} />
           <Text style={S.rxSummaryText}>
-            {item.prescriptions.length} medication{item.prescriptions.length > 1 ? 's' : ''} prescribed
+            {item.prescriptions.length} treatment{item.prescriptions.length > 1 ? 's' : ''} recorded
           </Text>
         </View>
       )}
@@ -446,7 +446,7 @@ const HistoryEmpty = React.memo(() => (
     <Ionicons name="time-outline" size={56} color={Colors.border} />
     <Text style={S.historyEmptyTitle}>No previous visits</Text>
     <Text style={S.historyEmptySub}>
-      This patient has no prior encounter records in the system.
+      No prior appointment records found for this client.
     </Text>
   </View>
 ));
@@ -592,14 +592,14 @@ const CurrentVisitTab = React.memo(({
         <Text style={S.chiefComplaint}>{appointment?.reason || 'Not specified'}</Text>
       </SectionCard>
 
-      {/* ── Clinical Notes ──────────────────────────────────────── */}
+      {/* ── Visit Notes ──────────────────────────────────────────── */}
       {/* ⚠️  Android Fix: textAlignVertical="top" + minHeight      */}
       <View style={S.formSection}>
         <Text style={S.formLabel}>
-          Clinical Notes <Text style={S.required}>*</Text>
+          Visit Notes <Text style={S.required}>*</Text>
         </Text>
         <Text style={S.formHint}>
-          Examination findings, observations, patient history taken today.
+          Observations and notes from this appointment.
         </Text>
         <TextInput
           style={S.clinicalNotesInput}
@@ -625,10 +625,10 @@ const CurrentVisitTab = React.memo(({
         />
       </View>
 
-      {/* ── Prescription ────────────────────────────────────────── */}
+      {/* ── Treatment Plan ──────────────────────────────────────── */}
       <View style={S.formSection}>
         <View style={S.prescriptionHeader}>
-          <Text style={S.formLabel}>Prescription</Text>
+          <Text style={S.formLabel}>Treatment Plan</Text>
           {medications.length > 0 && (
             <Text style={S.medCountBadge}>{medications.length} medication{medications.length > 1 ? 's' : ''}</Text>
           )}
@@ -929,8 +929,8 @@ export default function PatientDetailsScreen({ route, navigation }) {
   const handleSaveEncounter = useCallback(async () => {
     if (!clinicalNotes.trim()) {
       Alert.alert(
-        'Clinical Notes Required',
-        'Please enter your clinical observations before saving the encounter.',
+        'Visit Notes Required',
+        'Please enter your visit notes before saving.',
       );
       return;
     }
@@ -990,8 +990,8 @@ export default function PatientDetailsScreen({ route, navigation }) {
       await Promise.all(writes);
 
       Alert.alert(
-        'Encounter Saved ✓',
-        `Clinical notes${labTests.length > 0 ? ', lab orders,' : ''} and prescription for ${appointment.patientName ?? 'the patient'} have been saved.`,
+        'Visit Saved ✓',
+        `Notes${labTests.length > 0 ? ', tests,' : ''} and treatment plan for ${appointment.patientName ?? 'the patient'} have been saved.`,
         [{ text: 'Done', onPress: () => navigation.goBack() }],
       );
     } catch (err) {

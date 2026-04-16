@@ -54,7 +54,7 @@ export default {
 
   // ─── Authentication ────────────────────────────────────────────────────────
   auth: {
-    welcome:             'أهلاً بك في طبيبك',
+    welcome:             'أهلاً بك في Vanbook',
     selectRole:          'اختر دورك للمتابعة',
     patient:             'مريض',
     doctor:              'طبيب',
@@ -80,8 +80,8 @@ export default {
     male:                'ذكر',
     female:              'أنثى',
     completeProfile:     'متابعة',
-    profileSubtitle:     'بعض التفاصيل حتى يتعرّف عليك طبيبك',
-    profileDoctorNote:   'مطلوب من طبيبك — الاسم وتاريخ الميلاد يساعدان في تقديم رعاية دقيقة.',
+    profileSubtitle:     'بعض التفاصيل لإتمام إنشاء حسابك',
+    profileDoctorNote:   'اسمك وتاريخ ميلادك يُستخدمان للتحقق من هويتك.',
     fullNamePlaceholder: 'كما هو مكتوب في بطاقة هويتك',
     dobHint:             'اضغط لاختيار تاريخ ميلادك',
     dobFuture:           'تاريخ الميلاد لا يمكن أن يكون في المستقبل.',
