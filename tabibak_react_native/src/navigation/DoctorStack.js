@@ -68,6 +68,7 @@ const DoctorStack = () => (
       component={PatientDetailsScreen}
       options={{
         title: 'Client Details',
+        headerBackTitle: '',
         headerStyle: { backgroundColor: Colors.primary },
         headerTintColor: Colors.white,
       }}
@@ -77,6 +78,7 @@ const DoctorStack = () => (
       component={DoctorSettingsScreen}
       options={{
         title: 'Settings',
+        headerBackTitle: '',
         headerStyle: { backgroundColor: Colors.primary },
         headerTintColor: Colors.white,
       }}
@@ -94,6 +96,7 @@ const DoctorStack = () => (
         component={EMRScreen}
         options={{
           title: 'Electronic Medical Record',
+          headerBackTitle: '',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white,
         }}
@@ -107,6 +110,7 @@ const DoctorStack = () => (
         component={PrescriptionScreen}
         options={{
           title: 'Create Prescription',
+          headerBackTitle: '',
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: Colors.white,
         }}

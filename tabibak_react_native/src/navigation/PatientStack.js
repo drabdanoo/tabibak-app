@@ -80,6 +80,7 @@ const PatientStack = () => (
       component={DoctorListScreen}
       options={{
         title: 'Find a Provider',
+        headerBackTitle: '',
         headerStyle: { backgroundColor: Colors.primary },
         headerTintColor: Colors.white,
       }}
@@ -94,6 +95,7 @@ const PatientStack = () => (
       component={DoctorProfileScreen}
       options={{
         title: 'Provider Profile',
+        headerBackTitle: '',
         headerStyle: { backgroundColor: Colors.primary },
         headerTintColor: Colors.white,
       }}
@@ -103,6 +105,7 @@ const PatientStack = () => (
       component={BookAppointmentScreen}
       options={{
         title: 'Book Appointment',
+        headerBackTitle: '',
         headerStyle: { backgroundColor: Colors.primary },
         headerTintColor: Colors.white,
       }}
