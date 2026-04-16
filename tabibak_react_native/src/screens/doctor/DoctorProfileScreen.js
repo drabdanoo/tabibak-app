@@ -1268,7 +1268,8 @@ const S = StyleSheet.create({
     minHeight: 62,
   },
   dayLabel: {
-    flex: 1,
+    width: 84,
+    flexShrink: 0,
     fontSize: FontSizes.sm,
     fontWeight: '600',
     color: Colors.text,
