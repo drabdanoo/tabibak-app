@@ -170,8 +170,12 @@ const STATUS_CONFIG = {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Date → 'YYYY-MM-DD' */
-const toDateStr = (date) => date.toISOString().split('T')[0];
+/** Firestore Timestamp | Date | 'YYYY-MM-DD' string → 'YYYY-MM-DD' */
+const toDateStr = (date) => {
+  if (!date) return '';
+  const d = date?.toDate ? date.toDate() : (typeof date === 'string' ? new Date(date) : date);
+  return d.toISOString().split('T')[0];
+};
 
 /**
  * Returns the Monday of the week containing `date`.
@@ -284,7 +288,7 @@ function useWeekAppointments(uid, weekStart) {
         }
         snap.docs.forEach(docSnap => {
           const apt = { id: docSnap.id, ...docSnap.data() };
-          const key = apt.appointmentDate;
+          const key = toDateStr(apt.appointmentDate);
           if (byDate.has(key)) byDate.get(key).push(apt);
         });
         setAppointmentsByDate(new Map(byDate)); // new Map ref → triggers re-render
@@ -704,7 +708,7 @@ export default function DoctorAppointmentsScreen({ route, navigation }) {
     Alert.alert(
       'Decline Request',
       `Decline ${appointment.patientName || 'this patient'}'s appointment ` +
-      `request on ${appointment.appointmentDate} at ${formatTime12(appointment.appointmentTime)}?\n\n` +
+      `request on ${toDateStr(appointment.appointmentDate)} at ${formatTime12(appointment.appointmentTime)}?\n\n` +
       'The patient will be notified.',
       [
         { text: 'Keep', style: 'cancel' },

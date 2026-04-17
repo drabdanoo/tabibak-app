@@ -155,11 +155,13 @@ const COMMON_LAB_TESTS = [
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 'YYYY-MM-DD' → 'Mon, Jan 15, 2026' */
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+/** Firestore Timestamp | 'YYYY-MM-DD' string → 'Mon, January 15, 2026' */
+function formatDate(dateVal) {
+  if (!dateVal) return '—';
+  const date = dateVal?.toDate ? dateVal.toDate()
+    : typeof dateVal === 'string' ? new Date(dateVal)
+    : dateVal;
+  return date.toLocaleDateString('en-US', {
     weekday: 'short', month: 'long', day: 'numeric', year: 'numeric',
   });
 }
