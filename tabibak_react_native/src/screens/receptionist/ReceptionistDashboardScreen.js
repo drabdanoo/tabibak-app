@@ -148,7 +148,7 @@ const STATUS_CONFIG = {
   pending:     { color: '#f59e0b', bg: '#fef3c7', label: 'في الانتظار',  icon: 'time-outline' },
   confirmed:   { color: '#3b82f6', bg: '#dbeafe', label: 'مؤكد',         icon: 'checkmark-circle-outline' },
   waiting:     { color: '#eab308', bg: '#fef9c3', label: 'في الاستقبال', icon: 'people-outline' },
-  in_progress: { color: '#8b5cf6', bg: '#ede9fe', label: 'مع الطبيب',    icon: 'medical-outline' },
+  in_progress: { color: '#8b5cf6', bg: '#ede9fe', label: 'في الجلسة',    icon: 'time-outline' },
   completed:   { color: Colors.primary, bg: '#d1fae5', label: 'مكتمل',   icon: 'checkmark-done-outline' },
   cancelled:   { color: Colors.error,   bg: '#fee2e2', label: 'ملغي',    icon: 'close-circle-outline' },
   no_show:     { color: '#6b7280',      bg: '#f3f4f6', label: 'لم يحضر', icon: 'person-remove-outline' },
@@ -160,7 +160,7 @@ const STATS_ORDER = [
   { key: 'pending',    label: 'انتظار',    color: '#f59e0b',      icon: 'time-outline' },
   { key: 'confirmed',  label: 'مؤكدة',     color: '#3b82f6',      icon: 'checkmark-circle-outline' },
   { key: 'waiting',    label: 'الاستقبال', color: '#eab308',      icon: 'people-outline' },
-  { key: 'inProgress', label: 'مع طبيب',   color: '#8b5cf6',      icon: 'medical-outline' },
+  { key: 'inProgress', label: 'في الجلسة', color: '#8b5cf6',      icon: 'time-outline' },
   { key: 'completed',  label: 'مكتملة',    color: Colors.primary, icon: 'checkmark-done-outline' },
   { key: 'noShow',     label: 'لم يحضر',   color: '#6b7280',      icon: 'person-remove-outline' },
 ];
@@ -396,8 +396,8 @@ const QuickActions = memo(({
   if (status === 'in_progress') {
     return (
       <View style={[styles.actionBtn, styles.actionBtnBadgePurple, styles.actionBtnSingle]}>
-        <Ionicons name="medical" size={13} color="#8b5cf6" />
-        <Text style={[styles.actionBtnText, { color: '#8b5cf6' }]}>مع الطبيب</Text>
+        <Ionicons name="time" size={13} color="#8b5cf6" />
+        <Text style={[styles.actionBtnText, { color: '#8b5cf6' }]}>في الجلسة</Text>
       </View>
     );
   }
