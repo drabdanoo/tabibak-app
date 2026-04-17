@@ -64,6 +64,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
 import { FEATURES } from '../../config/features';
 import firestoreService from '../../services/firestoreService';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 const PAGE_SIZE = 30;
 
@@ -149,6 +150,28 @@ function useSpecialties() {
   }, []);
 
   return specialties;
+}
+
+/**
+ * Reads config/appFlags from Firestore once on mount.
+ * Flip showDoctors: true in Firebase Console to reveal doctors
+ * for all users instantly — no app update required.
+ *
+ * Defaults to { showDoctors: false } if the document doesn't exist.
+ */
+function useRemoteFlags() {
+  const [flags, setFlags] = useState({ showDoctors: false });
+
+  useEffect(() => {
+    const db = getFirestore();
+    getDoc(doc(db, 'config', 'appFlags'))
+      .then(snap => {
+        if (snap.exists()) setFlags(snap.data());
+      })
+      .catch(() => {/* keep defaults on error */});
+  }, []);
+
+  return flags;
 }
 
 /**
@@ -339,6 +362,7 @@ const PatientHomeHeader = React.memo(({
   debouncedSearch,
   doctorCount,
   doctorsLoading,
+  showDoctors,
 }) => (
   <>
     {/* ── Hero Header ─────────────────────────────────────────────── */}
@@ -358,48 +382,52 @@ const PatientHomeHeader = React.memo(({
         </TouchableOpacity>
       </View>
 
-      {/* Search bar */}
-      <View style={S.searchBox}>
-        <Ionicons name="search-outline" size={16} color={Colors.textSecondary} />
-        <TextInput
-          style={S.searchInput}
-          placeholder="Search doctors or specialties…"
-          placeholderTextColor={Colors.gray}
-          value={searchText}
-          onChangeText={onSearchChange}
-          returnKeyType="search"
-          autoCorrect={false}
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity
-            onPress={onClearSearch}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          >
-            <Ionicons name="close-circle" size={16} color={Colors.gray} />
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* Search bar — only shown when doctors are visible */}
+      {showDoctors && (
+        <View style={S.searchBox}>
+          <Ionicons name="search-outline" size={16} color={Colors.textSecondary} />
+          <TextInput
+            style={S.searchInput}
+            placeholder="Search doctors or specialties…"
+            placeholderTextColor={Colors.gray}
+            value={searchText}
+            onChangeText={onSearchChange}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity
+              onPress={onClearSearch}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            >
+              <Ionicons name="close-circle" size={16} color={Colors.gray} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
 
-    {/* ── Specialty Filter Pills ───────────────────────────────────── */}
-    <FlatList
-      horizontal
-      data={specialties}
-      keyExtractor={item => item}
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={S.pillList}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={[S.pill, item === selectedSpecialty && S.pillActive]}
-          onPress={() => onSelectSpecialty(item)}
-          activeOpacity={0.75}
-        >
-          <Text style={[S.pillText, item === selectedSpecialty && S.pillTextActive]}>
-            {item}
-          </Text>
-        </TouchableOpacity>
-      )}
-    />
+    {/* ── Specialty Filter Pills — only when doctors are visible ──── */}
+    {showDoctors && (
+      <FlatList
+        horizontal
+        data={specialties}
+        keyExtractor={item => item}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={S.pillList}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[S.pill, item === selectedSpecialty && S.pillActive]}
+            onPress={() => onSelectSpecialty(item)}
+            activeOpacity={0.75}
+          >
+            <Text style={[S.pillText, item === selectedSpecialty && S.pillTextActive]}>
+              {item}
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
+    )}
 
     {/* ── Upcoming Appointments ────────────────────────────────────── */}
     {!aptLoading && appointments.length > 0 && (
@@ -445,28 +473,33 @@ const PatientHomeHeader = React.memo(({
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={[S.quickCard, S.quickCardWide]} onPress={onNavigateMap} activeOpacity={0.85}>
-        <View style={[S.quickIcon, { backgroundColor: Colors.secondary + '1A' }]}>
-          <Ionicons name="map-outline" size={22} color={Colors.secondary} />
-        </View>
-        <Text style={S.quickLabel}>Find Nearby</Text>
-        <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
-      </TouchableOpacity>
-    </View>
-
-    {/* ── Doctors Section Label ────────────────────────────────────── */}
-    <View style={[S.sectionHeader, S.doctorsSectionLabel]}>
-      <Text style={S.sectionTitle}>
-        {debouncedSearch
-          ? `Results for "${debouncedSearch}"`
-          : selectedSpecialty === 'All'
-            ? 'All Doctors'
-            : selectedSpecialty}
-      </Text>
-      {!doctorsLoading && (
-        <Text style={S.countLabel}>{doctorCount} found</Text>
+      {/* Find Nearby map — only shown when doctors are visible */}
+      {showDoctors && (
+        <TouchableOpacity style={[S.quickCard, S.quickCardWide]} onPress={onNavigateMap} activeOpacity={0.85}>
+          <View style={[S.quickIcon, { backgroundColor: Colors.secondary + '1A' }]}>
+            <Ionicons name="map-outline" size={22} color={Colors.secondary} />
+          </View>
+          <Text style={S.quickLabel}>Find Nearby</Text>
+          <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+        </TouchableOpacity>
       )}
     </View>
+
+    {/* ── Doctors Section Label — only when doctors are visible ───── */}
+    {showDoctors && (
+      <View style={[S.sectionHeader, S.doctorsSectionLabel]}>
+        <Text style={S.sectionTitle}>
+          {debouncedSearch
+            ? `Results for "${debouncedSearch}"`
+            : selectedSpecialty === 'All'
+              ? 'All Providers'
+              : selectedSpecialty}
+        </Text>
+        {!doctorsLoading && (
+          <Text style={S.countLabel}>{doctorCount} found</Text>
+        )}
+      </View>
+    )}
   </>
 ));
 
@@ -500,6 +533,9 @@ const PatientHomeScreen = ({ navigation }) => {
 
   const [selectedSpecialty, setSelectedSpecialty] = useState('All');
 
+  // ── Remote flags (Firestore — flip in Firebase Console, no build needed) ──
+  const { showDoctors } = useRemoteFlags();
+
   // ── Data ─────────────────────────────────────────────────────────
   const specialties = useSpecialties();
 
@@ -528,11 +564,12 @@ const PatientHomeScreen = ({ navigation }) => {
       debouncedSearch,
       doctorCount: doctors.length,
       doctorsLoading: loading,
+      showDoctors,
     }),
     [
       userProfile, searchText, handleSearchChange, clearSearch, signOut,
       specialties, selectedSpecialty, appointments, aptLoading,
-      debouncedSearch, doctors.length, loading, navigation,
+      debouncedSearch, doctors.length, loading, navigation, showDoctors,
     ],
   );
 
@@ -614,13 +651,13 @@ const PatientHomeScreen = ({ navigation }) => {
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
 
       <FlatList
-        data={doctors}
+        data={showDoctors ? doctors : []}
         keyExtractor={keyExtractor}
         renderItem={renderDoctor}
         // Stable header element — React.memo on PatientHomeHeader prevents
         // unnecessary re-renders when unrelated state changes.
         ListHeaderComponent={<PatientHomeHeader {...headerProps} />}
-        ListEmptyComponent={renderEmpty}
+        ListEmptyComponent={showDoctors ? renderEmpty : null}
         ListFooterComponent={renderFooter}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
