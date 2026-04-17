@@ -149,16 +149,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Print   from 'expo-print';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { useAuth }  from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App-level defaults (override via encounter.clinicXxx params)
 // ─────────────────────────────────────────────────────────────────────────────
-const DEFAULT_CLINIC_NAME    = 'طبيبك — Tabibak';
-const DEFAULT_CLINIC_PHONE   = '+966 11 000 0000';
+const DEFAULT_CLINIC_NAME = 'طبيبك — Tabibak';
+const DEFAULT_CLINIC_PHONE = '+966 11 000 0000';
 const DEFAULT_CLINIC_ADDRESS = 'الرياض، المملكة العربية السعودية';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -172,11 +172,11 @@ const DEFAULT_CLINIC_ADDRESS = 'الرياض، المملكة العربية ا�
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
-    .replace(/&/g,  '&amp;')
-    .replace(/</g,  '&lt;')
-    .replace(/>/g,  '&gt;')
-    .replace(/"/g,  '&quot;')
-    .replace(/'/g,  '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -206,7 +206,7 @@ function formatTime12(timeStr) {
   if (!timeStr) return '—';
   const [h, m] = timeStr.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';
-  const h12    = h % 12 === 0 ? 12 : h % 12;
+  const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
@@ -222,7 +222,7 @@ function calcAge(dob) {
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     if (
-      today.getMonth()  < birth.getMonth() ||
+      today.getMonth() < birth.getMonth() ||
       (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
     ) age--;
     return age >= 0 ? age : null;
@@ -261,23 +261,23 @@ function deriveRxNumber(appointmentId) {
  */
 function buildPrescriptionHTML(encounter, doctorInfo, rxNumber) {
   const {
-    appointmentDate  = '',
-    appointmentTime  = '',
-    patientName      = '—',
-    patientAge       = null,
-    patientDOB       = null,
-    diagnosis        = '—',
-    medications      = [],
-    clinicName       = DEFAULT_CLINIC_NAME,
-    clinicPhone      = DEFAULT_CLINIC_PHONE,
-    clinicAddress    = DEFAULT_CLINIC_ADDRESS,
+    appointmentDate = '',
+    appointmentTime = '',
+    patientName = '—',
+    patientAge = null,
+    patientDOB = null,
+    diagnosis = '—',
+    medications = [],
+    clinicName = DEFAULT_CLINIC_NAME,
+    clinicPhone = DEFAULT_CLINIC_PHONE,
+    clinicAddress = DEFAULT_CLINIC_ADDRESS,
   } = encounter;
 
   const { doctorName = '—', specialty = '—' } = doctorInfo;
 
   // Resolve patient age: prefer explicit value, compute from DOB as fallback
   const resolvedAge = patientAge ?? calcAge(patientDOB);
-  const ageStr      = resolvedAge != null ? `${resolvedAge} سنة` : '—';
+  const ageStr = resolvedAge != null ? `${resolvedAge} سنة` : '—';
 
   // Build medication table rows — each drug becomes a <tr>
   const medicationRows = medications.length > 0
@@ -289,7 +289,7 @@ function buildPrescriptionHTML(encounter, doctorInfo, rxNumber) {
           </td>
           <td>${escapeHtml(med.dosage) || '—'}</td>
           <td>${escapeHtml(med.frequency) || '—'}</td>
-          <td>${escapeHtml(med.duration)  || '—'}</td>
+          <td>${escapeHtml(med.duration) || '—'}</td>
           <td>${escapeHtml(med.instructions) || '—'}</td>
         </tr>
       `).join('')
@@ -757,10 +757,10 @@ export default function PrescriptionScreen({ route }) {
   const insets = useSafeAreaInsets();
 
   // ── Derived stable values (never change after mount) ──────────────────────
-  const rxNumber  = useMemo(() => deriveRxNumber(encounter.appointmentId), [encounter.appointmentId]);
+  const rxNumber = useMemo(() => deriveRxNumber(encounter.appointmentId), [encounter.appointmentId]);
   const doctorInfo = useMemo(() => ({
     doctorName: userProfile?.fullName ?? user?.displayName ?? '—',
-    specialty:  userProfile?.specialty ?? '—',
+    specialty: userProfile?.specialty ?? '—',
   }), [userProfile, user]);
 
   const medications = useMemo(
@@ -770,7 +770,7 @@ export default function PrescriptionScreen({ route }) {
 
   // ── Loading states (separate so only the pressed button shows spinner) ─────
   const [generating, setGenerating] = useState(false); // Share PDF
-  const [printing,   setPrinting]   = useState(false); // Print PDF
+  const [printing, setPrinting] = useState(false); // Print PDF
   const busy = generating || printing;
 
   // ── Build the HTML string (pure — called inside async handlers, not render) ─
@@ -801,9 +801,9 @@ export default function PrescriptionScreen({ route }) {
 
       // 3. Open native share sheet
       await Sharing.shareAsync(uri, {
-        mimeType:    'application/pdf',
+        mimeType: 'application/pdf',
         dialogTitle: 'مشاركة الوصفة الطبية',
-        UTI:         'com.adobe.pdf', // iOS
+        UTI: 'com.adobe.pdf', // iOS
       });
 
     } catch (err) {
@@ -843,17 +843,17 @@ export default function PrescriptionScreen({ route }) {
   }, [getHTML]);
 
   // ── FlatList callbacks (stable references — never re-created on render) ─────
-  const keyExtractor   = useCallback((_item, index) => String(index), []);
-  const renderItem     = useCallback(
+  const keyExtractor = useCallback((_item, index) => String(index), []);
+  const renderItem = useCallback(
     ({ item, index }) => <MedicationCard item={item} index={index} />,
     [],
   );
-  const listHeader     = useMemo(
+  const listHeader = useMemo(
     () => <ListHeader encounter={encounter} rxNumber={rxNumber} />,
     [encounter, rxNumber],
   );
-  const listEmpty      = useMemo(() => <EmptyMedications />, []);
-  const listSeparator  = useCallback(
+  const listEmpty = useMemo(() => <EmptyMedications />, []);
+  const listSeparator = useCallback(
     () => <View style={S.itemSeparator} />,
     [],
   );

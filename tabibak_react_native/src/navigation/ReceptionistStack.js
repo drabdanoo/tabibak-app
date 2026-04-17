@@ -8,7 +8,7 @@ import { Colors } from '../config/theme';
 import ReceptionistDashboardScreen from '../screens/receptionist/ReceptionistDashboardScreen';
 import AppointmentManagementScreen from '../screens/receptionist/AppointmentManagementScreen';
 import PatientRegistrationScreen from '../screens/receptionist/PatientRegistrationScreen';
-import WalkInBookingScreen       from '../screens/receptionist/WalkInBookingScreen';
+import WalkInBookingScreen from '../screens/receptionist/WalkInBookingScreen';
 import ReceptionistProfileScreen from '../screens/receptionist/ReceptionistProfileScreen';
 import NotificationsScreen from '../screens/receptionist/NotificationsScreen';
 

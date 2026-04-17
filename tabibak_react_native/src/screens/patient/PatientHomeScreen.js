@@ -175,6 +175,28 @@ function useRemoteFlags() {
 }
 
 /**
+ * Fetches up to 10 featured providers from Firestore.
+ * Always shown on the home screen regardless of the showDoctors flag —
+ * gives the app a populated look during Apple review without exposing
+ * a full searchable medical directory.
+ */
+function useFeaturedProviders() {
+  const [featured, setFeatured] = useState([]);
+
+  useEffect(() => {
+    firestoreService.getDoctors({}, 10, null)
+      .then(result => {
+        if (result.success && result.doctors?.length) {
+          setFeatured(result.doctors);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  return featured;
+}
+
+/**
  * Real-time listener for the patient's upcoming appointments.
  * Filters client-side for confirmed/pending appointments in the future,
  * caps at 3 items for the home-screen preview strip.
@@ -314,6 +336,32 @@ const DoctorCard = React.memo(({ doctor, onPress, onBook }) => {
   );
 });
 
+/** Compact horizontal card used in the Featured Providers strip. */
+const FeaturedProviderCard = React.memo(({ doctor, onPress }) => {
+  const initials = (doctor.name || 'P')
+    .split(' ')
+    .filter(Boolean)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <TouchableOpacity style={S.featCard} onPress={onPress} activeOpacity={0.88}>
+      {doctor.photoURL ? (
+        <Image source={{ uri: doctor.photoURL }} style={S.featAvatar} />
+      ) : (
+        <View style={[S.featAvatar, S.featAvatarFallback]}>
+          <Text style={S.featAvatarInitials}>{initials}</Text>
+        </View>
+      )}
+      <Text style={S.featName} numberOfLines={1}>{doctor.name || 'Provider'}</Text>
+      <Text style={S.featSpecialty} numberOfLines={1}>{doctor.specialty || 'General'}</Text>
+      <View style={[S.featDot, doctor.isAvailable !== false ? S.featDotGreen : S.featDotGray]} />
+    </TouchableOpacity>
+  );
+});
+
 const AppointmentChip = React.memo(({ appointment }) => {
   const d = appointment.appointmentDate?.toDate
     ? appointment.appointmentDate.toDate()
@@ -363,6 +411,8 @@ const PatientHomeHeader = React.memo(({
   doctorCount,
   doctorsLoading,
   showDoctors,
+  featuredProviders,
+  onPressFeatured,
 }) => (
   <>
     {/* ── Hero Header ─────────────────────────────────────────────── */}
@@ -485,6 +535,28 @@ const PatientHomeHeader = React.memo(({
       )}
     </View>
 
+    {/* ── Featured Providers — always visible, bypasses showDoctors flag ── */}
+    {featuredProviders.length > 0 && (
+      <View style={S.section}>
+        <View style={S.sectionHeader}>
+          <Text style={S.sectionTitle}>Featured Providers</Text>
+        </View>
+        <FlatList
+          horizontal
+          data={featuredProviders}
+          keyExtractor={item => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={S.featList}
+          renderItem={({ item }) => (
+            <FeaturedProviderCard
+              doctor={item}
+              onPress={() => onPressFeatured(item)}
+            />
+          )}
+        />
+      </View>
+    )}
+
     {/* ── Doctors Section Label — only when doctors are visible ───── */}
     {showDoctors && (
       <View style={[S.sectionHeader, S.doctorsSectionLabel]}>
@@ -538,6 +610,7 @@ const PatientHomeScreen = ({ navigation }) => {
 
   // ── Data ─────────────────────────────────────────────────────────
   const specialties = useSpecialties();
+  const featuredProviders = useFeaturedProviders();
 
   const { doctors, loading, refreshing, loadingMore, error, refresh, loadMore } =
     useDoctors({ specialty: selectedSpecialty, searchText: debouncedSearch });
@@ -565,11 +638,15 @@ const PatientHomeScreen = ({ navigation }) => {
       doctorCount: doctors.length,
       doctorsLoading: loading,
       showDoctors,
+      featuredProviders,
+      onPressFeatured: (doctor) =>
+        navigation.navigate('DoctorDetails', { doctor, doctorId: doctor.id }),
     }),
     [
       userProfile, searchText, handleSearchChange, clearSearch, signOut,
       specialties, selectedSpecialty, appointments, aptLoading,
       debouncedSearch, doctors.length, loading, navigation, showDoctors,
+      featuredProviders,
     ],
   );
 
@@ -982,6 +1059,62 @@ const S = StyleSheet.create({
     fontWeight: '600',
     color: Colors.white,
   },
+
+  // ── Featured Providers Strip ─────────────────────────────────────
+  featList: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
+    gap: Spacing.md,
+  },
+  featCard: {
+    width: 96,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+    alignItems: 'center',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+  },
+  featAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.border,
+    marginBottom: Spacing.xs,
+  },
+  featAvatarFallback: {
+    backgroundColor: Colors.primary + '18',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featAvatarInitials: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  featName: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  featSpecialty: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.xs,
+  },
+  featDot: {
+    width: 8,
+    height: 8,
+    borderRadius: BorderRadius.full,
+  },
+  featDotGreen: { backgroundColor: Colors.success },
+  featDotGray: { backgroundColor: Colors.border },
 
   // ── Empty / Error ────────────────────────────────────────────────
   emptyState: {
