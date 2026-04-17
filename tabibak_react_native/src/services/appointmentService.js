@@ -738,7 +738,9 @@ class AppointmentService {
       (snap) => {
         const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         docs.sort((a, b) => {
-          const dateComp = (a.appointmentDate ?? '').localeCompare(b.appointmentDate ?? '');
+          // appointmentDate can be a Firestore Timestamp or a string — normalise to ms
+          const toMs = v => v?.toDate ? v.toDate().getTime() : new Date(v ?? 0).getTime();
+          const dateComp = toMs(a.appointmentDate) - toMs(b.appointmentDate);
           if (dateComp !== 0) return dateComp;
           return (a.appointmentTime ?? '').localeCompare(b.appointmentTime ?? '');
         });
