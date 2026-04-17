@@ -12,6 +12,19 @@ maestro_install.zip
 _maestro_flows.zip
 maestro_report*.xml
 
+# ─── RN subfolder native/generated bloat (1 GB+) ─────────────────────────────
+tabibak_react_native/android/
+tabibak_react_native/dist/
+tabibak_react_native/package-lock.json
+tabibak_react_native/.idea/
+tabibak_react_native/.vscode/
+tabibak_react_native/*.md
+tabibak_react_native/*.jpg
+tabibak_react_native/*.jpeg
+tabibak_react_native/*.png
+!tabibak_react_native/assets/
+!tabibak_react_native/GoogleService-Info.plist
+
 # ─── Build artefacts / zips ───────────────────────────────────────────────────
 .cached_build.tar.gz
 tabibak_native.zip
@@ -54,8 +67,12 @@ seed/
 .cached_sim_app/
 .cached_build*/
 
-# ─── Git internals (inspect tool includes these; real EAS upload strips .git) ─
+# ─── Git internals ────────────────────────────────────────────────────────────
+.git
 .git/
+**/.git
+**/.git/
+.git/**
 
 # ─── Log files ───────────────────────────────────────────────────────────────
 *.log
