@@ -37,7 +37,7 @@
         "backgroundColor": "#10b981"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.abdullah.vanbook",
+      "package": "com.vantaq.vanbook",
       "googleServicesFile": "./google-services.json",
       "versionCode": 15
     },
