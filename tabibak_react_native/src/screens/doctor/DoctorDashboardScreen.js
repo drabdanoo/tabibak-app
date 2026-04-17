@@ -106,11 +106,14 @@ function formatTime12(timeStr) {
   return `${h % 12 || 12}:${String(m ?? 0).padStart(2, '0')} ${period}`;
 }
 
-/** 'YYYY-MM-DD' → locale short date string */
-function formatDateShort(dateStr) {
-  if (!dateStr) return '—';
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+/** Firestore Timestamp | 'YYYY-MM-DD' string | Date → locale short date string */
+function formatDateShort(dateVal) {
+  if (!dateVal) return '—';
+  // Firestore Timestamp
+  const date = dateVal?.toDate ? dateVal.toDate()
+    : typeof dateVal === 'string' ? new Date(dateVal)
+    : dateVal;
+  return date.toLocaleDateString(undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -619,7 +622,7 @@ export default function DoctorDashboardScreen({ navigation }) {
         <View style={[S.header, { paddingTop: insets.top + spacing.md }]}>
           <View style={S.headerText}>
             <Text style={S.greeting}>{t(greetingKey)},</Text>
-            <Text style={S.doctorName}>{t('doctor.drPrefix')} {firstName}</Text>
+            <Text style={S.doctorName}>{t('doctor.MrPrefix')} {firstName}</Text>
             <Text style={S.headerDate}>{formatTodayLong()}</Text>
           </View>
           <View style={S.headerAvatar}>
