@@ -15,12 +15,18 @@ import { USER_ROLES } from '../../config/firebase';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Resolve icon name from role */
-const roleIcon = (role) =>
-  role === USER_ROLES.DOCTOR ? 'briefcase-outline' : 'desktop-outline';
+const roleIcon = (role) => {
+  if (role === USER_ROLES.DOCTOR) return 'briefcase-outline';
+  if (role === USER_ROLES.PATIENT) return 'person-outline';
+  return 'desktop-outline';
+};
 
 /** Resolve role title key from role */
-const roleTitleKey = (role) =>
-  role === USER_ROLES.DOCTOR ? 'roles.doctor' : 'roles.receptionist';
+const roleTitleKey = (role) => {
+  if (role === USER_ROLES.DOCTOR) return 'roles.doctor';
+  if (role === USER_ROLES.PATIENT) return 'roles.patient';
+  return 'roles.receptionist';
+};
 
 /** Map a Firebase error code → localized auth error string */
 const mapLoginError = (code, t) => {
@@ -90,12 +96,18 @@ const EmailLoginScreen = ({ navigation, route }) => {
           styles.iconCircle,
           { backgroundColor: role === USER_ROLES.DOCTOR
               ? colors.secondary + '18'
-              : colors.info    + '18' },
+              : role === USER_ROLES.PATIENT
+                ? colors.primary + '18'
+                : colors.info + '18' },
         ]}>
           <Ionicons
             name={roleIcon(role)}
             size={44}
-            color={role === USER_ROLES.DOCTOR ? colors.secondary : colors.info}
+            color={role === USER_ROLES.DOCTOR
+              ? colors.secondary
+              : role === USER_ROLES.PATIENT
+                ? colors.primary
+                : colors.info}
           />
         </View>
         <Text style={styles.title}>{t(roleTitleKey(role))}</Text>

@@ -142,6 +142,15 @@ const PhoneAuthScreen = ({ navigation }) => {
         style={styles.button}
       />
 
+      {/* Email fallback — lets reviewers / testers log in without SMS */}
+      <TouchableOpacity
+        style={styles.emailFallback}
+        onPress={() => navigation.navigate('EmailLogin', { role: 'patient' })}
+        activeOpacity={0.75}
+      >
+        <Text style={styles.emailFallbackText}>Sign in with email instead</Text>
+      </TouchableOpacity>
+
     </ScreenContainer>
   );
 };
@@ -244,6 +253,16 @@ const styles = StyleSheet.create({
 
   button: {
     marginTop: spacing.sm,
+  },
+  emailFallback: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  emailFallbackText: {
+    fontSize: typography.sizes.sm,
+    color: colors.primary,
+    fontWeight: '600',
   },
 
   savedBanner: {
