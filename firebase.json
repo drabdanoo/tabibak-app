@@ -11,10 +11,18 @@
   },
   "hosting": {
     "public": "public",
+    "predeploy": ["npm run css:build"],
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "public/src/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ]
   },
   "emulators": {
@@ -25,7 +33,7 @@
       "port": 5001
     },
     "firestore": {
-      "port": 8080
+      "port": 9090
     },
     "database": {
       "port": 9000

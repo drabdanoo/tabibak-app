@@ -1,28 +1,50 @@
-{
+﻿{
   "cli": {
-    "version": ">= 5.4.0"
+    "version": ">= 10.2.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "ios": {
-        "buildConfiguration": "Release"
-      },
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "maestro": {
+      "ios": {
+        "simulator": true
       }
     },
     "production": {
-      "ios": {
-        "buildConfiguration": "Release"
-      },
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "image": "latest"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "obaidaalluhebe@gmail.com",
+        "ascAppId": "6762305050",
+        "appleTeamId": "Q444HLRBL9"
       }
     }
   }
 }
-

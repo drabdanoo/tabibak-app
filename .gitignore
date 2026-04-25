@@ -77,3 +77,4 @@ credentials/
 
 # dataconnect generated files
 .dataconnect
+.cached_sim_app/

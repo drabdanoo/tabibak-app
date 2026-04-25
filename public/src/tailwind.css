@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@source "../../public/**/*.html";
+@source "../../public/**/*.js";
+
+/* Custom animation delay utilities */
+@layer utilities {
+    .animate-delay-0-5s {
+        animation-delay: 0.5s;
+    }
+
+    .animate-delay-1s {
+        animation-delay: 1s;
+    }
+}

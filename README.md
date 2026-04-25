@@ -1,33 +1,114 @@
-## Seeding doctors (production-safe)
+# طبيبك — Tabibak
 
-This project includes a production-safe doctor seeding script using the Firebase Admin SDK.
+Arabic medical appointment booking platform for Mosul, Iraq.
 
-Prerequisites:
-- A Firebase service account with access to your project.
-- Node 18+.
+**Web app** (Firebase Hosting) + **React Native mobile app** (Expo / EAS).
 
-Auth setup options:
-- Set `GOOGLE_APPLICATION_CREDENTIALS` to the path of your service account JSON, or
-- Set `SERVICE_ACCOUNT_JSON` to the JSON string of the service account.
+---
 
-Usage:
-```bash
-# Install admin SDK if not present
-npm i firebase-admin --save-dev
+## Stack
 
-# Dry run (no writes):
-node scripts/seed-doctors.mjs --file seed/doctors.json --dry-run
+| Layer | Technology |
+|---|---|
+| Web frontend | Vanilla JS, Tailwind CSS v4, Firebase JS SDK v9 |
+| Mobile | React Native (Expo SDK 54), EAS Build |
+| Backend | Firebase Cloud Functions v1 (Node 20) |
+| Database | Firestore |
+| Auth | Firebase Auth — phone OTP, email/password |
+| Storage | Firebase Storage |
+| SMS | Twilio |
 
-# Apply changes:
-node scripts/seed-doctors.mjs --file seed/doctors.json
+---
+
+## Project structure
+
+```
+/public          Web app (patient, doctor, receptionist portals)
+/functions       Cloud Functions (Node 20, firebase-functions v6)
+/scripts         One-off admin scripts (doctor import, backfill)
+/tests           Firestore security rules tests (Jest)
+/tabibak_react_native   React Native mobile app
+firestore.rules  Firestore security rules
+storage.rules    Storage security rules
 ```
 
-Behavior:
-- Upserts doctors by `email` (case-insensitive).
-- Creates Auth users if not found (with random password if not provided).
-- Sets sensible defaults and merges missing fields for existing docs.
-- Idempotent and safe to re-run.
+---
 
-Notes:
-- The former in-app seeding button was removed from `public/admin.html` and should not be used in production.
+## Local setup
 
+### Web app
+
+```bash
+npm install
+npm run css:build        # build Tailwind CSS
+```
+
+Serve `public/` with any static server or `firebase serve --only hosting`.
+
+### Cloud Functions
+
+```bash
+cd functions
+npm install
+```
+
+Twilio credentials live in `functions/medconnect-2.env` (not committed).
+Copy the template and fill in your values:
+
+```
+TWILIO_SID="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+TWILIO_TOKEN="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+TWILIO_PHONE_NUMBER="+1xxxxxxxxxx"
+```
+
+### Firestore rules tests
+
+Requires the Firestore emulator:
+
+```bash
+# Terminal 1
+firebase emulators:start --only firestore
+
+# Terminal 2
+npm test
+```
+
+Or in one command:
+```bash
+npm run test:rules
+```
+
+---
+
+## Deployment
+
+```bash
+firebase deploy
+```
+
+Pre-deploy hook automatically rebuilds Tailwind CSS.
+
+---
+
+## Doctor import
+
+2 028 doctors scraped from tabib.iq are seeded into Firestore via:
+
+```bash
+node scripts/import_tabib_doctors.js [path/to/tabib_doctors.csv]
+```
+
+Idempotent — uses a deterministic SHA-1 doc ID (name + address hash).
+Set `featured: true` on a doctor document in Firestore to show it in the
+**أطباء مميزون** section on the patient portal.
+
+---
+
+## Roles
+
+| Role | Login method | Portal |
+|---|---|---|
+| Patient | Phone OTP or email | `patient.html` |
+| Doctor | Email / password | `doctor.html` |
+| Receptionist | Email / password | `receptionist.html` |
+| Admin | Email / password + custom claim | Firebase console |

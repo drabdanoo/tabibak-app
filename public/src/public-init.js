@@ -428,7 +428,7 @@ window.printAppointmentCard = function() {
         <head>
             <meta charset="UTF-8">
             <title>بطاقة الموعد - MedConnect</title>
-            <script src="https://cdn.tailwindcss.com"></script>
+            <script src="https://cdn.tailwindcss.com"></script><!-- CDN intentional: isolated print popup can't use relative styles.css -->
             <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
             <style>
                 body { font-family: 'Cairo', sans-serif; }

@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" tests="1" failures="0" time="91.515" timestamp="2026-04-08T12:10:24.206">
+    <testcase id="02_auth_phone_login_patient" name="02_auth_phone_login_patient" classname="02_auth_phone_login_patient" time="91.226" timestamp="2026-04-08T12:10:24.472" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

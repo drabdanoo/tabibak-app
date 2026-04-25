@@ -1,0 +1,95 @@
+# Root-level EAS archive exclusions
+# Keeps the upload to tabibak_react_native/ only.
+# The app-level .easignore at tabibak_react_native/.easignore handles
+# exclusions inside the app folder.
+
+# ─── Testing infrastructure (248 MB) ─────────────────────────────────────────
+maestro_cli/
+maestro_flows/
+maestro_flows_*/
+maestro_flows_smoke/
+maestro_install.zip
+_maestro_flows.zip
+maestro_report*.xml
+
+# ─── RN subfolder native/generated bloat (1 GB+) ─────────────────────────────
+tabibak_react_native/android/
+tabibak_react_native/dist/
+tabibak_react_native/package-lock.json
+tabibak_react_native/.idea/
+tabibak_react_native/.vscode/
+tabibak_react_native/*.md
+tabibak_react_native/*.jpg
+tabibak_react_native/*.jpeg
+tabibak_react_native/*.png
+!tabibak_react_native/assets/
+!tabibak_react_native/GoogleService-Info.plist
+
+# ─── Build artefacts / zips ───────────────────────────────────────────────────
+.cached_build.tar.gz
+tabibak_native.zip
+_sim_app.zip
+*.zip
+
+# ─── Web app (separate project) ───────────────────────────────────────────────
+public/
+functions/
+
+# ─── Dependencies (untracked but belt-and-suspenders) ────────────────────────
+node_modules/
+**/node_modules/
+
+# ─── Firebase / credentials (security) ───────────────────────────────────────
+service-account-key.json
+*.json
+!tabibak_react_native/**/*.json
+
+# ─── Documentation / markdown ─────────────────────────────────────────────────
+*.md
+*.txt
+*.pdf
+
+# ─── Scripts / seed / debug ───────────────────────────────────────────────────
+scripts/
+seed/
+*.py
+*.js
+!tabibak_react_native/**/*.js
+
+# ─── IDE / OS artefacts ───────────────────────────────────────────────────────
+.idea/
+.vscode/
+.expo/
+.DS_Store
+%USERPROFILE%/
+
+# ─── Cached simulator/device builds ─────────────────────────────────────────
+.cached_sim_app/
+.cached_build*/
+
+# ─── Git internals ────────────────────────────────────────────────────────────
+.git
+.git/
+**/.git
+**/.git/
+.git/**
+
+# ─── Log files ───────────────────────────────────────────────────────────────
+*.log
+replay_pid*.log
+hs_err_pid*.log
+firestore-debug.log
+database-debug.log
+
+# ─── Misc root files ─────────────────────────────────────────────────────────
+*.bat
+*.ps1
+*.xml
+*.txt
+*.code-workspace
+recaptcha.txt
+settings.txt
+PATH.txt
+temp_view.txt
+.env
+.env.*

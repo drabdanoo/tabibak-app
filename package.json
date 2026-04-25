@@ -6,13 +6,24 @@
   "scripts": {
     "add-doctor": "node manage-doctors.js add",
     "list-doctors": "node manage-doctors.js list",
-    "delete-doctor": "node manage-doctors.js delete"
+    "delete-doctor": "node manage-doctors.js delete",
+    "css:build": "npx @tailwindcss/cli -i ./public/src/tailwind.css -o ./public/styles.css --minify",
+    "css:watch": "npx @tailwindcss/cli -i ./public/src/tailwind.css -o ./public/styles.css --watch",
+    "test": "jest",
+    "test:rules": "firebase emulators:exec --only firestore \"jest\"",
+    "import:doctors": "node scripts/import_tabib_doctors.js"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "firebase-functions": "^6.5.0"
   },
   "devDependencies": {
-    "firebase-admin": "^13.5.0"
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "@tailwindcss/cli": "^4.2.4",
+    "csv-parse": "^6.2.1",
+    "firebase-admin": "^13.7.0",
+    "jest": "^30.3.0",
+    "tailwindcss": "^4.2.4"
   },
   "keywords": [
     "firebase",

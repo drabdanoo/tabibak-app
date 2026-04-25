@@ -1,0 +1,66 @@
+# EAS archive exclusions
+# Ref: https://expo.fyi/eas-build-archive
+
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ─── Generated native folders (Expo Prebuild output) ─────────────────────────
+android/
+/android
+**/android/
+android/app/build/
+android/.gradle/
+android/build/
+ios/
+/ios
+**/ios/
+.kotlin/
+
+# ─── Expo / Metro cache ───────────────────────────────────────────────────────
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# ─── Claude AI worktrees (MAJOR bloat — full repo checkouts) ─────────────────
+.claude/
+
+# ─── IDE / editor folders ─────────────────────────────────────────────────────
+.idea/
+.vscode/
+
+# ─── Documentation (not needed for build) ────────────────────────────────────
+*.md
+!README.md
+
+# ─── Scripts / seeds ─────────────────────────────────────────────────────────
+scripts/
+seed/
+
+# ─── Lock files (EAS installs fresh) ─────────────────────────────────────────
+package-lock.json
+yarn.lock
+
+# ─── Native certificates & keys ───────────────────────────────────────────────
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+*.orig.*
+
+# ─── Debug / log files ────────────────────────────────────────────────────────
+*.log
+*.tsbuildinfo
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# ─── macOS artefacts ─────────────────────────────────────────────────────────
+.DS_Store
+
+# ─── Local env ────────────────────────────────────────────────────────────────
+.env*.local

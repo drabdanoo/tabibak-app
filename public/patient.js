@@ -7,20 +7,44 @@ const firebaseConfig = window.__MC_ENV__?.FIREBASE_CONFIG;
 const siteKey = window.__MC_ENV__?.APP_CHECK_KEY;
 
 firebase.initializeApp(firebaseConfig);
-// Initialize Firebase app
 
-// Initialize App Check immediately so tokens are attached to initial Firestore requests
-try {
-    const appCheck = firebase.appCheck();
-    if (siteKey) {
-        appCheck.activate(siteKey, true);
+// Initialize App Check and wait for token before creating Firestore instance
+let auth, db;
+
+(async function initializeFirebaseServices() {
+    try {
+        // Initialize App Check first
+        if (siteKey) {
+            const appCheck = firebase.appCheck();
+            appCheck.activate(siteKey, true);
+            // Wait for App Check token to be ready
+            await appCheck.getToken(/* forceRefresh= */ false);
+        }
+    } catch (e) {
+        console.warn('App Check init skipped:', e?.message || e);
     }
-} catch (e) {
-    console.warn('App Check init skipped:', e?.message || e);
-}
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+    // Now initialize auth and Firestore with App Check token ready
+    auth = firebase.auth();
+    db = firebase.firestore();
+
+    // Trigger auth state check after initialization
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            console.log('Auth state changed: User is signed in.', user.uid);
+            db.collection('users').doc(user.uid).get().then(doc => {
+                if (doc.exists) {
+                    updateUserInterface({ uid: user.uid, ...doc.data() });
+                } else {
+                    logout();
+                }
+            });
+        } else {
+            console.log('Auth state changed: User is signed out.');
+            resetUserInterface();
+        }
+    });
+})();
 
 // No emulator connections in production code.
 
@@ -36,111 +60,20 @@ let selectedDoctorId = null;
 let selectedTimeSlot = null;
 let selectedRescheduleTimeSlot = null;
 let confirmationResult = null;
-let doctors = {};
+let doctors = {};          // id → doctor object (cache used by booking/profile)
+let doctorList = [];       // ordered list for the main grid
+let featuredDoctors = [];  // up to 8 featured
 let doctorsLoaded = false;
+let doctorsCursor = null;  // Firestore pagination cursor
+let doctorsPageLoading = false;
+let doctorsAllLoaded = false;
+let pageSpecialty = '';    // specialty constraint applied at query level
 let userAppointments = []; // To store the user's appointments for filtering
 let lastVisibleReview = null; // For reviews pagination
 let recaptchaVerifier = null;
 let recaptchaInitPromise = null;
-let activeChatListener = null; // To hold the active chat listener
-
-// === Chat Functions ===
-async function openChat(appointmentId) {
-    const user = auth.currentUser;
-    if (!user) return showNotification('يرجى تسجيل الدخول لبدء المحادثة', 'error');
-
-    const appointment = userAppointments.find(apt => apt.id === appointmentId);
-    if (!appointment) return showNotification('لم يتم العثور على الحجز', 'error');
-
-    try {
-        // Find the receptionist for the doctor
-        const receptionistQuery = await db.collection('receptionists').where('doctorId', '==', appointment.doctorId).limit(1).get();
-        if (receptionistQuery.empty) {
-            return showNotification('لا يوجد موظف استقبال متاح لهذا الطبيب.', 'error');
-        }
-        const receptionistId = receptionistQuery.docs[0].id;
-
-        // Look for an existing chat or create a new one
-        let chatRef;
-        const appointmentRef = db.collection('appointments').doc(appointmentId);
-        const aptDoc = await appointmentRef.get();
-        const existingChatId = aptDoc.data().chatId;
-
-        if (existingChatId) {
-            chatRef = db.collection('chats').doc(existingChatId);
-        } else {
-            chatRef = db.collection('chats').doc();
-            await chatRef.set({
-                participants: [user.uid, receptionistId],
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                lastMessage: '',
-                appointmentId: appointmentId
-            });
-            await appointmentRef.update({ chatId: chatRef.id });
-        }
-
-        showModal('chatModal');
-        document.getElementById('chatModalTitle').textContent = `محادثة بخصوص حجز د. ${appointment.doctorName}`;
-
-        // Listen for messages
-        if (activeChatListener) activeChatListener(); // Detach old listener
-        activeChatListener = chatRef.collection('messages').orderBy('timestamp').onSnapshot(snapshot => {
-            const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderChatMessages(messages, user.uid);
-        });
-
-        // Handle sending messages
-        const chatForm = document.getElementById('chatForm');
-        chatForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const messageInput = document.getElementById('chatMessageInput');
-            const text = messageInput.value.trim();
-            if (text) {
-                const messageData = {
-                    text: text,
-                    senderId: user.uid,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                await chatRef.collection('messages').add(messageData);
-                await chatRef.update({ lastMessage: text, lastMessageTimestamp: messageData.timestamp });
-                messageInput.value = '';
-            }
-        };
-
-    } catch (error) {
-        console.error('Error opening chat:', error);
-        showNotification('حدث خطأ عند فتح المحادثة', 'error');
-    }
-}
-
-function closeChatModal() {
-    if (activeChatListener) {
-        activeChatListener(); // Stop listening to messages
-        activeChatListener = null;
-    }
-    closeModal('chatModal');
-}
-
-function renderChatMessages(messages, currentUserId) {
-    const messagesContainer = document.getElementById('chatMessages');
-    messagesContainer.innerHTML = messages.map(msg => {
-        const isSender = msg.senderId === currentUserId;
-        const time = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString('ar-IQ') : '';
-        return `
-            <div class="flex ${isSender ? 'justify-end' : 'justify-start'}">
-                <div class="${isSender ? 'bg-blue-500 text-white' : 'bg-white'} rounded-lg p-3 max-w-xs shadow-sm">
-                    <p>${msg.text}</p>
-                    <p class="text-xs ${isSender ? 'text-blue-200' : 'text-gray-500'} mt-1 text-left">${time}</p>
-                </div>
-            </div>
-        `;
-    }).join('');
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
 
 // === OTP Rate Limiting ===
-
 const OTP_RATE_LIMIT = {
     maxAttempts: 3,
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -176,24 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Production: do not expose App Check status in the UI.
-
-    // Monitor Firebase Auth state
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            console.log('Auth state changed: User is signed in.', user.uid);
-            db.collection('users').doc(user.uid).get().then(doc => {
-                if (doc.exists) {
-                    updateUserInterface({ uid: user.uid, ...doc.data() });
-                } else {
-                    // This case might happen if user record was deleted but auth session persists.
-                    logout();
-                }
-            });
-        } else {
-            console.log('Auth state changed: User is signed out.');
-            resetUserInterface();
-        }
-    });
+    // Note: auth.onAuthStateChanged is now set up in the async init function above
     // Auto-hide connection status
     setTimeout(() => {
         if (statusElement) statusElement.style.display = 'none';
@@ -249,152 +165,271 @@ function generateInitials(name) {
     return parts.length >= 2 ? `د.${parts[1].charAt(0)}` : `د.${parts[0].charAt(0)}`;
 }
 
-function convertTo12HourFormat(time24h) {
-    if (!time24h) return 'غير محدد';
-    try {
-        const [hours, minutes] = time24h.split(':');
-        const hour = parseInt(hours);
-        const ampm = hour >= 12 ? 'م' : 'ص';
-        const hour12 = hour % 12 || 12;
-        return `${hour12}:${minutes} ${ampm}`;
-    } catch (e) {
-        return time24h;
+// Specialty → gradient for featured cards
+const SPECIALTY_GRADIENTS = {
+    'طب الاسنان': 'from-cyan-500 to-blue-600',
+    'الطب الباطني': 'from-green-500 to-teal-600',
+    'الامراض الجلدية والزهرية': 'from-pink-500 to-rose-500',
+    'النسائية والتوليد': 'from-purple-500 to-violet-600',
+    'طب الاطفال وحديثي الولادة': 'from-orange-400 to-amber-500',
+    'الاشعة التشخيصية': 'from-indigo-500 to-blue-700',
+    'جراحة': 'from-red-500 to-rose-600',
+    'الطب النفسي': 'from-violet-500 to-purple-700',
+    'العظام والمفاصل': 'from-slate-500 to-gray-700',
+};
+function specialtyGradient(specialty) {
+    for (const [key, val] of Object.entries(SPECIALTY_GRADIENTS)) {
+        if (specialty && specialty.includes(key.slice(0, 8))) return val;
     }
+    return 'from-blue-600 to-indigo-700';
 }
 
-function formatClinicHours(openingTime, closingTime) {
-    if (!openingTime || !closingTime) return 'غير محدد';
-    const opening = convertTo12HourFormat(openingTime);
-    const closing = convertTo12HourFormat(closingTime);
-    return `${opening} - ${closing}`;
+function mapDoctorDoc(doc) {
+    const data = doc.data();
+    if (!data || !data.name || !data.specialty) return null;
+    const fee = data.consultationFee ? Math.round(data.consultationFee / 1000) : null;
+    return {
+        id: doc.id,
+        name: data.name,
+        specialty: data.specialty,
+        phone: data.phone || '',
+        email: data.email || '',
+        fee: fee,
+        initials: data.initials || generateInitials(data.name),
+        experience: data.experience || '5+ سنوات خبرة',
+        rating: data.rating || '4.5',
+        reviews: data.reviews || '0',
+        location: data.location || 'الموصل',
+        hours: data.hours || '9:00 ص - 5:00 م',
+        education: data.education || 'بكالوريوس طب وجراحة',
+        specializations: data.specializations || [data.specialty],
+        languages: data.languages || ['العربية'],
+        about: data.about || `طبيب متخصص في ${data.specialty}.`,
+        openingTime: data.openingTime,
+        closingTime: data.closingTime,
+        clinicClosed: data.clinicClosed,
+        closureEndDate: data.closureEndDate,
+        featured: data.featured || false,
+    };
 }
 
 async function loadDoctors() {
     if (doctorsLoaded) return;
-    const doctorsGrid = document.getElementById('doctorsGrid');
-    if (doctorsGrid) {
-        doctorsGrid.innerHTML = `
-            <div class="col-span-full flex justify-center items-center py-12">
-                <div class="text-center">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p class="text-gray-600">جاري تحميل قائمة الأطباء...</p>
-                </div>
-            </div>`;
+
+    const allowIds = window.__MC_ENV__?.ALLOWED_DOCTOR_IDS || [];
+
+    // Whitelist mode: fetch specific docs directly (short list, no pagination needed)
+    if (Array.isArray(allowIds) && allowIds.length > 0) {
+        try {
+            const docs = await Promise.all(allowIds.map(id => db.collection('doctors').doc(id).get()));
+            docs.filter(d => d.exists && d.data()?.listed).forEach(d => {
+                const mapped = mapDoctorDoc(d);
+                if (mapped) { doctors[d.id] = mapped; doctorList.push(mapped); }
+            });
+        } catch (e) { console.error('Error loading whitelisted doctors:', e); }
+        doctorsLoaded = true;
+        _renderFullGrid();
+        updateSpecialtyFilter(); updateSpecialtiesTab(); updateDoctorSelection(); updateStatistics();
+        return;
     }
 
+    // General mode: featured + paginated
+    await Promise.all([_loadFeaturedDoctors(), _loadDoctorPage()]);
+    doctorsLoaded = true;
+    updateSpecialtyFilter(); updateSpecialtiesTab(); updateDoctorSelection(); updateStatistics();
+    _setupScrollObserver();
+}
+
+async function _loadFeaturedDoctors() {
     try {
-        const allowEmails = window.__MC_ENV__?.ALLOWED_DOCTOR_EMAILS || [];
-        const allowIds = window.__MC_ENV__?.ALLOWED_DOCTOR_IDS || [];
-        let snapshot;
+        const snap = await db.collection('doctors')
+            .where('featured', '==', true)
+            .where('listed', '==', true)
+            .limit(8)
+            .get();
+        if (snap.empty) return;
+        snap.docs.forEach(d => {
+            const mapped = mapDoctorDoc(d);
+            if (!mapped) return;
+            doctors[d.id] = mapped;
+            featuredDoctors.push(mapped);
+        });
+        _renderFeaturedDoctors();
+    } catch (e) { /* featured is non-critical */ }
+}
 
-        if (Array.isArray(allowIds) && allowIds.length > 0) {
-            const promises = allowIds.map(id => db.collection('doctors').doc(id).get());
-            const docs = (await Promise.all(promises)).filter(d => d.exists && d.data()?.listed === true);
-            snapshot = { empty: docs.length === 0, docs };
-        } else {
-            const baseSnap = await db.collection('doctors').where('listed', '==', true).get();
-            let docs = baseSnap.docs;
-            if (Array.isArray(allowEmails) && allowEmails.length > 0) {
-                const allowedSet = new Set(allowEmails.map(e => String(e).toLowerCase()));
-                docs = docs.filter(d => allowedSet.has(String(d.data()?.email || '').toLowerCase()));
-            }
-            snapshot = { empty: docs.length === 0, docs };
-        }
+async function _loadDoctorPage() {
+    if (doctorsPageLoading || doctorsAllLoaded) return;
+    doctorsPageLoading = true;
+    try {
+        let q = db.collection('doctors').where('listed', '==', true);
+        if (pageSpecialty) q = q.where('specialty', '==', pageSpecialty);
+        q = q.limit(50);
+        if (doctorsCursor) q = q.startAfter(doctorsCursor);
 
-        doctors = {};
-        if (!snapshot.empty) {
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                if (!data || !data.name || !data.email || !data.specialty) {
-                    console.warn('Invalid doctor data, skipping:', doc.id);
-                    return;
-                }
-                const fee = (data.consultationFee || 15000) / 1000;
-                doctors[doc.id] = {
-                    id: doc.id,
-                    name: data.name,
-                    specialty: data.specialty,
-                    phone: data.phone,
-                    email: data.email,
-                    fee: `${fee}`,
-                    initials: data.initials || generateInitials(data.name),
-                    photoURL: data.photoURL || null,
-                    experience: data.experience || '5+ سنوات خبرة',
-                    rating: data.rating || '4.5',
-                    reviews: data.reviews || '50',
-                    location: data.location || 'العيادة الطبية',
-                    hours: data.hours || '9:00 ص - 5:00 م',
-                    education: data.education || 'بكالوريوس طب وجراحة',
-                    specializations: data.specializations || [data.specialty],
-                    languages: data.languages || ['العربية'],
-                    about: data.about || `طبيب متخصص في ${data.specialty} مع خبرة واسعة في المجال الطبي.`,
-                    openingTime: data.openingTime,
-                    closingTime: data.closingTime,
-                    clinicClosed: data.clinicClosed,
-                    closureEndDate: data.closureEndDate
-                };
-            });
-        }
+        const snap = await q.get();
+        if (snap.empty || snap.docs.length < 50) doctorsAllLoaded = true;
 
-        doctorsLoaded = true;
-        updateSpecialtyFilter();
-        updateDoctorGrid();
-        updateSpecialtiesTab();
-        updateDoctorSelection();
-        updateStatistics();
+        const newDocs = [];
+        snap.docs.forEach(d => {
+            if (doctors[d.id]) return; // already in cache (e.g. featured)
+            const mapped = mapDoctorDoc(d);
+            if (!mapped) return;
+            doctors[d.id] = mapped;
+            doctorList.push(mapped);
+            newDocs.push(mapped);
+        });
 
-    } catch (error) {
-        console.error('Error loading doctors:', error);
-        doctorsLoaded = true;
-        updateDoctorGrid(); // Will show empty state
-        window.showNotification('لا تتوفر قائمة أطباء حالياً', 'info');
+        if (snap.docs.length > 0) doctorsCursor = snap.docs[snap.docs.length - 1];
+
+        _appendDoctorCards(newDocs);
+        _updateLoadMoreState();
+    } catch (e) {
+        console.error('Error loading doctors page:', e);
+        window.showNotification('تعذّر تحميل الأطباء، حاول مرة أخرى', 'error');
+    } finally {
+        doctorsPageLoading = false;
     }
 }
 
-function updateDoctorGrid() {
-    const doctorsGrid = document.getElementById('doctorsGrid');
-    if (!doctorsGrid) return;
+function loadMoreDoctors() { _loadDoctorPage(); }
 
-    if (Object.keys(doctors).length === 0) {
-        doctorsGrid.innerHTML = `
+function _renderFeaturedDoctors() {
+    const section = document.getElementById('featuredSection');
+    const grid    = document.getElementById('featuredGrid');
+    if (!section || !grid || featuredDoctors.length === 0) return;
+
+    grid.innerHTML = featuredDoctors.map(d => `
+        <div class="featured-card bg-white rounded-2xl overflow-hidden shadow-md border border-gray-100 cursor-pointer"
+             onclick="showDoctorProfile('${d.id}')"
+             data-name="${d.name.toLowerCase()}" data-specialty="${d.specialty}">
+            <div class="bg-gradient-to-br ${specialtyGradient(d.specialty)} p-5 relative">
+                <span class="featured-badge absolute top-3 left-3">⭐ مميز</span>
+                <div class="w-16 h-16 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mb-3">
+                    <span class="text-white font-bold text-xl">${sanitizeHtml(d.initials)}</span>
+                </div>
+                <h3 class="text-white font-bold text-base leading-tight">${sanitizeHtml(d.name)}</h3>
+                <p class="text-white/80 text-xs mt-1">${sanitizeHtml(d.specialty)}</p>
+                <div class="flex items-center mt-2 gap-1">
+                    ${[1,2,3,4,5].map(s => `<svg class="w-3 h-3 ${s <= Math.floor(d.rating||4.5) ? 'text-yellow-300' : 'text-white/30'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`).join('')}
+                </div>
+            </div>
+            <div class="p-4">
+                <p class="text-gray-500 text-xs mb-3 flex items-center gap-1">
+                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <span class="truncate">${sanitizeHtml(d.location)}</span>
+                </p>
+                <button onclick="event.stopPropagation(); showBookingModal('${d.id}')"
+                        class="w-full bg-gradient-to-r ${specialtyGradient(d.specialty)} text-white text-sm font-medium py-2 rounded-lg hover:opacity-90 transition-opacity">
+                    احجز الآن
+                </button>
+            </div>
+        </div>`).join('');
+
+    section.classList.remove('hidden');
+}
+
+function _doctorCardHtml(d) {
+    const feeHtml = d.fee !== null
+        ? `<div class="flex items-center text-gray-600"><svg class="w-4 h-4 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg><span class="text-sm font-medium">${sanitizeHtml(String(d.fee))} ألف د.ع</span></div>`
+        : '';
+    return `
+        <div class="doctor-card bg-white rounded-xl shadow-sm border card-hover fade-in"
+             data-name="${d.name.toLowerCase()}" data-specialty="${d.specialty}">
+            <div class="p-5">
+                <div class="flex items-center mb-4">
+                    <div class="w-14 h-14 doctor-avatar rounded-full flex items-center justify-center ml-3 flex-shrink-0">
+                        <span class="text-white font-bold text-base">${sanitizeHtml(d.initials)}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-lg font-bold text-gray-900 truncate">${sanitizeHtml(d.name)}</h3>
+                        <p class="text-blue-600 text-sm font-medium truncate">${sanitizeHtml(d.specialty)}</p>
+                    </div>
+                </div>
+                <div class="space-y-2 mb-4 text-sm text-gray-600">
+                    <div class="flex items-start gap-2">
+                        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span class="line-clamp-2">${sanitizeHtml(d.location)}</span>
+                    </div>
+                    ${feeHtml}
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-0.5">
+                        ${[1,2,3,4,5].map(s => `<svg class="w-4 h-4 ${s <= Math.floor(d.rating||4.5) ? 'text-yellow-400' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`).join('')}
+                        <span class="text-xs text-gray-500 mr-1">(${d.reviews})</span>
+                    </div>
+                    <span class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full font-medium">متاح</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="showDoctorProfile('${d.id}')" class="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">الملف</button>
+                    <button onclick="showBookingModal('${d.id}')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white px-3 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm font-medium">احجز</button>
+                </div>
+            </div>
+        </div>`;
+}
+
+function _appendDoctorCards(docArray) {
+    const grid = document.getElementById('doctorsGrid');
+    if (!grid) return;
+    // Clear skeleton placeholders on first append
+    if (grid.querySelector('.skeleton')) grid.innerHTML = '';
+
+    if (docArray.length === 0 && doctorList.length === 0) {
+        grid.innerHTML = `
             <div class="col-span-full text-center py-12">
-                <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">لا يوجد أطباء متاحين حالياً</h3>
                 <p class="text-gray-600">يرجى المحاولة مرة أخرى لاحقاً</p>
             </div>`;
         return;
     }
 
-    doctorsGrid.innerHTML = Object.values(doctors).map(doctor => `
-        <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
-            <div class="p-6">
-                <div class="flex items-center mb-4">
-                    <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4 overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600">
-                        ${doctor.photoURL ? `<img src="${doctor.photoURL}" alt="${sanitizeHtml(doctor.name)}" class="w-full h-full object-cover">` : `<span class="text-white font-bold text-lg">${doctor.initials}</span>`}
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-xl font-bold text-gray-900 mb-1">${sanitizeHtml(doctor.name)}</h3>
-                        <p class="text-blue-600 font-medium">${sanitizeHtml(doctor.specialty)}</p>
-                    </div>
-                </div>
-                <div class="space-y-3 mb-6">
-                    <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-sm">${sanitizeHtml(doctor.location || 'العيادة الطبية')}</span></div>
-                    <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-sm">${sanitizeHtml(formatClinicHours(doctor.openingTime, doctor.closingTime))}</span></div>
-                    <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path></svg><span class="text-sm font-medium">${sanitizeHtml(doctor.fee)} ألف د.ع</span></div>
-                </div>
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center">
-                        <div class="flex items-center ml-2">${[1,2,3,4,5].map(star => `<svg class="w-4 h-4 ${star <= Math.floor(doctor.rating || 4.5) ? 'text-yellow-400' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`).join('')}</div>
-                        <span class="text-sm text-gray-600">(${doctor.reviews || '50'} تقييم)</span>
-                    </div>
-                    <span class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full font-medium">متاح</span>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="showDoctorProfile('${doctor.id}')" class="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">عرض الملف</button>
-                    <button onclick="showBookingModal('${doctor.id}')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 text-sm font-medium">احجز الآن</button>
-                </div>
-            </div>
-        </div>`).join('');
+    const fragment = document.createDocumentFragment();
+    docArray.forEach(d => {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = _doctorCardHtml(d).trim();
+        fragment.appendChild(wrapper.firstChild);
+    });
+    grid.appendChild(fragment);
+}
+
+function _renderFullGrid() {
+    const grid = document.getElementById('doctorsGrid');
+    if (grid) grid.innerHTML = '';
+    _appendDoctorCards(doctorList);
+    _updateLoadMoreState();
+}
+
+function _updateLoadMoreState() {
+    const container = document.getElementById('loadMoreContainer');
+    const allMsg    = document.getElementById('allLoadedMsg');
+    if (!container || !allMsg) return;
+    if (doctorsAllLoaded) {
+        container.classList.add('hidden');
+        if (doctorList.length > 0) allMsg.classList.remove('hidden');
+    } else {
+        container.classList.remove('hidden');
+        allMsg.classList.add('hidden');
+    }
+}
+
+function _setupScrollObserver() {
+    const sentinel = document.getElementById('scrollSentinel');
+    if (!sentinel || !('IntersectionObserver' in window)) {
+        // Fallback: show manual button on old browsers
+        _updateLoadMoreState();
+        return;
+    }
+    // Hide the manual button — auto-load handles it
+    const container = document.getElementById('loadMoreContainer');
+    if (container) container.classList.add('hidden');
+
+    const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && !doctorsPageLoading && !doctorsAllLoaded) {
+            _loadDoctorPage();
+        }
+    }, { rootMargin: '200px' });
+    observer.observe(sentinel);
 }
 
 function updateSpecialtyFilter() {
@@ -444,17 +479,40 @@ function updateStatistics() {
 }
 
 function filterDoctors() {
-    const searchTerm = document.getElementById('doctorSearch').value.toLowerCase();
-    const selectedSpecialty = document.getElementById('specialtyFilter').value;
-    const doctorCards = document.querySelectorAll('#doctorsGrid > div');
+    const searchTerm     = (document.getElementById('doctorSearch')?.value || '').toLowerCase().trim();
+    const selectedSpec   = document.getElementById('specialtyFilter')?.value || '';
 
-    doctorCards.forEach(card => {
-        if (!card.querySelector('h3')) return; // Skip loading/empty state
-        const doctorName = card.querySelector('h3')?.textContent.toLowerCase() || '';
-        const doctorSpecialty = card.querySelector('p.text-blue-600')?.textContent || '';
-        const nameMatch = doctorName.includes(searchTerm);
-        const specialtyMatch = !selectedSpecialty || doctorSpecialty === selectedSpecialty;
-        card.style.display = (nameMatch && specialtyMatch) ? '' : 'none';
+    // If specialty changed → re-query Firestore from scratch
+    if (selectedSpec !== pageSpecialty) {
+        pageSpecialty     = selectedSpec;
+        doctorsCursor     = null;
+        doctorsAllLoaded  = false;
+        doctorList        = [];
+        // Keep featured in cache but reset regular list
+        const featuredIds = new Set(featuredDoctors.map(d => d.id));
+        Object.keys(doctors).forEach(id => { if (!featuredIds.has(id)) delete doctors[id]; });
+
+        const grid = document.getElementById('doctorsGrid');
+        if (grid) grid.innerHTML = `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
+        _loadDoctorPage();
+        return;
+    }
+
+    // Same specialty — filter already-loaded cards by name
+    document.querySelectorAll('#doctorsGrid .doctor-card').forEach(card => {
+        const name = card.dataset.name || '';
+        const spec = card.dataset.specialty || '';
+        const ok = (!searchTerm || name.includes(searchTerm)) &&
+                   (!selectedSpec || spec === selectedSpec);
+        card.style.display = ok ? '' : 'none';
+    });
+    // Also filter featured cards
+    document.querySelectorAll('#featuredGrid .featured-card').forEach(card => {
+        const name = card.dataset.name || '';
+        const spec = card.dataset.specialty || '';
+        const ok = (!searchTerm || name.includes(searchTerm)) &&
+                   (!selectedSpec || spec === selectedSpec);
+        card.style.display = ok ? '' : 'none';
     });
 }
 
@@ -507,12 +565,17 @@ function showBookingModal(doctorId = null) {
             updateSelectedDoctorInfo(doctors[selectedDoctorId]);
             updateTimeSlots(selectedDoctorId);
         } else {
+            document.getElementById('timeSlots').innerHTML = '<p class="col-span-full text-center text-gray-500">الرجاء اختيار طبيب لعرض الأوقات المتاحة.</p>';
             document.getElementById('selectedDoctorName').textContent = 'يرجى اختيار طبيب';
             document.getElementById('selectedDoctorSpecialty').textContent = 'التخصص';
             document.getElementById('selectedDoctorFee').textContent = '0';
             document.getElementById('selectedDoctorInitials').textContent = 'د.م';
         }
     }
+
+    const dateInput = document.getElementById('appointmentDate');
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.setAttribute('min', today);
 
     showModal('bookingModal');
 }
@@ -525,40 +588,26 @@ function closeBookingModal() {
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => checkbox.checked = false);
 }
 
-async function showDoctorProfile(doctorId) {
+function showDoctorProfile(doctorId) {
     const doctor = doctors[doctorId];
     if (!doctor) {
         window.showNotification('لم يتم العثور على معلومات الطبيب', 'error');
         return;
     }
 
-    // Fetch real clinic hours from Firestore
-    let clinicHours = doctor.hours || 'غير محدد';
-    try {
-        const doctorDoc = await db.collection('doctors').doc(doctorId).get();
-        if (doctorDoc.exists) {
-            const data = doctorDoc.data();
-            const opening = data.openingTime || '08:00';
-            const closing = data.closingTime || '15:00';
-            clinicHours = formatClinicHours(opening, closing);
-        }
-    } catch (error) {
-        console.error('Error fetching clinic hours:', error);
-    }
-
     const profileContent = document.getElementById('doctorProfileContent');
     profileContent.innerHTML = `
         <div class="text-center mb-8">
-            <div class="w-24 h-24 doctor-avatar rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600">${doctor.photoURL ? `<img src="${doctor.photoURL}" alt="${sanitizeHtml(doctor.name)}" class="w-full h-full object-cover">` : `<span class="text-white font-bold text-2xl">${doctor.initials}</span>`}</div>
+            <div class="w-24 h-24 doctor-avatar rounded-full flex items-center justify-center mx-auto mb-4"><span class="text-white font-bold text-2xl">${doctor.initials}</span></div>
             <h2 class="text-3xl font-bold text-gray-900 mb-2">${sanitizeHtml(doctor.name)}</h2>
             <p class="text-xl text-blue-600 font-medium mb-2">${sanitizeHtml(doctor.specialty)}</p>
             <p class="text-gray-600 mb-4">${sanitizeHtml(doctor.experience)}</p>
             <div class="flex items-center justify-center mb-4"><span class="text-yellow-500 ml-2">⭐⭐⭐⭐⭐</span><span class="text-gray-600">${doctor.rating} (${doctor.reviews} تقييم)</span></div>
-            <div class="bg-green-50 rounded-lg p-4 inline-block"><p class="text-2xl font-bold text-green-600">${sanitizeHtml(doctor.fee)}</p><p class="text-sm text-gray-600">رسوم الاستشارة</p></div>
+            ${doctor.fee !== null ? `<div class="bg-green-50 rounded-lg p-4 inline-block"><p class="text-2xl font-bold text-green-600">${sanitizeHtml(String(doctor.fee))} ألف د.ع</p><p class="text-sm text-gray-600">رسوم الاستشارة</p></div>` : ''}
         </div>
         <div class="grid md:grid-cols-2 gap-8 mb-8">
             <div class="space-y-6">
-                <div><h4 class="text-lg font-bold text-gray-900 mb-3">معلومات أساسية</h4><div class="space-y-3"><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-gray-700">${sanitizeHtml(doctor.location)}</span></div><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-gray-700">${sanitizeHtml(clinicHours)}</span></div><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg><span class="text-gray-700">${doctor.languages.join(', ')}</span></div></div></div>
+                <div><h4 class="text-lg font-bold text-gray-900 mb-3">معلومات أساسية</h4><div class="space-y-3"><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-gray-700">${sanitizeHtml(doctor.location)}</span></div><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-gray-700">${sanitizeHtml(doctor.hours)}</span></div><div class="flex items-start"><svg class="w-5 h-5 text-blue-600 ml-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg><span class="text-gray-700">${doctor.languages.join(', ')}</span></div></div></div>
                 <div><h4 class="text-lg font-bold text-gray-900 mb-3">التخصصات</h4><div class="flex flex-wrap gap-2">${doctor.specializations.map(spec => `<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">${spec}</span>`).join('')}</div></div>
             </div>
             <div class="space-y-6">
@@ -583,6 +632,22 @@ async function showDoctorProfile(doctorId) {
 
 function closeDoctorProfileModal() {
     closeModal('doctorProfileModal');
+}
+
+function updateDoctorSelection() {
+    const doctorSelection = document.getElementById('doctorSelection');
+    if (!doctorSelection) return;
+    doctorSelection.innerHTML = Object.values(doctors).map(doctor => `
+        <div class="doctor-option border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-300 transition-colors" onclick="selectDoctor('${doctor.id}', this)">
+            <div class="flex items-center">
+                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${sanitizeHtml(doctor.initials)}</span></div>
+                <div class="flex-1">
+                    <h4 class="font-bold text-gray-900">${sanitizeHtml(doctor.name)}</h4>
+                    <p class="text-blue-600 text-sm">${sanitizeHtml(doctor.specialty)}</p>
+                    ${doctor.fee !== null ? `<p class="text-gray-500 text-xs">${sanitizeHtml(String(doctor.fee))} ألف د.ع</p>` : ''}
+                </div>
+            </div>
+        </div>`).join('');
 }
 
 async function loadAndDisplayReviews(doctorId, isFirstPage = false) {
@@ -658,11 +723,11 @@ function updateDoctorSelection() {
     doctorSelection.innerHTML = Object.values(doctors).map(doctor => `
         <div class="doctor-option border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-300 transition-colors" onclick="selectDoctor('${doctor.id}', this)">
             <div class="flex items-center">
-                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${doctor.initials}</span></div>
+                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${sanitizeHtml(doctor.initials)}</span></div>
                 <div class="flex-1">
                     <h4 class="font-bold text-gray-900">${sanitizeHtml(doctor.name)}</h4>
                     <p class="text-blue-600 text-sm">${sanitizeHtml(doctor.specialty)}</p>
-                    <p class="text-gray-500 text-xs">${sanitizeHtml(doctor.fee)} ألف د.ع</p>
+                    ${doctor.fee !== null ? `<p class="text-gray-500 text-xs">${sanitizeHtml(String(doctor.fee))} ألف د.ع</p>` : ''}
                 </div>
             </div>
         </div>`).join('');
@@ -682,7 +747,7 @@ function updateSelectedDoctorInfo(doctor) {
     document.getElementById('selectedDoctorInitials').textContent = doctor.initials;
     document.getElementById('selectedDoctorName').textContent = doctor.name;
     document.getElementById('selectedDoctorSpecialty').textContent = doctor.specialty;
-    document.getElementById('selectedDoctorFee').textContent = doctor.fee;
+    document.getElementById('selectedDoctorFee').textContent = doctor.fee !== null ? `${doctor.fee} ألف د.ع` : 'غير محدد';
 }
 
 function updateTimeSlots(doctorId) {
@@ -690,7 +755,22 @@ function updateTimeSlots(doctorId) {
     if (!doctor) return;
 
     const timeSlotsContainer = document.getElementById('timeSlots');
-    if (!timeSlotsContainer) return; // Time slots not needed in new flow
+    const { openingTime = '08:00', closingTime = '15:00', clinicClosed = false, closureEndDate } = doctor;
+
+    if (clinicClosed && closureEndDate && new Date() <= new Date(closureEndDate)) {
+        timeSlotsContainer.innerHTML = `<div class="col-span-full text-center py-4"><p class="text-red-600 font-medium">العيادة مغلقة مؤقتاً حتى ${new Date(closureEndDate).toLocaleDateString('ar-IQ')}</p></div>`;
+        return;
+    }
+
+    const timeSlots = generateTimeSlots(openingTime, closingTime);
+    if (timeSlots.length === 0) {
+        timeSlotsContainer.innerHTML = `<div class="col-span-full text-center py-4"><p class="text-gray-600">لا توجد أوقات متاحة للحجز</p></div>`;
+        return;
+    }
+
+    timeSlotsContainer.innerHTML = timeSlots.map(time => `
+        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '${time}')">${time}</button>
+    `).join('');
 }
 
 function generateTimeSlots(openingTime, closingTime) {
@@ -721,11 +801,12 @@ function selectTimeSlot(slotElement, time) {
 
 async function submitBooking(event) {
     event.preventDefault();
+    if (!selectedTimeSlot) {
+        window.showNotification('يرجى اختيار وقت للموعد', 'error');
+        return;
+    }
     const user = auth.currentUser;
     if (!user) { window.showNotification('يرجى تسجيل الدخول أولاً لحجز موعد', 'error'); closeBookingModal(); showLoginModal(); return; }
-
-    const patientId = document.getElementById('patientSelector').value;
-    const isFamilyMember = patientId !== user.uid;
 
     const chronicConditions = [];
     if (document.getElementById('hypertension').checked) chronicConditions.push('ضغط الدم المرتفع');
@@ -735,6 +816,15 @@ async function submitBooking(event) {
     const otherConditions = document.getElementById('otherConditions').value;
     if (otherConditions) chronicConditions.push(otherConditions);
 
+    const appointmentDate = document.getElementById('appointmentDate').value;
+    const selectedDate = new Date(appointmentDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+        window.showNotification('لا يمكن حجز موعد في الماضي.', 'error');
+        return;
+    }
+
     const appointmentData = {
         doctorId: selectedDoctorId,
         doctorName: doctors[selectedDoctorId].name,
@@ -743,23 +833,21 @@ async function submitBooking(event) {
         patientPhone: document.getElementById('patientPhone').value,
         patientAge: parseInt(document.getElementById('patientAge').value),
         patientGender: document.getElementById('patientGender').value,
-        appointmentDate: null,
-        appointmentTime: null,
+        appointmentDate,
+        appointmentTime: selectedTimeSlot,
         reason: document.getElementById('appointmentReason').value,
         allergies: document.getElementById('allergies').value || '',
         chronicConditions: chronicConditions,
         currentMedications: document.getElementById('currentMedications').value || '',
-        userId: user.uid, // The main user who is booking
-        patientId: patientId, // The actual patient (can be a family member)
-        isFamilyMember: isFamilyMember,
+        userId: user.uid,
+        patientId: user.uid,
         userPhone: user.phoneNumber,
         status: 'awaiting_confirmation',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         appointmentId: generateAppointmentId()
     };
-    console.log('DEBUG: Booking user UID:', user.uid);
-    console.log('DEBUG: appointmentData:', JSON.stringify(appointmentData, null, 2));
+    // Production: booking data validated and ready
 
     const submitBtn = document.getElementById('bookingSubmitBtn');
     submitBtn.disabled = true;
@@ -791,26 +879,25 @@ async function submitBooking(event) {
             return;
         }
 
-        // Skip conflict check - receptionist will handle conflicts when confirming
-        // since date/time are null at this stage
+        const conflictQuery = await db.collection('appointments')
+            .where('doctorId', '==', selectedDoctorId)
+            .where('appointmentDate', '==', appointmentData.appointmentDate)
+            .where('appointmentTime', '==', selectedTimeSlot)
+            .where('status', 'in', ['confirmed', 'awaiting_confirmation'])
+            .get();
 
-        console.log('DEBUG: Attempting to add appointment to Firestore...');
-        console.log('DEBUG: User UID:', user.uid);
-        console.log('DEBUG: Auth token claims:', auth.currentUser?.getIdTokenResult ? 'available' : 'not available');
-        
+        if (!conflictQuery.empty) {
+            window.showNotification('هذا الموعد محجوز بالفعل. يرجى اختيار وقت آخر', 'error');
+            return;
+        }
+
         const docRef = await db.collection('appointments').add(appointmentData);
-        console.log('DEBUG: Appointment added successfully with ID:', docRef.id);
-        
         await docRef.update({ firestoreId: docRef.id });
-        console.log('DEBUG: Appointment updated with firestoreId');
 
         window.showNotification(`✅ تم إرسال طلب الحجز بنجاح!`, 'success');
         closeBookingModal();
     } catch (error) {
         console.error('Booking error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Full error object:', error);
         window.showNotification('حدث خطأ أثناء إرسال طلب الحجز.', 'error');
     } finally {
         submitBtn.disabled = false;
@@ -985,22 +1072,6 @@ async function handlePhoneVerification(event) {
         const result = await confirmationResult.confirm(enteredCode);
         const user = result.user;
         const isLogin = localStorage.getItem('medconnect_is_login') === 'true';
-
-        // Ensure patient claim is set and refresh token
-        try {
-            console.log('DEBUG: Attempting to ensure patient claim for user:', user.uid);
-            const ensureClaimsFn = firebase.functions().httpsCallable('ensurePatientClaim');
-            const result = await ensureClaimsFn({});
-            console.log('DEBUG: ensurePatientClaim result:', result);
-            
-            // Force refresh ID token to pick up new claims
-            await user.getIdToken(true);
-            console.log('DEBUG: ID token refreshed with new claims');
-        } catch (claimError) {
-            console.error('ERROR: Could not ensure patient claim:', claimError.code, claimError.message);
-            console.error('Full error:', claimError);
-            // Continue anyway - the onUserCreate trigger should have set it
-        }
 
         if (isLogin) {
             const userDoc = await db.collection('users').doc(user.uid).get();
@@ -1504,141 +1575,4 @@ function filterBySpecialty(specialty) {
     document.getElementById('specialtyFilter').value = specialty;
     filterDoctors();
     switchTab('doctors');
-}
-
-async function loadFamilyMembers() {
-    const familyMembersList = document.getElementById('familyMembersList');
-    if (!familyMembersList) return;
-    
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    familyMembersList.innerHTML = `<div class="text-center py-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div></div>`;
-    showModal('familyManagerModal');
-
-    const snapshot = await db.collection('users').doc(user.uid).collection('familyMembers').get();
-    if (snapshot.empty) {
-        familyMembersList.innerHTML = `<p class="text-center text-gray-500">لا يوجد أفراد عائلة مضافون حالياً.</p>`;
-        return;
-    }
-
-    familyMembersList.innerHTML = snapshot.docs.map(doc => {
-        const member = doc.data();
-        return `
-            <div class="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
-                <div>
-                    <p class="font-bold text-gray-800">${sanitizeHtml(member.name)}</p>
-                    <p class="text-sm text-gray-600">${sanitizeHtml(member.relationship)} - ${member.age} سنة</p>
-                </div>
-                <div class="space-x-2 space-x-reverse">
-                    <button onclick="editFamilyMember('${doc.id}')" class="text-blue-600 hover:text-blue-800">تعديل</button>
-                    <button onclick="deleteFamilyMember('${doc.id}')" class="text-red-600 hover:text-red-800">حذف</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function closeFamilyManager() {
-    closeModal('familyManagerModal');
-}
-
-function showAddFamilyMemberModal() {
-    document.getElementById('familyMemberForm').reset();
-    document.getElementById('familyMemberId').value = '';
-    document.getElementById('familyMemberModalTitle').textContent = 'إضافة فرد جديد';
-    showModal('familyMemberModal');
-}
-
-function closeAddFamilyMemberModal() {
-    closeModal('familyMemberModal');
-}
-
-async function saveFamilyMember(event) {
-    event.preventDefault();
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const memberId = document.getElementById('familyMemberId').value;
-    const memberData = {
-        name: document.getElementById('familyName').value,
-        age: parseInt(document.getElementById('familyAge').value),
-        gender: document.getElementById('familyGender').value,
-        relationship: document.getElementById('familyRelationship').value,
-    };
-
-    const familyCollection = db.collection('users').doc(user.uid).collection('familyMembers');
-
-    try {
-        if (memberId) {
-            await familyCollection.doc(memberId).update(memberData);
-            window.showNotification('تم تحديث بيانات فرد العائلة بنجاح', 'success');
-        } else {
-            await familyCollection.add(memberData);
-            window.showNotification('تمت إضافة فرد العائلة بنجاح', 'success');
-        }
-        closeAddFamilyMemberModal();
-        showFamilyManager(); // Refresh the list
-    } catch (error) {
-        console.error('Error saving family member:', error);
-        window.showNotification('حدث خطأ أثناء حفظ البيانات', 'error');
-    }
-}
-
-async function editFamilyMember(memberId) {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const doc = await db.collection('users').doc(user.uid).collection('familyMembers').doc(memberId).get();
-    if (!doc.exists) return;
-
-    const member = doc.data();
-    document.getElementById('familyMemberId').value = doc.id;
-    document.getElementById('familyName').value = member.name;
-    document.getElementById('familyAge').value = member.age;
-    document.getElementById('familyGender').value = member.gender;
-    document.getElementById('familyRelationship').value = member.relationship;
-    document.getElementById('familyMemberModalTitle').textContent = 'تعديل بيانات فرد العائلة';
-    showModal('familyMemberModal');
-}
-
-async function deleteFamilyMember(memberId) {
-    if (!confirm('هل أنت متأكد من حذف هذا الفرد من العائلة؟')) return;
-
-    const user = auth.currentUser;
-    if (!user) return;
-
-    try {
-        await db.collection('users').doc(user.uid).collection('familyMembers').doc(memberId).delete();
-        window.showNotification('تم حذف فرد العائلة بنجاح', 'success');
-        showFamilyManager(); // Refresh the list
-    } catch (error) {
-        console.error('Error deleting family member:', error);
-        window.showNotification('حدث خطأ أثناء الحذف', 'error');
-    }
-}
-
-async function handlePatientSelection(patientId) {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    if (patientId === user.uid) {
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (userDoc.exists) {
-            const userData = userDoc.data();
-            document.getElementById('patientName').value = userData.name || '';
-            document.getElementById('patientPhone').value = userData.phone || '';
-            document.getElementById('patientAge').value = ''; // Age is not stored for the main user
-            document.getElementById('patientGender').value = '';
-        }
-    } else {
-        const memberDoc = await db.collection('users').doc(user.uid).collection('familyMembers').doc(patientId).get();
-        if (memberDoc.exists) {
-            const memberData = memberDoc.data();
-            document.getElementById('patientName').value = memberData.name || '';
-            document.getElementById('patientPhone').value = user.phoneNumber || ''; // Use main user's phone
-            document.getElementById('patientAge').value = memberData.age || '';
-            document.getElementById('patientGender').value = memberData.gender || '';
-        }
-    }
 }
