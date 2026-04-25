@@ -1,27 +1,43 @@
 {
   "expo": {
-    "name": "Tabibok Health",
+    "name": "Vanbook",
     "slug": "tabibok-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#10b981"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.tabibok.health",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.vantaq.vanbook",
       "googleServicesFile": "./GoogleService-Info.plist",
+<<<<<<< HEAD
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Tabibok Health needs camera access to allow you to capture and upload medical documents, prescriptions, and identification for your health records.",
         "NSPhotoLibraryUsageDescription": "Tabibok Health needs photo library access to allow you to upload medical documents, prescriptions, and identification from your device.",
         "NSLocationWhenInUseUsageDescription": "Tabibok Health uses your location to help you find nearby clinics and doctors.",
         "NSHealthShareUsageDescription": "This app is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. It is a booking and communication platform for healthcare services."
+=======
+      "buildNumber": "2",
+      "config": {
+        "googleMapsApiKey": "AIzaSyAnsDB584i5_CDzAyTOjRnLFdeoTti6Yew"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Allow camera access to take photos for profile pictures and document uploads",
+        "NSPhotoLibraryUsageDescription": "Allow access to photo library to select profile pictures and documents",
+        "NSPhotoLibraryAddUsageDescription": "Vanbook needs permission to save documents to your photo library.",
+        "NSLocationWhenInUseUsageDescription": "Vanbook uses your location to show nearby providers on the map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Vanbook uses your location to show nearby providers on the map.",
+        "NSMicrophoneUsageDescription": "Allow microphone access for video recording (if applicable)",
+        "NSUserNotificationsUsageDescription": "Vanbook sends notifications for appointment reminders and messages."
+>>>>>>> store/apple-safe
       }
     },
     "android": {
@@ -30,6 +46,7 @@
         "backgroundColor": "#10b981"
       },
       "edgeToEdgeEnabled": true,
+<<<<<<< HEAD
       "package": "com.abdullah.reacttabibok",
       "googleServicesFile": "./google-services.json",
       "versionCode": 1,
@@ -42,6 +59,11 @@
         "INTERNET",
         "ACCESS_NETWORK_STATE"
       ]
+=======
+      "package": "com.vantaq.vanbook",
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 15
+>>>>>>> store/apple-safe
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,6 +72,38 @@
       "eas": {
         "projectId": "c6e91624-4f76-4b03-90f1-f4f724ab5547"
       }
+<<<<<<< HEAD
     }
+=======
+    },
+    "owner": "abdanoo",
+    "plugins": [
+      "./plugins/withFirebaseFix",
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#10b981",
+          "defaultChannel": "default",
+          "androidMode": "default"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "buildToolsVersion": "35.0.0"
+          },
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ]
+>>>>>>> store/apple-safe
   }
 }

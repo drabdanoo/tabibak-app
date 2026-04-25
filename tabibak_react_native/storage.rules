@@ -1,0 +1,40 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // ── Patient medical documents ──────────────────────────────────────────
+    // Path: documents/{patientId}/{fileName}
+    match /documents/{patientId}/{allPaths=**} {
+      allow read:   if isOwner(patientId);
+      allow write:  if isOwner(patientId)
+                    && request.resource.size < 20 * 1024 * 1024; // 20 MB limit
+    }
+
+    // ── Lab result images uploaded by patients ────────────────────────────
+    // Path: labResults/{patientId}/{fileName}
+    match /labResults/{patientId}/{allPaths=**} {
+      allow read:  if isOwner(patientId)
+                   || request.auth != null; // doctors can view via direct URL
+      allow write: if isOwner(patientId)
+                   && request.resource.size < 10 * 1024 * 1024  // 10 MB limit
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── Profile pictures (future use) ─────────────────────────────────────
+    match /avatars/{uid}/{allPaths=**} {
+      allow read:  if true;
+      allow write: if isOwner(uid)
+                   && request.resource.size < 5 * 1024 * 1024  // 5 MB limit
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Default: deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

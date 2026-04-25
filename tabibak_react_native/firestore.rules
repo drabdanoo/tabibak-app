@@ -1,5 +1,6 @@
 rules_version = '2';
 service cloud.firestore {
+<<<<<<< HEAD
   match /databases/{database}/documents {
     
     // Helper functions
@@ -76,3 +77,301 @@ service cloud.firestore {
     }
   }
 }
+=======
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(db)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(db)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+    function isDoctor() {
+      return signedIn() && (
+        request.auth.token.doctor == true ||
+        exists(/databases/$(db)/documents/doctors/$(request.auth.uid))
+      );
+    }
+    function isPatient() {
+      return signedIn() && (
+        request.auth.token.patient == true ||
+        exists(/databases/$(db)/documents/patients/$(request.auth.uid))
+      );
+    }
+    function isReceptionist() {
+      return signedIn() && (
+        request.auth.token.receptionist == true ||
+        exists(/databases/$(db)/documents/receptionists/$(request.auth.uid))
+      );
+    }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // === Metadata (read-only, public) ===
+    match /metadata/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // === User Profiles ===
+    match /users/{uid} {
+      allow read, update: if isSelf(uid) || isAdmin();
+      allow create: if isSelf(uid);
+      match /familyMembers/{memberId} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    // === Doctor Profiles ===
+    match /doctors/{uid} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if (isDoctor() && isSelf(uid)) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // === Patient Profiles ===
+    match /patients/{uid} {
+      allow read, update: if isSelf(uid) || isAdmin();
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow read: if isDoctor() || isReceptionist();
+    }
+
+    // === Receptionist Profiles ===
+    match /receptionists/{uid} {
+      allow read, update: if isSelf(uid) || isAdmin();
+      allow create: if isAdmin();
+    }
+
+    // === Appointments ===
+    match /appointments/{id} {
+      allow read: if signedIn() && (
+        isAdmin() 
+        || (isDoctor() && resource.data.doctorId == request.auth.uid) 
+        || (isReceptionist() && resource.data.doctorId == get(/databases/$(db)/documents/receptionists/$(request.auth.uid)).data.doctorId) 
+        || (resource.data.userId == request.auth.uid)
+        || (resource.data.patientId == request.auth.uid)
+      );
+      allow list: if signedIn() && (
+        isAdmin()
+        || isDoctor()
+        || isReceptionist()
+        || isPatient()
+      );
+      allow create: if signedIn()
+        && (
+          request.resource.data.userId    == request.auth.uid
+          || request.resource.data.patientId == request.auth.uid
+          || isAdmin()
+          || (isReceptionist() && request.resource.data.doctorId
+                == get(/databases/$(db)/documents/receptionists/$(request.auth.uid)).data.doctorId)
+        );
+      allow update: if signedIn() && (
+        isAdmin() 
+        || (isDoctor() && resource.data.doctorId == request.auth.uid) 
+        || (isReceptionist() && resource.data.doctorId == get(/databases/$(db)/documents/receptionists/$(request.auth.uid)).data.doctorId) 
+        || (resource.data.userId == request.auth.uid)
+        || (resource.data.patientId == request.auth.uid)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // === Schedules ===
+    match /schedules/{doctorId} {
+      allow read: if true;
+      allow write: if isAdmin() || (isDoctor() && isSelf(doctorId));
+      match /{date=**} {
+        allow read: if true;
+        allow write: if isAdmin() || (isDoctor() && isSelf(doctorId));
+      }
+    }
+
+    // === Medical Records ===
+    match /medical_records/{patientId} {
+      allow read, update: if isSelf(patientId) || isAdmin() || (isDoctor() && patientId in get(/databases/$(db)/documents/doctors/$(request.auth.uid)).data.patients);
+      allow create: if isDoctor();
+      match /{recordId} {
+        allow read, update: if isSelf(patientId) || isAdmin() || (isDoctor() && patientId in get(/databases/$(db)/documents/doctors/$(request.auth.uid)).data.patients);
+        allow create: if isDoctor();
+      }
+    }
+
+    // === Appointment Notes ===
+    match /appointmentNotes/{noteId} {
+      allow read: if isAdmin() 
+        || isDoctor() 
+        || (isPatient() && resource.data.patientId == request.auth.uid);
+      allow create, update: if isDoctor();
+      allow delete: if isAdmin() || isDoctor();
+    }
+
+    // === Ratings ===
+    match /ratings/{ratingId} {
+      allow read: if signedIn();
+      allow create: if isPatient() && request.resource.data.patientId == request.auth.uid;
+    }
+
+    // === Prescription Templates ===
+    match /prescription_templates/{templateId} {
+      allow read, write: if isDoctor() && (
+        (request.resource != null && request.resource.data.doctorId == request.auth.uid) ||
+        (resource != null && resource.data.doctorId == request.auth.uid)
+      );
+      allow list: if isDoctor();
+    }
+
+    // === Doctor Templates (Legacy) ===
+    match /doctorTemplates/{templateId} {
+      allow get, update, delete: if isDoctor() && resource.data.doctorId == request.auth.uid;
+      allow list: if isDoctor();
+      allow create: if isDoctor() && request.resource.data.doctorId == request.auth.uid;
+    }
+
+    // === Medical Note Templates ===
+    match /medical_note_templates/{templateId} {
+      allow read, write: if isDoctor() && (
+        (request.resource != null && request.resource.data.doctorId == request.auth.uid) ||
+        (resource != null && resource.data.doctorId == request.auth.uid)
+      );
+      allow list: if isDoctor();
+    }
+
+    // === Medical Documents ===
+    match /medicalDocuments/{documentId} {
+      allow read: if isAdmin() 
+        || (isPatient() && resource.data.patientId == request.auth.uid)
+        || (isDoctor() && resource.data.doctorId == request.auth.uid);
+      allow create: if (isDoctor() || isPatient()) && request.resource.data.patientId is string;
+      allow update, delete: if isAdmin() 
+        || (isDoctor() && resource.data.doctorId == request.auth.uid);
+    }
+
+    // === Family Members ===
+    match /familyMembers/{memberId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.primaryUserId == request.auth.uid)
+        || isDoctor();
+      allow create, update, delete: if signedIn() && request.resource.data.primaryUserId == request.auth.uid;
+    }
+
+    // === Prescriptions ===
+    match /prescriptions/{prescriptionId} {
+      allow get: if isAdmin()
+        || (isPatient() && resource.data.patientId == request.auth.uid)
+        || (isDoctor() && resource.data.doctorId == request.auth.uid);
+      allow list: if isAdmin() || isDoctor() || isPatient();
+      allow create: if isDoctor();
+      // Patient can only update `status` (mark-as-read). All core fields are immutable.
+      allow update: if isDoctor()
+        || (isPatient() && resource.data.patientId == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['doctorId', 'patientId', 'medications', 'diagnosis', 'appointmentId']));
+      allow delete: if isAdmin() || (isDoctor() && resource.data.doctorId == request.auth.uid);
+    }
+
+    // === Lab Orders ===
+    match /labOrders/{orderId} {
+      allow get: if isAdmin()
+        || (isPatient() && resource.data.patientId == request.auth.uid)
+        || (isDoctor() && resource.data.doctorId == request.auth.uid);
+      allow list: if isAdmin() || isDoctor() || isPatient();
+      allow create: if isDoctor();
+      // Patient can submit results (patientNote, resultImageURL, resultSentAt, status).
+      // Core order fields (doctorId, patientId, tests, appointmentId) are immutable.
+      allow update: if isDoctor()
+        || (isPatient() && resource.data.patientId == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['doctorId', 'patientId', 'tests', 'appointmentId']));
+      allow delete: if isAdmin() || (isDoctor() && resource.data.doctorId == request.auth.uid);
+    }
+
+    // === Medical History ===
+    match /medicalHistory/{historyId} {
+      allow read: if isAdmin()
+        || (isPatient() && resource.data.patientId == request.auth.uid)
+        || isDoctor();
+      allow create, update: if isDoctor();
+      allow delete: if isAdmin();
+    }
+
+    // === Expenses ===
+    match /expenses/{expenseId} {
+      allow read, write: if isDoctor() && request.auth.uid == resource.data.doctorId;
+      allow create: if isDoctor();
+    }
+
+    // === Staff ===
+    match /staff/{staffId} {
+      allow read: if isAdmin()
+        || (isDoctor() && resource.data.doctorId == request.auth.uid)
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if isDoctor() && request.resource.data.doctorId == request.auth.uid;
+    }
+
+    // === Chat ===
+    match /chats/{chatId} {
+      allow read, write: if signedIn() && request.auth.uid in resource.data.participants;
+      match /messages/{messageId} {
+        allow read: if signedIn() && get(/databases/$(db)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+        allow create: if signedIn() && request.resource.data.senderId == request.auth.uid && get(/databases/$(db)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+      }
+    }
+
+    // === User Tokens (Push Notifications) ===
+    match /userTokens/{userId} {
+      allow read, write: if isSelf(userId);
+      allow read: if isAdmin();
+    }
+
+    // === Clinic Closures ===
+    // Any signed-in user can read (needed when booking to check closed dates).
+    // Only admins and doctors may write.
+    match /closures/{closureId} {
+      allow read: if signedIn();
+      allow write: if isAdmin() || isDoctor();
+    }
+
+    // === Documents (patient-uploaded medical files) ===
+    // The app stores documents under the 'documents' collection
+    // (COLLECTIONS.DOCUMENTS = 'documents').
+    //
+    // Update is required for the consent model:
+    //   storageService.grantDoctorAccess / revokeDoctorAccess call updateDoc
+    //   to mutate the authorizedDoctors[] array on the patient's own document.
+    //
+    // Doctors read is intentionally broad here (list-all) because the
+    // client-side consent filter in emrService.fetchPatientCard() enforces
+    // that only authorized documents are shown to the doctor.
+    match /documents/{documentId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.patientId == request.auth.uid)
+        || isDoctor();
+      allow create: if signedIn() && request.resource.data.patientId == request.auth.uid;
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.patientId == request.auth.uid);
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.patientId == request.auth.uid);
+    }
+
+    // === Clinical Notes (doctor-written per-visit notes) ===
+    // Written by emrService.saveClinicalNote() to top-level clinical_notes collection.
+    // Doctors can create/read their own notes; patients can read notes about themselves.
+    match /clinical_notes/{noteId} {
+      allow read: if isAdmin()
+        || (isDoctor() && resource.data.doctorId == request.auth.uid)
+        || (isPatient() && resource.data.patientId == request.auth.uid);
+      allow create: if isDoctor() && request.resource.data.doctorId == request.auth.uid;
+      allow update: if isDoctor() && resource.data.doctorId == request.auth.uid;
+      allow delete: if isAdmin() || (isDoctor() && resource.data.doctorId == request.auth.uid);
+    }
+
+    // === Notifications ===
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if isAdmin();
+      allow update: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
+>>>>>>> store/apple-safe

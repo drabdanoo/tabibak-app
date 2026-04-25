@@ -6,7 +6,7 @@
 const functionsV1 = require("firebase-functions/v1"); // ✅ explicit v1
 const logger = require("firebase-functions/logger");
 const admin = require('firebase-admin');
-require('dotenv').config(); // Load .env file
+require('dotenv').config({ path: require('path').join(__dirname, 'medconnect-2.env') });
 
 // For local development
 if (process.env.FIREBASE_PRIVATE_KEY) {
@@ -280,7 +280,7 @@ exports.createDoctor = functionsV1.https.onCall(async (data, context) => {
     await db.collection("doctors").doc(userRecord.uid).set(doctorData);
     await db.collection("users").doc(userRecord.uid).set(
       {
-        uid: user.uid,
+        uid: userRecord.uid,
         role: "doctor",
         email,
         name,
@@ -343,6 +343,7 @@ exports.reserveSlot = functionsV1.https.onCall(async (data, context) => {
 
   const schedRef = db.collection("schedules").doc(doctorId).collection(date).doc("day");
   const apptRef = db.collection("appointments").doc();
+  const doctorRef = db.collection("doctors").doc(doctorId);
 
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(schedRef);
@@ -367,6 +368,10 @@ exports.reserveSlot = functionsV1.https.onCall(async (data, context) => {
       status: "pending",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       ...(payload || {}),
+    });
+    // Add patient to doctor's patients[] so Firestore rules can scope access
+    tx.update(doctorRef, {
+      patients: admin.firestore.FieldValue.arrayUnion(context.auth.uid),
     });
   });
 
@@ -433,17 +438,15 @@ exports.onAppointmentConfirmed = functionsV1.firestore
         return null;
       }
 
-      // Initialize Twilio client from secure environment config
-      const twilioConfig = functionsV1.config().twilio;
       const twilio = require("twilio");
-      const client = new twilio(twilioConfig.sid, twilio.token);
+      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
 
       const message = `تم تأكيد موعدك مع ${doctorName} في تاريخ ${appointmentDate} الساعة ${appointmentTime}. - MedConnect`;
 
       return client.messages.create({
         body: message,
         to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
-        from: twilioConfig.phone_number,
+        from: process.env.TWILIO_PHONE_NUMBER,
       });
     }
 
@@ -470,16 +473,15 @@ exports.onAppointmentCancelledByDoctor = functionsV1.firestore
         return null;
       }
 
-      const twilioConfig = functionsV1.config().twilio;
       const twilio = require("twilio");
-      const client = new twilio(twilioConfig.sid, twilio.token);
+      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
 
       const message = `تم إلغاء موعدك مع ${doctorName} في تاريخ ${appointmentDate} الساعة ${appointmentTime}. السبب: "${cancellationReason}". نعتذر عن هذا الإزعاج. - MedConnect`;
 
       return client.messages.create({
         body: message,
         to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
-        from: twilioConfig.phone_number,
+        from: process.env.TWILIO_PHONE_NUMBER,
       });
     }
     return null;
@@ -503,9 +505,8 @@ exports.onRescheduleResolved = functionsV1.firestore
         return null;
       }
 
-      const twilioConfig = functionsV1.config().twilio;
       const twilio = require("twilio");
-      const client = new twilio(twilioConfig.sid, twilio.token);
+      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
       let message;
 
       // Check if it was an approval (date or time changed)
@@ -594,12 +595,11 @@ exports.sendAppointmentConfirmationSMS = functionsV1.https.onCall(async (data, c
   
   try {
     const twilio = require('twilio');
-    const functions = require('firebase-functions');
-    
-    const accountSid = functions.config().twilio?.sid;
-    const authToken = functions.config().twilio?.token;
-    const phoneNumber = functions.config().twilio?.phone_number;
-    
+
+    const accountSid = process.env.TWILIO_SID;
+    const authToken = process.env.TWILIO_TOKEN;
+    const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
     logger.info('Twilio config check:', { hasSid: !!accountSid, hasToken: !!authToken, hasPhone: !!phoneNumber });
     
     if (!accountSid || !authToken || !phoneNumber) {
@@ -632,3 +632,76 @@ exports.sendAppointmentConfirmationSMS = functionsV1.https.onCall(async (data, c
     throw new functionsV1.https.HttpsError('internal', `SMS Error: ${error.message}`);
   }
 });
+
+// -----------------------------------------------------------------------------
+// APPOINTMENT REMINDERS — runs every 30 minutes
+// Sends push notifications to patients 24h and 1h before their appointment.
+// Marks reminder flags so each notification fires exactly once.
+// -----------------------------------------------------------------------------
+
+exports.sendAppointmentReminders = functionsV1.pubsub
+  .schedule('every 30 minutes')
+  .onRun(async () => {
+    const now     = Date.now();
+    const in24h   = now + 24 * 60 * 60 * 1000;
+    const in1h    = now +      60 * 60 * 1000;
+    const window  = 30 * 60 * 1000; // 30-min window so we don't miss/double-send
+
+    // Helper: send FCM to a patient if they have a push token
+    async function notifyPatient(patientId, title, body) {
+      if (!patientId) return;
+      try {
+        const userSnap = await db.collection('users').doc(patientId).get();
+        const token = userSnap.data()?.fcmToken;
+        if (!token) return;
+        await admin.messaging().send({
+          token,
+          notification: { title, body },
+          android: { priority: 'high' },
+          apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+        });
+      } catch (err) {
+        logger.warn(`[reminders] FCM failed for ${patientId}:`, err.message);
+      }
+    }
+
+    // Query confirmed/waiting appointments whose appointmentDate is a Timestamp
+    // within the upcoming 24h window that haven't had a 24h reminder sent yet.
+    const snap24 = await db.collection('appointments')
+      .where('status', 'in', ['confirmed', 'waiting'])
+      .where('reminder24hSent', '!=', true)
+      .where('appointmentDate', '>=', admin.firestore.Timestamp.fromMillis(in24h - window))
+      .where('appointmentDate', '<=', admin.firestore.Timestamp.fromMillis(in24h + window))
+      .get();
+
+    for (const docSnap of snap24.docs) {
+      const appt = docSnap.data();
+      await notifyPatient(
+        appt.patientId,
+        'تذكير بموعدك غداً',
+        `لديك موعد مع د. ${appt.doctorName || 'طبيبك'} الساعة ${appt.appointmentTime || ''}`,
+      );
+      await docSnap.ref.update({ reminder24hSent: true });
+    }
+
+    // 1-hour reminders
+    const snap1h = await db.collection('appointments')
+      .where('status', 'in', ['confirmed', 'waiting'])
+      .where('reminder1hSent', '!=', true)
+      .where('appointmentDate', '>=', admin.firestore.Timestamp.fromMillis(in1h - window))
+      .where('appointmentDate', '<=', admin.firestore.Timestamp.fromMillis(in1h + window))
+      .get();
+
+    for (const docSnap of snap1h.docs) {
+      const appt = docSnap.data();
+      await notifyPatient(
+        appt.patientId,
+        '⏰ موعدك خلال ساعة',
+        `تذكير: موعدك مع د. ${appt.doctorName || 'طبيبك'} الساعة ${appt.appointmentTime || ''}`,
+      );
+      await docSnap.ref.update({ reminder1hSent: true });
+    }
+
+    logger.info(`[reminders] 24h: ${snap24.size} | 1h: ${snap1h.size}`);
+    return null;
+  });

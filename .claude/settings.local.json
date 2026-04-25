@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''DEPS:'''', list\\(d.get\\(''''dependencies'''',{}\\).keys\\(\\)\\)\\); print\\(''''DEV:'''', list\\(d.get\\(''''devDependencies'''',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(find G:/tabibak-app/tabibak_react_native/src -type f -name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx)"
+    ]
+  }
+}

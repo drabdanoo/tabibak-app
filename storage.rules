@@ -21,6 +21,13 @@ service firebase.storage {
       allow write: if signedIn() && request.auth.uid == uid && isDoctor();
       allow delete: if signedIn() && request.auth.uid == uid && isDoctor();
     }
+
+    // Doctor profile photos (app uploads here)
+    match /doctors/{uid}/profile.jpg {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
     
     // Medical Documents (Prescriptions, Lab Results, Reports)
     match /medicalDocuments/{patientId}/{documentId} {

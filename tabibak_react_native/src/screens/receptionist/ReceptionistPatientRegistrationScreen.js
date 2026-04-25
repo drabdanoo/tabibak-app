@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  I18nManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../config/theme';
@@ -201,20 +203,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.gray,
   },
+  // iOS fix: use borderStartWidth/borderStartColor for RTL-safe border
   infoBox: {
-    flexDirection: 'row',
+    flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row',
     backgroundColor: colors.background,
     padding: spacing.md,
     borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    borderStartWidth: 3,
+    borderStartColor: colors.primary,
     marginTop: spacing.md,
   },
   infoText: {
     flex: 1,
     fontSize: typography.sizes.sm,
     color: colors.textSecondary,
-    marginLeft: spacing.sm,
+    marginLeft: I18nManager.isRTL ? 0 : spacing.sm,
+    marginRight: I18nManager.isRTL ? spacing.sm : 0,
   },
   bottomSpacer: {
     height: 100,

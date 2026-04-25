@@ -1,142 +1,340 @@
-import React from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  SafeAreaView,
-  StatusBar
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../config/theme';
+import { useTranslation } from 'react-i18next';
+import { ScreenContainer } from '../../components/ui';
+import { colors, spacing, typography, BorderRadius, shadows } from '../../config/theme';
 import { USER_ROLES } from '../../config/firebase';
 
+// ─── Staff access code ────────────────────────────────────────────────────────
+// Change this value in your environment config for production.
+const STAFF_ACCESS_CODE = 'VB2024';
+
+// ─── Role card data ────────────────────────────────────────────────────────────
+// Icons and accent colours are static; labels/descriptions come from i18n.
+const ROLE_CARDS = [
+  {
+    role:        USER_ROLES.PATIENT,
+    icon:        'person-outline',
+    accentColor: colors.primary,
+    titleKey:    'roles.patient',
+    descKey:     'roles.patientDesc',
+    protected:   false,
+  },
+  {
+    role:        USER_ROLES.DOCTOR,
+    icon:        'briefcase-outline',
+    accentColor: colors.secondary,
+    titleKey:    'roles.doctor',
+    descKey:     'roles.doctorDesc',
+    protected:   false,
+  },
+  {
+    role:        USER_ROLES.RECEPTIONIST,
+    icon:        'desktop-outline',
+    accentColor: colors.info,
+    titleKey:    'roles.receptionist',
+    descKey:     'roles.receptionistDesc',
+    protected:   true,
+  },
+];
+
 const RoleSelectionScreen = ({ navigation }) => {
-  const handleRoleSelect = (role) => {
+  const { t } = useTranslation();
+
+  // ── Staff invite-code modal state ─────────────────────────────────────────
+  const [codeModalVisible, setCodeModalVisible] = useState(false);
+  const [accessCode, setAccessCode]             = useState('');
+  const [codeError, setCodeError]               = useState('');
+
+  const openCodeModal = () => {
+    setAccessCode('');
+    setCodeError('');
+    setCodeModalVisible(true);
+  };
+
+  const handleCodeSubmit = () => {
+    if (accessCode.trim() === STAFF_ACCESS_CODE) {
+      setCodeModalVisible(false);
+      navigation.navigate('EmailLogin', { role: USER_ROLES.RECEPTIONIST });
+    } else {
+      setCodeError('Invalid access code. Please try again.');
+    }
+  };
+
+  // ── Role selection ────────────────────────────────────────────────────────
+  const handleRoleSelect = (role, isProtected) => {
+    if (isProtected) {
+      openCodeModal();
+      return;
+    }
     if (role === USER_ROLES.PATIENT) {
       navigation.navigate('PhoneAuth');
     } else {
-      // For doctors and receptionists, navigate to email login
       navigation.navigate('EmailLogin', { role });
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-      
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Ionicons name="medical" size={80} color={Colors.primary} />
-          <Text style={styles.title}>Tabibok</Text>
-          <Text style={styles.subtitle}>Choose your role to continue</Text>
+    <ScreenContainer scrollable={false} padded={false} edges={['top', 'bottom']}>
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <View style={styles.logoCircle}>
+          <Ionicons name="calendar" size={44} color={colors.white} />
         </View>
-
-        <View style={styles.rolesContainer}>
-          <TouchableOpacity 
-            style={[styles.roleCard, styles.patientCard]}
-            onPress={() => handleRoleSelect(USER_ROLES.PATIENT)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="person" size={48} color={Colors.primary} />
-            <Text style={styles.roleTitle}>Patient</Text>
-            <Text style={styles.roleDescription}>
-              Book appointments, view medical records
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.roleCard, styles.doctorCard]}
-            onPress={() => handleRoleSelect(USER_ROLES.DOCTOR)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="medkit" size={48} color={Colors.secondary} />
-            <Text style={styles.roleTitle}>Doctor</Text>
-            <Text style={styles.roleDescription}>
-              Manage appointments, patient records
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.roleCard, styles.receptionistCard]}
-            onPress={() => handleRoleSelect(USER_ROLES.RECEPTIONIST)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="desktop" size={48} color={Colors.info} />
-            <Text style={styles.roleTitle}>Receptionist</Text>
-            <Text style={styles.roleDescription}>
-              Confirm appointments, manage schedule
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.appName}>Vanbook</Text>
+        <Text style={styles.selectRoleLabel}>{t('auth.selectRole')}</Text>
       </View>
-    </SafeAreaView>
+
+      {/* ── Role cards ──────────────────────────────────────────────────────── */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {ROLE_CARDS.map(({ role, icon, accentColor, titleKey, descKey, protected: isProtected }) => (
+          <TouchableOpacity
+            key={role}
+            testID={`role-card-${role}`}
+            accessibilityLabel={t(titleKey)}
+            style={[styles.roleCard, { borderColor: accentColor + '30' }]}
+            onPress={() => handleRoleSelect(role, isProtected)}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: accentColor + '18' }]}>
+              <Ionicons name={icon} size={36} color={accentColor} />
+            </View>
+            <View style={styles.cardText}>
+              <Text style={styles.roleTitle}>{t(titleKey)}</Text>
+              <Text style={styles.roleDesc}>{t(descKey)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.gray} />
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* ── Staff access code modal ──────────────────────────────────────────── */}
+      <Modal
+        visible={codeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCodeModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="lock-closed-outline" size={28} color={colors.primary} />
+              <Text style={styles.modalTitle}>Staff Access</Text>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Enter your access code to continue.
+            </Text>
+
+            <TextInput
+              style={[styles.codeInput, !!codeError && styles.codeInputError]}
+              value={accessCode}
+              onChangeText={(v) => { setAccessCode(v); setCodeError(''); }}
+              placeholder="Access code"
+              placeholderTextColor={colors.gray}
+              autoCapitalize="characters"
+              secureTextEntry={false}
+              returnKeyType="done"
+              onSubmitEditing={handleCodeSubmit}
+              autoFocus
+            />
+
+            {!!codeError && (
+              <Text style={styles.codeErrorText}>{codeError}</Text>
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setCodeModalVisible(false)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmBtn}
+                onPress={handleCodeSubmit}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.confirmBtnText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+    </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.white
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xxl
-  },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
-  title: {
-    fontSize: FontSizes.xxl,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    marginTop: Spacing.md
-  },
-  subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.textLight,
-    marginTop: Spacing.sm
-  },
-  rolesContainer: {
-    flex: 1
-  },
-  roleCard: {
-    backgroundColor: Colors.backgroundLight,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    ...shadows.md,
   },
-  patientCard: {
-    borderColor: Colors.primary + '20'
+  appName: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 0.5,
   },
-  doctorCard: {
-    borderColor: Colors.secondary + '20'
+  selectRoleLabel: {
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
-  receptionistCard: {
-    borderColor: Colors.info + '20'
+
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 40,
+  },
+
+  roleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginEnd: spacing.md,
+  },
+  cardText: {
+    flex: 1,
   },
   roleTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '600',
-    color: Colors.text,
-    marginTop: Spacing.sm
+    fontSize: typography.sizes.lg,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
-  roleDescription: {
-    fontSize: FontSizes.sm,
-    color: Colors.textLight,
-    textAlign: 'center',
-    marginTop: Spacing.xs
-  }
+  roleDesc: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+
+  // ── Modal ──────────────────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: colors.white,
+    borderRadius: BorderRadius.xl,
+    padding: spacing.xl,
+    ...shadows.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  modalTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalSubtitle: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+    lineHeight: 20,
+  },
+  codeInput: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    fontSize: typography.sizes.md,
+    color: colors.text,
+    letterSpacing: 2,
+    marginBottom: spacing.xs,
+  },
+  codeInputError: {
+    borderColor: colors.error,
+  },
+  codeErrorText: {
+    fontSize: typography.sizes.xs,
+    color: colors.error,
+    marginBottom: spacing.sm,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  confirmBtnText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '700',
+    color: colors.white,
+  },
 });
 
 export default RoleSelectionScreen;

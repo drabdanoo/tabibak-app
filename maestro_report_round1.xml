@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" tests="21" failures="20" time="2182.149" timestamp="2026-04-08T11:01:17.168">
+    <testcase id="18_doctor_visit_notes" name="18_doctor_visit_notes" classname="18_doctor_visit_notes" time="120.239" timestamp="2026-04-08T11:37:40.358" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="00_smoke_launch" name="00_smoke_launch" classname="00_smoke_launch" time="75.085" timestamp="2026-04-08T11:36:24.2" status="SUCCESS"/>
+    <testcase id="01_auth_role_selection" name="01_auth_role_selection" classname="01_auth_role_selection" time="124.814" timestamp="2026-04-08T11:34:18.922" status="ERROR">
+      <failure>Assertion is false: id: role-card-patient is visible</failure>
+    </testcase>
+    <testcase id="02_auth_phone_login_patient" name="02_auth_phone_login_patient" classname="02_auth_phone_login_patient" time="111.9" timestamp="2026-04-08T11:32:26.586" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-patient</failure>
+    </testcase>
+    <testcase id="03_auth_email_login_doctor" name="03_auth_email_login_doctor" classname="03_auth_email_login_doctor" time="126.346" timestamp="2026-04-08T11:30:19.896" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="04_patient_home_to_doctor_list" name="04_patient_home_to_doctor_list" classname="04_patient_home_to_doctor_list" time="117.503" timestamp="2026-04-08T11:28:22.048" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="05_patient_book_appointment" name="05_patient_book_appointment" classname="05_patient_book_appointment" time="122.118" timestamp="2026-04-08T11:26:19.595" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="06_doctor_dashboard_to_appointments" name="06_doctor_dashboard_to_appointments" classname="06_doctor_dashboard_to_appointments" time="117.802" timestamp="2026-04-08T11:24:21.135" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="07_doctor_view_patient_details" name="07_doctor_view_patient_details" classname="07_doctor_view_patient_details" time="113.191" timestamp="2026-04-08T11:22:27.446" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="08_doctor_create_prescription" name="08_doctor_create_prescription" classname="08_doctor_create_prescription" time="116.632" timestamp="2026-04-08T11:20:21.888" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="09_receptionist_dashboard" name="09_receptionist_dashboard" classname="09_receptionist_dashboard" time="125.26" timestamp="2026-04-08T11:20:21.89" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-receptionist</failure>
+    </testcase>
+    <testcase id="10_receptionist_register_patient" name="10_receptionist_register_patient" classname="10_receptionist_register_patient" time="110.143" timestamp="2026-04-08T11:18:30.682" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-receptionist</failure>
+    </testcase>
+    <testcase id="11_patient_view_medical_docs" name="11_patient_view_medical_docs" classname="11_patient_view_medical_docs" time="111.2" timestamp="2026-04-08T11:16:35.796" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="12_patient_chat_with_doctor" name="12_patient_chat_with_doctor" classname="12_patient_chat_with_doctor" time="113.976" timestamp="2026-04-08T11:16:35.771" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="13_doctor_emr_access" name="13_doctor_emr_access" classname="13_doctor_emr_access" time="114.356" timestamp="2026-04-08T11:14:41.071" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="14_patient_view_prescriptions" name="14_patient_view_prescriptions" classname="14_patient_view_prescriptions" time="112.621" timestamp="2026-04-08T11:12:47.98" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="15_receptionist_manage_appointments" name="15_receptionist_manage_appointments" classname="15_receptionist_manage_appointments" time="111.471" timestamp="2026-04-08T11:10:56.187" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-receptionist</failure>
+    </testcase>
+    <testcase id="16_auth_logout_all_roles" name="16_auth_logout_all_roles" classname="16_auth_logout_all_roles" time="111.696" timestamp="2026-04-08T11:09:04.235" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="17_patient_use_doctor_map" name="17_patient_use_doctor_map" classname="17_patient_use_doctor_map" time="113.291" timestamp="2026-04-08T11:07:10.606" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="19_patient_notifications" name="19_patient_notifications" classname="19_patient_notifications" time="119.422" timestamp="2026-04-08T11:03:18.552" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+    <testcase id="20_doctor_settings" name="20_doctor_settings" classname="20_doctor_settings" time="120.018" timestamp="2026-04-08T11:01:18.028" status="ERROR">
+      <failure>Element not found: Id matching regex: role-card-doctor</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
