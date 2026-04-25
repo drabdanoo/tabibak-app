@@ -78,3 +78,51 @@ credentials/
 # dataconnect generated files
 .dataconnect
 .cached_sim_app/
+.cached_build.tar.gz
+_sim_app.zip
+
+# Expo / EAS build artifacts
+.expo/
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+ios/
+android/
+
+# Native Firebase config (contain API keys — add per-developer locally)
+google-services.json
+GoogleService-Info.plist
+
+# Crash dumps & debug logs
+hs_err_pid*.log
+replay_pid*.log
+firestore-debug.log
+database-debug.log
+*.xml
+
+# Test/automation artifacts
+maestro_report*.xml
+maestro_install.zip
+_maestro_flows.zip
+tabibak_native.zip
+
+# Scratch / temp files
+*.txt
+!README.txt
+recaptcha.txt
+"web app key.txt"
+.ios_test_checkpoint.json
+medconnect-debug-export-*.json
+
+# Python scripts (one-off tooling, not part of the app)
+*.py
+
+# Service account keys & secrets
+service-account-key.json
+*-service-account*.json
+*firebase-adminsdk*.json
+*.env
+.env
+.env.*
+functions/medconnect-2.env

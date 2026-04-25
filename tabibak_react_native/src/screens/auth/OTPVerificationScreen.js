@@ -26,16 +26,8 @@ const mapVerifyError = (code, t) => {
 
 const OTPVerificationScreen = ({ navigation, route }) => {
   const { phoneNumber } = route.params;
-<<<<<<< HEAD
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [loading, setLoading] = useState(false);
-  const { verifyOTP, verificationConfirmation } = useAuth();
-  
-  const inputRefs = useRef([]);
-=======
   const { t } = useTranslation();
   const { sendOTP, verifyOTP } = useAuth();
->>>>>>> store/apple-safe
 
   const [code, setCode]               = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
@@ -90,44 +82,6 @@ const OTPVerificationScreen = ({ navigation, route }) => {
     }
   };
 
-<<<<<<< HEAD
-  const handleVerify = async () => {
-    const otpCode = otp.join('');
-    
-    if (otpCode.length !== 6) {
-      Alert.alert('Error', 'Please enter a valid 6-digit code');
-      return;
-    }
-
-    if (!verificationConfirmation) {
-      Alert.alert('Error', 'Verification session expired. Please request a new code.');
-      navigation.goBack();
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // verifyOTP now retrieves confirmation from context
-      const result = await verifyOTP(otpCode);
-      
-      if (result.success) {
-        if (result.needsProfile) {
-          navigation.navigate('ProfileSetup', { 
-            user: result.user,
-            role: route.params.role
-          });
-        } else {
-          // Navigate based on user role
-          // The AppNavigator will handle routing based on user role
-        }
-      } else {
-        Alert.alert('Error', result.error || 'Failed to verify code');
-      }
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setLoading(false);
-=======
   const handleResend = async () => {
     clearTimeout(countdownRef.current);
     setVerifyError('');
@@ -138,7 +92,6 @@ const OTPVerificationScreen = ({ navigation, route }) => {
       startCountdown();
     } else {
       setVerifyError(mapVerifyError(result.code, t));
->>>>>>> store/apple-safe
     }
   };
 

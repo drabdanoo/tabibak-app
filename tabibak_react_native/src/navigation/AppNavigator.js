@@ -86,13 +86,6 @@ import ReceptionistStack from './ReceptionistStack';
 
 const Stack = createNativeStackNavigator();
 
-<<<<<<< HEAD
-const AppNavigator = () => {
-  const { user, userRole, initializing, roleLoading } = useAuth();
-
-  // Show loading screen while initializing auth or loading role
-  if (initializing || (user && roleLoading)) {
-=======
 // ─────────────────────────────────────────────────────────────────────────────
 // Deep-link route map
 //
@@ -262,7 +255,6 @@ const AppNavigator = () => {
   // is fetching the user's role/profile from Firestore after sign-in.
   // Once loading=false the role is definitively known (null = no profile yet).
   if (initializing || loading) {
->>>>>>> store/apple-safe
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />

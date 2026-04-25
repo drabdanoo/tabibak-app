@@ -11,9 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [userRole, setUserRole] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [roleLoading, setRoleLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
-  const [verificationConfirmation, setVerificationConfirmation] = useState(null);
 
   // Handle authentication state changes
   useEffect(() => {
@@ -23,14 +21,7 @@ export const AuthProvider = ({ children }) => {
 
       if (firebaseUser) {
         setUser(firebaseUser);
-<<<<<<< HEAD
-        
-        // Set roleLoading to true while fetching role
-        setRoleLoading(true);
-        
-=======
 
->>>>>>> store/apple-safe
         // Get user role and profile
         const role = await authService.getUserRole(firebaseUser.uid);
         console.log('User role:', role);
@@ -48,20 +39,12 @@ export const AuthProvider = ({ children }) => {
           // Register device token for push notifications
           await notificationService.registerDeviceToken(firebaseUser.uid, role);
         }
-        
-        // Role loading complete
-        setRoleLoading(false);
       } else {
         console.log('No user, clearing auth state');
         setUser(null);
         setUserRole(null);
         setUserProfile(null);
-<<<<<<< HEAD
-        setRoleLoading(false);
-        
-=======
 
->>>>>>> store/apple-safe
         // Clear AsyncStorage
         await AsyncStorage.removeItem('userRole');
         await AsyncStorage.removeItem('userProfile');
@@ -79,41 +62,11 @@ export const AuthProvider = ({ children }) => {
 
   // Send OTP to phone number
   const sendOTP = async (phoneNumber) => {
-    const result = await authService.sendOTP(phoneNumber);
-    
-    if (result.success && result.confirmation) {
-      // Store confirmation in context state instead of passing via navigation
-      setVerificationConfirmation(result.confirmation);
-      console.log('Verification confirmation stored in context');
-    }
-    
-    return result;
+    return await authService.sendOTP(phoneNumber);
   };
 
   // Verify OTP
   const verifyOTP = async (code) => {
-<<<<<<< HEAD
-    if (!verificationConfirmation) {
-      console.error('No verification confirmation found');
-      return { 
-        success: false, 
-        error: 'Verification session expired. Please request a new code.' 
-      };
-    }
-    
-    const result = await authService.verifyOTP(verificationConfirmation, code);
-    
-    if (result.success) {
-      // Clear confirmation after successful verification
-      setVerificationConfirmation(null);
-      
-      // Check if user has a profile
-      const role = await authService.getUserRole(result.user.uid);
-      
-      if (!role) {
-        // New user - needs to complete profile
-        return { success: true, needsProfile: true, user: result.user };
-=======
     const result = await authService.verifyOTP(code);
 
     if (result.success) {
@@ -123,7 +76,6 @@ export const AuthProvider = ({ children }) => {
       if (!role && role !== undefined) {
         await new Promise((r) => setTimeout(r, 1500));
         role = await authService.getUserRole(result.user.uid);
->>>>>>> store/apple-safe
       }
 
       if (!role) {
@@ -230,9 +182,7 @@ export const AuthProvider = ({ children }) => {
     userRole,
     userProfile,
     loading,
-    roleLoading,
     initializing,
-    verificationConfirmation,
     sendOTP,
     verifyOTP,
     createProfile,

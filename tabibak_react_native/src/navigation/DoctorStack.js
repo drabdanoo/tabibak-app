@@ -8,17 +8,6 @@ import { FEATURES } from '../config/features';
 // Doctor Screens
 import DoctorDashboardScreen    from '../screens/doctor/DoctorDashboardScreen';
 import DoctorAppointmentsScreen from '../screens/doctor/DoctorAppointmentsScreen';
-<<<<<<< HEAD
-import DoctorAppointmentDetailScreen from '../screens/doctor/DoctorAppointmentDetailScreen';
-import PatientDetailsScreen from '../screens/doctor/PatientDetailsScreen';
-import PatientHistoryScreen from '../screens/doctor/PatientHistoryScreen';
-import DoctorVisitNotesScreen from '../screens/doctor/DoctorVisitNotesScreen';
-import EMRScreen from '../screens/doctor/EMRScreen';
-import PrescriptionScreen from '../screens/doctor/PrescriptionScreen';
-import DoctorProfileScreen from '../screens/doctor/DoctorProfileScreen';
-import DoctorSettingsScreen from '../screens/doctor/DoctorSettingsScreen';
-import AppointmentDetailsScreen from '../screens/doctor/AppointmentDetailsScreen';
-=======
 import PatientDetailsScreen     from '../screens/doctor/PatientDetailsScreen';
 import DoctorProfileScreen      from '../screens/doctor/DoctorProfileScreen';
 import DoctorSettingsScreen     from '../screens/doctor/DoctorSettingsScreen';
@@ -29,7 +18,6 @@ import PrescriptionScreen from '../screens/doctor/PrescriptionScreen';
 
 // Shared Screens
 import ChatScreen from '../screens/chat/ChatScreen';
->>>>>>> store/apple-safe
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -67,62 +55,6 @@ const DoctorTabs = () => (
   </Tab.Navigator>
 );
 
-<<<<<<< HEAD
-// Stack Navigator for Doctor
-const DoctorStack = () => {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen
-        name="DoctorTabs"
-        component={DoctorTabs}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="AppointmentDetails"
-        component={AppointmentDetailsScreen}
-        options={{
-          title: 'Appointment Details',
-          headerStyle: { backgroundColor: Colors.primary },
-          headerTintColor: Colors.white
-        }}
-      />
-      <Stack.Screen
-        name="AppointmentDetail"
-        component={DoctorAppointmentDetailScreen}
-        options={{
-          title: 'Appointment Details',
-          headerStyle: { backgroundColor: Colors.primary },
-          headerTintColor: Colors.white
-        }}
-      />
-      <Stack.Screen
-        name="DoctorVisitNotes"
-        component={DoctorVisitNotesScreen}
-        options={{
-          title: 'Visit Notes',
-          headerStyle: { backgroundColor: Colors.primary },
-          headerTintColor: Colors.white
-        }}
-      />
-      <Stack.Screen
-        name="PatientHistory"
-        component={PatientHistoryScreen}
-        options={{
-          title: 'Patient History',
-          headerStyle: { backgroundColor: Colors.primary },
-          headerTintColor: Colors.white
-        }}
-      />
-      <Stack.Screen
-        name="PatientDetails"
-        component={PatientDetailsScreen}
-        options={{
-          title: 'Patient Details',
-          headerStyle: { backgroundColor: Colors.primary },
-          headerTintColor: Colors.white
-        }}
-      />
-=======
 // ─── Stack Navigator ──────────────────────────────────────────────────────────
 const DoctorStack = () => (
   <Stack.Navigator>
@@ -159,7 +91,6 @@ const DoctorStack = () => (
 
     {/* ── FEATURE FLAG: EMR Screen ── */}
     {FEATURES.EMR_SCREEN && (
->>>>>>> store/apple-safe
       <Stack.Screen
         name="EMR"
         component={EMRScreen}
@@ -170,13 +101,10 @@ const DoctorStack = () => (
           headerTintColor: Colors.white,
         }}
       />
-<<<<<<< HEAD
-=======
     )}
 
     {/* ── FEATURE FLAG: Standalone Prescription Screen ── */}
     {FEATURES.PRESCRIPTION_SCREEN && (
->>>>>>> store/apple-safe
       <Stack.Screen
         name="Prescription"
         component={PrescriptionScreen}
@@ -187,23 +115,8 @@ const DoctorStack = () => (
           headerTintColor: Colors.white,
         }}
       />
-<<<<<<< HEAD
-      <Stack.Screen
-        name="Settings"
-        component={DoctorSettingsScreen}
-        options={{
-          title: 'Settings',
-          headerStyle: { backgroundColor: Colors.primary },
-          headerTintColor: Colors.white
-        }}
-      />
-    </Stack.Navigator>
-  );
-};
-=======
     )}
   </Stack.Navigator>
 );
->>>>>>> store/apple-safe
 
 export default DoctorStack;

@@ -1,6 +1,0 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<testsuites>
-  <testsuite name="Test Suite" tests="1" failures="0" time="72.961" timestamp="2026-04-08T10:51:36.113">
-    <testcase id="00_smoke_launch" name="00_smoke_launch" classname="00_smoke_launch" time="72.567" timestamp="2026-04-08T10:51:36.486" status="SUCCESS"/>
-  </testsuite>
-</testsuites>
