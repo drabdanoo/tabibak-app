@@ -60,8 +60,14 @@ let selectedDoctorId = null;
 let selectedTimeSlot = null;
 let selectedRescheduleTimeSlot = null;
 let confirmationResult = null;
-let doctors = {};
+let doctors = {};          // id → doctor object (cache used by booking/profile)
+let doctorList = [];       // ordered list for the main grid
+let featuredDoctors = [];  // up to 8 featured
 let doctorsLoaded = false;
+let doctorsCursor = null;  // Firestore pagination cursor
+let doctorsPageLoading = false;
+let doctorsAllLoaded = false;
+let pageSpecialty = '';    // specialty constraint applied at query level
 let userAppointments = []; // To store the user's appointments for filtering
 let lastVisibleReview = null; // For reviews pagination
 let recaptchaVerifier = null;
@@ -159,131 +165,271 @@ function generateInitials(name) {
     return parts.length >= 2 ? `د.${parts[1].charAt(0)}` : `د.${parts[0].charAt(0)}`;
 }
 
+// Specialty → gradient for featured cards
+const SPECIALTY_GRADIENTS = {
+    'طب الاسنان': 'from-cyan-500 to-blue-600',
+    'الطب الباطني': 'from-green-500 to-teal-600',
+    'الامراض الجلدية والزهرية': 'from-pink-500 to-rose-500',
+    'النسائية والتوليد': 'from-purple-500 to-violet-600',
+    'طب الاطفال وحديثي الولادة': 'from-orange-400 to-amber-500',
+    'الاشعة التشخيصية': 'from-indigo-500 to-blue-700',
+    'جراحة': 'from-red-500 to-rose-600',
+    'الطب النفسي': 'from-violet-500 to-purple-700',
+    'العظام والمفاصل': 'from-slate-500 to-gray-700',
+};
+function specialtyGradient(specialty) {
+    for (const [key, val] of Object.entries(SPECIALTY_GRADIENTS)) {
+        if (specialty && specialty.includes(key.slice(0, 8))) return val;
+    }
+    return 'from-blue-600 to-indigo-700';
+}
+
+function mapDoctorDoc(doc) {
+    const data = doc.data();
+    if (!data || !data.name || !data.specialty) return null;
+    const fee = data.consultationFee ? Math.round(data.consultationFee / 1000) : null;
+    return {
+        id: doc.id,
+        name: data.name,
+        specialty: data.specialty,
+        phone: data.phone || '',
+        email: data.email || '',
+        fee: fee,
+        initials: data.initials || generateInitials(data.name),
+        experience: data.experience || '5+ سنوات خبرة',
+        rating: data.rating || '4.5',
+        reviews: data.reviews || '0',
+        location: data.location || 'الموصل',
+        hours: data.hours || '9:00 ص - 5:00 م',
+        education: data.education || 'بكالوريوس طب وجراحة',
+        specializations: data.specializations || [data.specialty],
+        languages: data.languages || ['العربية'],
+        about: data.about || `طبيب متخصص في ${data.specialty}.`,
+        openingTime: data.openingTime,
+        closingTime: data.closingTime,
+        clinicClosed: data.clinicClosed,
+        closureEndDate: data.closureEndDate,
+        featured: data.featured || false,
+    };
+}
+
 async function loadDoctors() {
     if (doctorsLoaded) return;
-    const doctorsGrid = document.getElementById('doctorsGrid');
-    if (doctorsGrid) {
-        doctorsGrid.innerHTML = `
-            <div class="col-span-full flex justify-center items-center py-12">
-                <div class="text-center">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p class="text-gray-600">جاري تحميل قائمة الأطباء...</p>
-                </div>
-            </div>`;
+
+    const allowIds = window.__MC_ENV__?.ALLOWED_DOCTOR_IDS || [];
+
+    // Whitelist mode: fetch specific docs directly (short list, no pagination needed)
+    if (Array.isArray(allowIds) && allowIds.length > 0) {
+        try {
+            const docs = await Promise.all(allowIds.map(id => db.collection('doctors').doc(id).get()));
+            docs.filter(d => d.exists && d.data()?.listed).forEach(d => {
+                const mapped = mapDoctorDoc(d);
+                if (mapped) { doctors[d.id] = mapped; doctorList.push(mapped); }
+            });
+        } catch (e) { console.error('Error loading whitelisted doctors:', e); }
+        doctorsLoaded = true;
+        _renderFullGrid();
+        updateSpecialtyFilter(); updateSpecialtiesTab(); updateDoctorSelection(); updateStatistics();
+        return;
     }
 
+    // General mode: featured + paginated
+    await Promise.all([_loadFeaturedDoctors(), _loadDoctorPage()]);
+    doctorsLoaded = true;
+    updateSpecialtyFilter(); updateSpecialtiesTab(); updateDoctorSelection(); updateStatistics();
+    _setupScrollObserver();
+}
+
+async function _loadFeaturedDoctors() {
     try {
-        const allowEmails = window.__MC_ENV__?.ALLOWED_DOCTOR_EMAILS || [];
-        const allowIds = window.__MC_ENV__?.ALLOWED_DOCTOR_IDS || [];
-        let snapshot;
+        const snap = await db.collection('doctors')
+            .where('featured', '==', true)
+            .where('listed', '==', true)
+            .limit(8)
+            .get();
+        if (snap.empty) return;
+        snap.docs.forEach(d => {
+            const mapped = mapDoctorDoc(d);
+            if (!mapped) return;
+            doctors[d.id] = mapped;
+            featuredDoctors.push(mapped);
+        });
+        _renderFeaturedDoctors();
+    } catch (e) { /* featured is non-critical */ }
+}
 
-        if (Array.isArray(allowIds) && allowIds.length > 0) {
-            const promises = allowIds.map(id => db.collection('doctors').doc(id).get());
-            const docs = (await Promise.all(promises)).filter(d => d.exists && d.data()?.listed === true);
-            snapshot = { empty: docs.length === 0, docs };
-        } else {
-            const baseSnap = await db.collection('doctors').where('listed', '==', true).get();
-            let docs = baseSnap.docs;
-            if (Array.isArray(allowEmails) && allowEmails.length > 0) {
-                const allowedSet = new Set(allowEmails.map(e => String(e).toLowerCase()));
-                docs = docs.filter(d => allowedSet.has(String(d.data()?.email || '').toLowerCase()));
-            }
-            snapshot = { empty: docs.length === 0, docs };
-        }
+async function _loadDoctorPage() {
+    if (doctorsPageLoading || doctorsAllLoaded) return;
+    doctorsPageLoading = true;
+    try {
+        let q = db.collection('doctors').where('listed', '==', true);
+        if (pageSpecialty) q = q.where('specialty', '==', pageSpecialty);
+        q = q.limit(50);
+        if (doctorsCursor) q = q.startAfter(doctorsCursor);
 
-        doctors = {};
-        if (!snapshot.empty) {
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                if (!data || !data.name || !data.email || !data.specialty) {
-                    console.warn('Invalid doctor data, skipping:', doc.id);
-                    return;
-                }
-                const fee = (data.consultationFee || 15000) / 1000;
-                doctors[doc.id] = {
-                    id: doc.id,
-                    name: data.name,
-                    specialty: data.specialty,
-                    phone: data.phone,
-                    email: data.email,
-                    fee: `${fee}`,
-                    initials: data.initials || generateInitials(data.name),
-                    experience: data.experience || '5+ سنوات خبرة',
-                    rating: data.rating || '4.5',
-                    reviews: data.reviews || '50',
-                    location: data.location || 'العيادة الطبية',
-                    hours: data.hours || '9:00 ص - 5:00 م',
-                    education: data.education || 'بكالوريوس طب وجراحة',
-                    specializations: data.specializations || [data.specialty],
-                    languages: data.languages || ['العربية'],
-                    about: data.about || `طبيب متخصص في ${data.specialty} مع خبرة واسعة في المجال الطبي.`,
-                    openingTime: data.openingTime,
-                    closingTime: data.closingTime,
-                    clinicClosed: data.clinicClosed,
-                    closureEndDate: data.closureEndDate
-                };
-            });
-        }
+        const snap = await q.get();
+        if (snap.empty || snap.docs.length < 50) doctorsAllLoaded = true;
 
-        doctorsLoaded = true;
-        updateSpecialtyFilter();
-        updateDoctorGrid();
-        updateSpecialtiesTab();
-        updateDoctorSelection();
-        updateStatistics();
+        const newDocs = [];
+        snap.docs.forEach(d => {
+            if (doctors[d.id]) return; // already in cache (e.g. featured)
+            const mapped = mapDoctorDoc(d);
+            if (!mapped) return;
+            doctors[d.id] = mapped;
+            doctorList.push(mapped);
+            newDocs.push(mapped);
+        });
 
-    } catch (error) {
-        console.error('Error loading doctors:', error);
-        doctorsLoaded = true;
-        updateDoctorGrid(); // Will show empty state
-        window.showNotification('لا تتوفر قائمة أطباء حالياً', 'info');
+        if (snap.docs.length > 0) doctorsCursor = snap.docs[snap.docs.length - 1];
+
+        _appendDoctorCards(newDocs);
+        _updateLoadMoreState();
+    } catch (e) {
+        console.error('Error loading doctors page:', e);
+        window.showNotification('تعذّر تحميل الأطباء، حاول مرة أخرى', 'error');
+    } finally {
+        doctorsPageLoading = false;
     }
 }
 
-function updateDoctorGrid() {
-    const doctorsGrid = document.getElementById('doctorsGrid');
-    if (!doctorsGrid) return;
+function loadMoreDoctors() { _loadDoctorPage(); }
 
-    if (Object.keys(doctors).length === 0) {
-        doctorsGrid.innerHTML = `
+function _renderFeaturedDoctors() {
+    const section = document.getElementById('featuredSection');
+    const grid    = document.getElementById('featuredGrid');
+    if (!section || !grid || featuredDoctors.length === 0) return;
+
+    grid.innerHTML = featuredDoctors.map(d => `
+        <div class="featured-card bg-white rounded-2xl overflow-hidden shadow-md border border-gray-100 cursor-pointer"
+             onclick="showDoctorProfile('${d.id}')"
+             data-name="${d.name.toLowerCase()}" data-specialty="${d.specialty}">
+            <div class="bg-gradient-to-br ${specialtyGradient(d.specialty)} p-5 relative">
+                <span class="featured-badge absolute top-3 left-3">⭐ مميز</span>
+                <div class="w-16 h-16 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mb-3">
+                    <span class="text-white font-bold text-xl">${sanitizeHtml(d.initials)}</span>
+                </div>
+                <h3 class="text-white font-bold text-base leading-tight">${sanitizeHtml(d.name)}</h3>
+                <p class="text-white/80 text-xs mt-1">${sanitizeHtml(d.specialty)}</p>
+                <div class="flex items-center mt-2 gap-1">
+                    ${[1,2,3,4,5].map(s => `<svg class="w-3 h-3 ${s <= Math.floor(d.rating||4.5) ? 'text-yellow-300' : 'text-white/30'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`).join('')}
+                </div>
+            </div>
+            <div class="p-4">
+                <p class="text-gray-500 text-xs mb-3 flex items-center gap-1">
+                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <span class="truncate">${sanitizeHtml(d.location)}</span>
+                </p>
+                <button onclick="event.stopPropagation(); showBookingModal('${d.id}')"
+                        class="w-full bg-gradient-to-r ${specialtyGradient(d.specialty)} text-white text-sm font-medium py-2 rounded-lg hover:opacity-90 transition-opacity">
+                    احجز الآن
+                </button>
+            </div>
+        </div>`).join('');
+
+    section.classList.remove('hidden');
+}
+
+function _doctorCardHtml(d) {
+    const feeHtml = d.fee !== null
+        ? `<div class="flex items-center text-gray-600"><svg class="w-4 h-4 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg><span class="text-sm font-medium">${sanitizeHtml(String(d.fee))} ألف د.ع</span></div>`
+        : '';
+    return `
+        <div class="doctor-card bg-white rounded-xl shadow-sm border card-hover fade-in"
+             data-name="${d.name.toLowerCase()}" data-specialty="${d.specialty}">
+            <div class="p-5">
+                <div class="flex items-center mb-4">
+                    <div class="w-14 h-14 doctor-avatar rounded-full flex items-center justify-center ml-3 flex-shrink-0">
+                        <span class="text-white font-bold text-base">${sanitizeHtml(d.initials)}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-lg font-bold text-gray-900 truncate">${sanitizeHtml(d.name)}</h3>
+                        <p class="text-blue-600 text-sm font-medium truncate">${sanitizeHtml(d.specialty)}</p>
+                    </div>
+                </div>
+                <div class="space-y-2 mb-4 text-sm text-gray-600">
+                    <div class="flex items-start gap-2">
+                        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span class="line-clamp-2">${sanitizeHtml(d.location)}</span>
+                    </div>
+                    ${feeHtml}
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-0.5">
+                        ${[1,2,3,4,5].map(s => `<svg class="w-4 h-4 ${s <= Math.floor(d.rating||4.5) ? 'text-yellow-400' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`).join('')}
+                        <span class="text-xs text-gray-500 mr-1">(${d.reviews})</span>
+                    </div>
+                    <span class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full font-medium">متاح</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="showDoctorProfile('${d.id}')" class="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">الملف</button>
+                    <button onclick="showBookingModal('${d.id}')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white px-3 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm font-medium">احجز</button>
+                </div>
+            </div>
+        </div>`;
+}
+
+function _appendDoctorCards(docArray) {
+    const grid = document.getElementById('doctorsGrid');
+    if (!grid) return;
+    // Clear skeleton placeholders on first append
+    if (grid.querySelector('.skeleton')) grid.innerHTML = '';
+
+    if (docArray.length === 0 && doctorList.length === 0) {
+        grid.innerHTML = `
             <div class="col-span-full text-center py-12">
-                <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">لا يوجد أطباء متاحين حالياً</h3>
                 <p class="text-gray-600">يرجى المحاولة مرة أخرى لاحقاً</p>
             </div>`;
         return;
     }
 
-    doctorsGrid.innerHTML = Object.values(doctors).map(doctor => `
-        <div class="bg-white rounded-xl shadow-sm border card-hover fade-in">
-            <div class="p-6">
-                <div class="flex items-center mb-4">
-                    <div class="w-16 h-16 doctor-avatar rounded-full flex items-center justify-center ml-4">
-                        <span class="text-white font-bold text-lg">${doctor.initials}</span>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-xl font-bold text-gray-900 mb-1">${sanitizeHtml(doctor.name)}</h3>
-                        <p class="text-blue-600 font-medium">${sanitizeHtml(doctor.specialty)}</p>
-                    </div>
-                </div>
-                <div class="space-y-3 mb-6">
-                    <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-sm">${sanitizeHtml(doctor.location || 'العيادة الطبية')}</span></div>
-                    <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-sm">${sanitizeHtml(doctor.hours || '9:00 ص - 5:00 م')}</span></div>
-                    <div class="flex items-center text-gray-600"><svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path></svg><span class="text-sm font-medium">${sanitizeHtml(doctor.fee)} ألف د.ع</span></div>
-                </div>
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center">
-                        <div class="flex items-center ml-2">${[1,2,3,4,5].map(star => `<svg class="w-4 h-4 ${star <= Math.floor(doctor.rating || 4.5) ? 'text-yellow-400' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`).join('')}</div>
-                        <span class="text-sm text-gray-600">(${doctor.reviews || '50'} تقييم)</span>
-                    </div>
-                    <span class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full font-medium">متاح</span>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="showDoctorProfile('${doctor.id}')" class="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">عرض الملف</button>
-                    <button onclick="showBookingModal('${doctor.id}')" class="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 text-sm font-medium">احجز الآن</button>
-                </div>
-            </div>
-        </div>`).join('');
+    const fragment = document.createDocumentFragment();
+    docArray.forEach(d => {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = _doctorCardHtml(d).trim();
+        fragment.appendChild(wrapper.firstChild);
+    });
+    grid.appendChild(fragment);
+}
+
+function _renderFullGrid() {
+    const grid = document.getElementById('doctorsGrid');
+    if (grid) grid.innerHTML = '';
+    _appendDoctorCards(doctorList);
+    _updateLoadMoreState();
+}
+
+function _updateLoadMoreState() {
+    const container = document.getElementById('loadMoreContainer');
+    const allMsg    = document.getElementById('allLoadedMsg');
+    if (!container || !allMsg) return;
+    if (doctorsAllLoaded) {
+        container.classList.add('hidden');
+        if (doctorList.length > 0) allMsg.classList.remove('hidden');
+    } else {
+        container.classList.remove('hidden');
+        allMsg.classList.add('hidden');
+    }
+}
+
+function _setupScrollObserver() {
+    const sentinel = document.getElementById('scrollSentinel');
+    if (!sentinel || !('IntersectionObserver' in window)) {
+        // Fallback: show manual button on old browsers
+        _updateLoadMoreState();
+        return;
+    }
+    // Hide the manual button — auto-load handles it
+    const container = document.getElementById('loadMoreContainer');
+    if (container) container.classList.add('hidden');
+
+    const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && !doctorsPageLoading && !doctorsAllLoaded) {
+            _loadDoctorPage();
+        }
+    }, { rootMargin: '200px' });
+    observer.observe(sentinel);
 }
 
 function updateSpecialtyFilter() {
@@ -333,17 +479,40 @@ function updateStatistics() {
 }
 
 function filterDoctors() {
-    const searchTerm = document.getElementById('doctorSearch').value.toLowerCase();
-    const selectedSpecialty = document.getElementById('specialtyFilter').value;
-    const doctorCards = document.querySelectorAll('#doctorsGrid > div');
+    const searchTerm     = (document.getElementById('doctorSearch')?.value || '').toLowerCase().trim();
+    const selectedSpec   = document.getElementById('specialtyFilter')?.value || '';
 
-    doctorCards.forEach(card => {
-        if (!card.querySelector('h3')) return; // Skip loading/empty state
-        const doctorName = card.querySelector('h3')?.textContent.toLowerCase() || '';
-        const doctorSpecialty = card.querySelector('p.text-blue-600')?.textContent || '';
-        const nameMatch = doctorName.includes(searchTerm);
-        const specialtyMatch = !selectedSpecialty || doctorSpecialty === selectedSpecialty;
-        card.style.display = (nameMatch && specialtyMatch) ? '' : 'none';
+    // If specialty changed → re-query Firestore from scratch
+    if (selectedSpec !== pageSpecialty) {
+        pageSpecialty     = selectedSpec;
+        doctorsCursor     = null;
+        doctorsAllLoaded  = false;
+        doctorList        = [];
+        // Keep featured in cache but reset regular list
+        const featuredIds = new Set(featuredDoctors.map(d => d.id));
+        Object.keys(doctors).forEach(id => { if (!featuredIds.has(id)) delete doctors[id]; });
+
+        const grid = document.getElementById('doctorsGrid');
+        if (grid) grid.innerHTML = `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
+        _loadDoctorPage();
+        return;
+    }
+
+    // Same specialty — filter already-loaded cards by name
+    document.querySelectorAll('#doctorsGrid .doctor-card').forEach(card => {
+        const name = card.dataset.name || '';
+        const spec = card.dataset.specialty || '';
+        const ok = (!searchTerm || name.includes(searchTerm)) &&
+                   (!selectedSpec || spec === selectedSpec);
+        card.style.display = ok ? '' : 'none';
+    });
+    // Also filter featured cards
+    document.querySelectorAll('#featuredGrid .featured-card').forEach(card => {
+        const name = card.dataset.name || '';
+        const spec = card.dataset.specialty || '';
+        const ok = (!searchTerm || name.includes(searchTerm)) &&
+                   (!selectedSpec || spec === selectedSpec);
+        card.style.display = ok ? '' : 'none';
     });
 }
 
@@ -434,7 +603,7 @@ function showDoctorProfile(doctorId) {
             <p class="text-xl text-blue-600 font-medium mb-2">${sanitizeHtml(doctor.specialty)}</p>
             <p class="text-gray-600 mb-4">${sanitizeHtml(doctor.experience)}</p>
             <div class="flex items-center justify-center mb-4"><span class="text-yellow-500 ml-2">⭐⭐⭐⭐⭐</span><span class="text-gray-600">${doctor.rating} (${doctor.reviews} تقييم)</span></div>
-            <div class="bg-green-50 rounded-lg p-4 inline-block"><p class="text-2xl font-bold text-green-600">${sanitizeHtml(doctor.fee)}</p><p class="text-sm text-gray-600">رسوم الاستشارة</p></div>
+            ${doctor.fee !== null ? `<div class="bg-green-50 rounded-lg p-4 inline-block"><p class="text-2xl font-bold text-green-600">${sanitizeHtml(String(doctor.fee))} ألف د.ع</p><p class="text-sm text-gray-600">رسوم الاستشارة</p></div>` : ''}
         </div>
         <div class="grid md:grid-cols-2 gap-8 mb-8">
             <div class="space-y-6">
@@ -471,11 +640,11 @@ function updateDoctorSelection() {
     doctorSelection.innerHTML = Object.values(doctors).map(doctor => `
         <div class="doctor-option border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-300 transition-colors" onclick="selectDoctor('${doctor.id}', this)">
             <div class="flex items-center">
-                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${doctor.initials}</span></div>
+                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${sanitizeHtml(doctor.initials)}</span></div>
                 <div class="flex-1">
                     <h4 class="font-bold text-gray-900">${sanitizeHtml(doctor.name)}</h4>
                     <p class="text-blue-600 text-sm">${sanitizeHtml(doctor.specialty)}</p>
-                    <p class="text-gray-500 text-xs">${sanitizeHtml(doctor.fee)} ألف د.ع</p>
+                    ${doctor.fee !== null ? `<p class="text-gray-500 text-xs">${sanitizeHtml(String(doctor.fee))} ألف د.ع</p>` : ''}
                 </div>
             </div>
         </div>`).join('');
@@ -554,11 +723,11 @@ function updateDoctorSelection() {
     doctorSelection.innerHTML = Object.values(doctors).map(doctor => `
         <div class="doctor-option border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-300 transition-colors" onclick="selectDoctor('${doctor.id}', this)">
             <div class="flex items-center">
-                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${doctor.initials}</span></div>
+                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${sanitizeHtml(doctor.initials)}</span></div>
                 <div class="flex-1">
                     <h4 class="font-bold text-gray-900">${sanitizeHtml(doctor.name)}</h4>
                     <p class="text-blue-600 text-sm">${sanitizeHtml(doctor.specialty)}</p>
-                    <p class="text-gray-500 text-xs">${sanitizeHtml(doctor.fee)} ألف د.ع</p>
+                    ${doctor.fee !== null ? `<p class="text-gray-500 text-xs">${sanitizeHtml(String(doctor.fee))} ألف د.ع</p>` : ''}
                 </div>
             </div>
         </div>`).join('');
@@ -578,7 +747,7 @@ function updateSelectedDoctorInfo(doctor) {
     document.getElementById('selectedDoctorInitials').textContent = doctor.initials;
     document.getElementById('selectedDoctorName').textContent = doctor.name;
     document.getElementById('selectedDoctorSpecialty').textContent = doctor.specialty;
-    document.getElementById('selectedDoctorFee').textContent = doctor.fee;
+    document.getElementById('selectedDoctorFee').textContent = doctor.fee !== null ? `${doctor.fee} ألف د.ع` : 'غير محدد';
 }
 
 function updateTimeSlots(doctorId) {

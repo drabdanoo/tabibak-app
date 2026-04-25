@@ -56,24 +56,18 @@ window.loadFollowUpPatients = async function loadFollowUpPatients() {
     if (!currentDoctor?.id) return;
     
     try {
-        console.log('DEBUG: Loading follow-up patients for doctor:', currentDoctor.id);
         // Get all completed appointments - simplified query to avoid composite index
         const completedSnap = await db.collection('appointments')
             .where('doctorId', '==', currentDoctor.id)
             .where('status', '==', 'completed')
             .get();
-        
-        console.log('DEBUG: Found completed appointments:', completedSnap.docs.length);
-        
+
         // Sort in memory instead of using orderBy in query
         followUpPatients = completedSnap.docs.map(doc => ({
             appointmentId: doc.id,
             ...doc.data()
         })).sort((a, b) => (b.updatedAt?.toDate?.() || 0) - (a.updatedAt?.toDate?.() || 0));
-        
-        console.log('DEBUG: Follow-up patients after sort:', followUpPatients.length, followUpPatients);
-        console.log('DEBUG: First patient data:', followUpPatients[0]);
-        
+
         displayFollowUpList();
     } catch (error) {
         console.error('Error loading follow-up patients:', error);
@@ -82,14 +76,8 @@ window.loadFollowUpPatients = async function loadFollowUpPatients() {
 
 function displayFollowUpList() {
     const container = document.getElementById('followupListContainer');
-    if (!container) {
-        console.log('DEBUG: followupListContainer not found!');
-        return;
-    }
-    
-    console.log('DEBUG: displayFollowUpList called with', followUpPatients.length, 'patients');
-    console.log('DEBUG: followUpPatients array:', followUpPatients);
-    
+    if (!container) return;
+
     if (followUpPatients.length === 0) {
         container.innerHTML = '<p class="text-center text-gray-500 py-8">لا توجد مرضى للمتابعة حالياً</p>';
         return;
@@ -122,16 +110,11 @@ window.viewFollowUpDetails = async function viewFollowUpDetails(appointmentId) {
     if (!patient) return;
     
     try {
-        console.log('DEBUG: Starting query with doctorId:', currentDoctor.id);
-        console.log('DEBUG: Current user:', auth.currentUser?.uid);
-        
         // Get all doctor appointments and filter in memory
         const allDoctorAppointments = await db.collection('appointments')
             .where('doctorId', '==', currentDoctor.id)
             .get();
-        
-        console.log('DEBUG: Query successful, docs count:', allDoctorAppointments.docs.length);
-            
+
         // Filter by patient phone and completed status in memory
         const appointments = allDoctorAppointments.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
@@ -200,10 +183,7 @@ window.viewFollowUpDetails = async function viewFollowUpDetails(appointmentId) {
         `;
     } catch (error) {
         console.error('Error loading follow-up details:', error);
-        console.error('DEBUG: Error code:', error.code);
-        console.error('DEBUG: Error message:', error.message);
-        console.error('DEBUG: Full error:', JSON.stringify(error, null, 2));
-        showNotification('خطأ في تحميل التفاصيل', 'error');
+        showNotification(STRINGS.followUp.loadError, 'error');
     }
 }
 
@@ -221,7 +201,7 @@ async function bookFollowUpForPatient(appointmentId) {
         const followupReason = document.getElementById('followupReason').value;
         
         if (!followupDate || !followupReason) {
-            showNotification('يرجى ملء جميع الحقول', 'error');
+            showNotification(STRINGS.followUp.fillAllFields, 'error');
             return;
         }
         
@@ -230,7 +210,7 @@ async function bookFollowUpForPatient(appointmentId) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (selectedDate < today) {
-            showNotification('يجب أن يكون موعد المتابعة في المستقبل', 'error');
+            showNotification(STRINGS.followUp.futureDateOnly, 'error');
             return;
         }
         
@@ -253,7 +233,7 @@ async function bookFollowUpForPatient(appointmentId) {
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            showNotification('تم حجز موعد المتابعة بنجاح', 'success');
+            showNotification(STRINGS.followUp.booked, 'success');
             closeModal('followupBookingModal');
             loadDoctorAppointments();
         } catch (error) {
@@ -325,7 +305,7 @@ async function showNotesModal(appointmentId) {
             }, { merge: true });
             
             appointmentNotes[appointmentId] = { notes };
-            showNotification('تم حفظ الملاحظات بنجاح', 'success');
+            showNotification(STRINGS.notes.saved, 'success');
             closeModal('notesModal');
         } catch (error) {
             console.error('Error saving notes:', error);
@@ -430,9 +410,6 @@ async function finishAppointmentWithNotes(appointmentId) {
     const appointment = allAppointments.find(a => a.id === appointmentId);
     if (!appointment) return;
     
-    console.log('DEBUG: Finishing appointment:', { appointmentId, appointment });
-    console.log('DEBUG: Current doctor:', currentDoctor);
-    
     showModal('finishAppointmentModal');
     document.getElementById('finishPatientName').textContent = appointment.patientName;
     document.getElementById('finishAppointmentReason').textContent = appointment.reason;
@@ -441,19 +418,12 @@ async function finishAppointmentWithNotes(appointmentId) {
         const notes = document.getElementById('finishNotesText').value.trim();
         
         try {
-            console.log('DEBUG: Attempting to update appointment status to completed');
-            console.log('DEBUG: Appointment doctorId:', appointment.doctorId);
-            console.log('DEBUG: Current doctor ID:', currentDoctor.id);
-            console.log('DEBUG: Auth UID:', auth.currentUser?.uid);
-            
             // Update appointment status to completed
             await db.collection('appointments').doc(appointmentId).update({
                 status: 'completed',
                 completedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            
-            console.log('DEBUG: Appointment status updated successfully');
             
             // Save notes if provided
             if (notes) {
@@ -467,21 +437,18 @@ async function finishAppointmentWithNotes(appointmentId) {
                 }, { merge: true });
             }
             
-            // Wait a bit for Firestore to update, then refresh follow-up list
+            // Wait for Firestore to settle before refreshing follow-up list
             setTimeout(async () => {
                 await loadFollowUpPatients();
                 await calculateRevenue();
-                console.log('DEBUG: Follow-up list refreshed after appointment completion');
             }, 1000);
             
-            showNotification('تم إنهاء الموعد بنجاح وإضافة المريض لقائمة المتابعة', 'success');
+            showNotification(STRINGS.appointments.finishedWithFollowup, 'success');
             closeModal('finishAppointmentModal');
             loadDoctorAppointments();
         } catch (error) {
             console.error('Error finishing appointment:', error);
-            console.error('Error code:', error.code);
-            console.error('Error message:', error.message);
-            showNotification('خطأ في إنهاء الموعد: ' + error.message, 'error');
+            showNotification(STRINGS.followUp.finishError + error.message, 'error');
         }
     };
 }

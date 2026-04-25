@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MedConnect - منصة الاستشارات الطبية</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     
@@ -15,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
     <script src="config.js"></script>
+    <script src="i18n.js"></script>
     <script src="utils.js" defer></script>
     
     <style>
@@ -104,6 +104,43 @@
         }
         .doctor-avatar {
             background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        /* Featured doctor cards */
+        .featured-card {
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .featured-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.15);
+        }
+        .featured-badge {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 999px;
+            letter-spacing: 0.3px;
+        }
+        @keyframes shimmer {
+            0%   { background-position: -400px 0; }
+            100% { background-position: 400px 0; }
+        }
+        .featured-shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 800px 100%;
+            animation: shimmer 1.4s infinite linear;
+        }
+        /* Skeleton pulse for regular cards */
+        .skeleton {
+            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+            background-size: 800px 100%;
+            animation: shimmer 1.4s infinite linear;
+            border-radius: 12px;
+            min-height: 220px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .featured-card, .featured-shimmer, .skeleton { animation: none; transition: none; }
         }
     </style>
 </head>
@@ -269,16 +306,43 @@
                 </div>
             </div>
 
-            <!-- Doctors Grid -->
-            <div id="doctorsGrid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Doctors will be loaded dynamically from Firebase -->
-                <div class="col-span-full flex justify-center items-center py-12">
-                    <div class="text-center">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                        <p class="text-gray-600">جاري تحميل قائمة الأطباء...</p>
-                    </div>
+            <!-- Featured Doctors -->
+            <section id="featuredSection" class="mb-10 hidden">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="text-2xl">⭐</span>
+                    <h3 class="text-2xl font-bold text-gray-900">أطباء مميزون</h3>
                 </div>
+                <div id="featuredGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+            </section>
+
+            <!-- All Doctors -->
+            <div id="allDoctorsDivider" class="flex items-center mb-8">
+                <div class="flex-1 border-t border-gray-200"></div>
+                <span class="mx-4 text-sm font-semibold text-gray-500 whitespace-nowrap">جميع الأطباء</span>
+                <div class="flex-1 border-t border-gray-200"></div>
             </div>
+
+            <div id="doctorsGrid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- skeleton placeholders shown while first page loads -->
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+            </div>
+
+            <!-- Infinite scroll sentinel -->
+            <div id="scrollSentinel" class="h-6"></div>
+
+            <!-- Load-more fallback (shown when IntersectionObserver unavailable) -->
+            <div id="loadMoreContainer" class="text-center py-6 hidden">
+                <button id="loadMoreBtn" onclick="loadMoreDoctors()"
+                        class="bg-blue-600 text-white px-8 py-3 rounded-xl hover:bg-blue-700 transition-colors font-medium">
+                    تحميل المزيد
+                </button>
+            </div>
+            <p id="allLoadedMsg" class="text-center py-4 text-sm text-gray-400 hidden">تم عرض جميع الأطباء</p>
         </div>
 
         <!-- Specialties Tab -->
