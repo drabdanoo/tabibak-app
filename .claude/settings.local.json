@@ -10,7 +10,19 @@
       "Bash(npm install *)",
       "Bash(npm run *)",
       "Bash(npx tailwindcss *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git subtree *)",
+      "Bash(firebase --version)",
+      "Bash(firebase projects:list)",
+      "Bash(firebase deploy *)",
+      "Bash(python3 -c ' *)",
+      "Bash(node scripts/import_tabib_doctors.js \"C:/Users/2023/Downloads/tabib_doctors_only.csv\")",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const sa = JSON.parse\\(require\\('fs'\\).readFileSync\\('.env','utf8'\\)\\); console.log\\(sa.project_id\\);\")",
+      "Bash(node scripts/backup_doctor_photos.js)",
+      "WebFetch(domain:midgram.net)",
+      "Bash(git restore *)"
     ]
   }
 }

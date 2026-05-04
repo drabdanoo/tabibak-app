@@ -882,22 +882,140 @@ function showNotification(message, type = 'info') {
 
 // === Tab Management ===
 function showTab(tabName) {
-    // Hide all tab contents
-    document.getElementById('queueContent').classList.add('hidden');
-    document.getElementById('appointmentsContent').classList.add('hidden');
-    
-    // Show selected tab content
-    document.getElementById(tabName + 'Content').classList.remove('hidden');
-    
-    // Update tab button styles
-    document.getElementById('queueTab').classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'tab-active');
-    document.getElementById('appointmentsTab').classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'tab-active');
-    
-    document.getElementById('queueTab').classList.add('text-gray-500');
-    document.getElementById('appointmentsTab').classList.add('text-gray-500');
-    
-    // Activate selected tab
-    const activeTab = document.getElementById(tabName + 'Tab');
-    activeTab.classList.remove('text-gray-500');
-    activeTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'tab-active');
+    const tabs = ['queue', 'appointments', 'schedule', 'chat'];
+    tabs.forEach(t => {
+        document.getElementById(t + 'Content')?.classList.add('hidden');
+        const btn = document.getElementById(t + 'Tab');
+        if (btn) {
+            btn.classList.remove('text-indigo-600', 'text-blue-600', 'border-b-2', 'border-indigo-600', 'border-blue-600', 'tab-active');
+            btn.classList.add('text-gray-500');
+        }
+    });
+    document.getElementById(tabName + 'Content')?.classList.remove('hidden');
+    const activeBtn = document.getElementById(tabName + 'Tab');
+    if (activeBtn) {
+        activeBtn.classList.remove('text-gray-500');
+        activeBtn.classList.add('text-indigo-600', 'border-b-2', 'border-indigo-600', 'tab-active');
+    }
+    if (tabName === 'schedule') loadSchedule();
+}
+
+// =====================================================================
+// Schedule Management
+// =====================================================================
+
+const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+// weekDays state: { "0": bool, ..., "6": bool }
+let scheduleWeekDays = { '0': false, '1': true, '2': true, '3': true, '4': true, '5': true, '6': false };
+let scheduleAbsentDates = [];
+
+async function loadSchedule() {
+    if (!currentReceptionist?.doctorId) {
+        console.warn('No doctorId on receptionist profile');
+        return;
+    }
+    try {
+        const snap = await db.collection('schedules').doc(currentReceptionist.doctorId).get();
+        if (snap.exists) {
+            const data = snap.data();
+            document.getElementById('clinicStart').value  = data.clinicStart  || '09:00';
+            document.getElementById('clinicEnd').value    = data.clinicEnd    || '17:00';
+            document.getElementById('slotDuration').value = String(data.slotDuration || 30);
+            scheduleWeekDays    = data.weekDays      || scheduleWeekDays;
+            scheduleAbsentDates = data.absentDates   || [];
+        }
+    } catch (e) {
+        console.error('loadSchedule error:', e);
+    }
+    renderWeekdayToggles();
+    renderAbsentDates();
+}
+
+function renderWeekdayToggles() {
+    const container = document.getElementById('weekdayToggles');
+    if (!container) return;
+    container.innerHTML = DAY_NAMES.map((name, i) => {
+        const key = String(i);
+        const on  = scheduleWeekDays[key] !== false;
+        return `
+        <button type="button" onclick="toggleWeekday('${key}')"
+            id="dayBtn${key}"
+            class="weekday-btn py-3 px-2 rounded-xl font-black text-sm border-2 transition-all ${on
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/30'
+                : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300'}">
+            ${name}
+        </button>`;
+    }).join('');
+}
+
+function toggleWeekday(key) {
+    scheduleWeekDays[key] = !(scheduleWeekDays[key] !== false);
+    renderWeekdayToggles();
+}
+
+function renderAbsentDates() {
+    const container = document.getElementById('absentDatesList');
+    if (!container) return;
+    if (!scheduleAbsentDates.length) {
+        container.innerHTML = '<p class="text-sm text-gray-400">لا توجد أيام غياب مضافة</p>';
+        return;
+    }
+    const sorted = [...scheduleAbsentDates].sort();
+    container.innerHTML = sorted.map(date => {
+        const [y, m, d] = date.split('-').map(Number);
+        const label = new Date(y, m - 1, d).toLocaleDateString('ar-IQ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        return `
+        <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <span class="text-sm font-bold text-red-700">📅 ${label}</span>
+            <button onclick="removeAbsentDate('${date}')" class="text-red-500 hover:text-red-700 font-black text-lg leading-none" title="حذف">✕</button>
+        </div>`;
+    }).join('');
+}
+
+function addAbsentDate() {
+    const input = document.getElementById('newAbsentDate');
+    if (!input || !input.value) { showNotification('يرجى اختيار تاريخ', 'error'); return; }
+    const date = input.value;
+    if (scheduleAbsentDates.includes(date)) { showNotification('هذا التاريخ مضاف بالفعل', 'error'); return; }
+    scheduleAbsentDates.push(date);
+    input.value = '';
+    renderAbsentDates();
+}
+
+function removeAbsentDate(date) {
+    scheduleAbsentDates = scheduleAbsentDates.filter(d => d !== date);
+    renderAbsentDates();
+}
+
+async function saveSchedule() {
+    if (!currentReceptionist?.doctorId) {
+        showNotification('لا يوجد معرّف طبيب مرتبط بهذا الحساب', 'error');
+        return;
+    }
+    const clinicStart  = document.getElementById('clinicStart').value;
+    const clinicEnd    = document.getElementById('clinicEnd').value;
+    const slotDuration = parseInt(document.getElementById('slotDuration').value, 10);
+    if (!clinicStart || !clinicEnd) { showNotification('يرجى تحديد وقت البدء والانتهاء', 'error'); return; }
+    if (clinicStart >= clinicEnd)   { showNotification('وقت البدء يجب أن يكون قبل وقت الانتهاء', 'error'); return; }
+
+    const btn = document.querySelector('#scheduleContent button[onclick="saveSchedule()"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'جاري الحفظ...'; }
+
+    try {
+        await db.collection('schedules').doc(currentReceptionist.doctorId).set({
+            clinicStart,
+            clinicEnd,
+            slotDuration,
+            weekDays: scheduleWeekDays,
+            absentDates: scheduleAbsentDates,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        showNotification('✅ تم حفظ جدول العيادة بنجاح', 'success');
+    } catch (e) {
+        console.error('saveSchedule error:', e);
+        showNotification('حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 حفظ الجدول'; }
+    }
 }

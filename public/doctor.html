@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedConnect - لوحة الطبيب</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>Digital Health Iraq - لوحة الطبيب</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
@@ -22,37 +22,35 @@
         }
     </style>
 </head>
- <body class="bg-gradient-to-br from-green-50 to-blue-100 min-h-screen">
+<body class="bg-slate-50 min-h-screen">
      <!-- Notifications container -->
      <div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-3"></div>
     <!-- Header -->
-    <header class="bg-white shadow-lg border-b-4 border-green-500">
+    <header class="glass sticky top-0 z-40 border-b border-white/30 shadow-lg shadow-indigo-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-6">
-                <div class="flex items-center space-x-4 space-x-reverse">
-                    <!-- Back Button -->
-                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-all duration-200 mr-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 p-2 rounded-xl transition-all duration-200 ml-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
                     </button>
-                    
-                    <div class="bg-green-500 p-3 rounded-full">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-11 h-11 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center ml-3 shadow-lg shadow-indigo-600/30">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                         </svg>
                     </div>
                     <div>
-                        <h1 class="text-3xl font-bold text-gray-900">لوحة الطبيب</h1>
-                        <p class="text-gray-600" id="doctorWelcome">مرحباً دكتور</p>
+                        <h1 class="text-xl font-black text-slate-900 tracking-tight">Digital Health Iraq</h1>
+                        <p class="text-xs text-gray-500 font-semibold" id="doctorWelcome">لوحة الطبيب</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4 space-x-reverse">
                     <div class="text-right">
-                        <p class="text-sm text-gray-600">اليوم</p>
-                        <p class="font-semibold text-gray-900" id="currentDate"></p>
+                        <p class="text-xs text-gray-500 font-semibold">اليوم</p>
+                        <p class="font-black text-slate-900 text-sm" id="currentDate"></p>
                     </div>
-                    <button id="logoutButton" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    <button id="logoutButton" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl transition-colors font-black">
                         تسجيل الخروج
                     </button>
                 </div>
@@ -61,61 +59,60 @@
     </header>
 
     <!-- Doctor Login (if not logged in) -->
-    <div id="doctorLogin" class="max-w-md mx-auto mt-20 bg-white rounded-lg shadow-lg p-8">
+    <div id="doctorLogin" class="max-w-md mx-auto mt-20 bg-white rounded-3xl shadow-2xl shadow-indigo-100 border border-gray-100 p-8">
         <div class="text-center mb-6">
-            <div class="bg-green-500 p-4 rounded-full w-16 h-16 mx-auto mb-4">
+            <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-600/30">
                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                 </svg>
             </div>
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">تسجيل دخول الطبيب</h2>
-            <p class="text-gray-600">أدخل بيانات الدخول للوصول إلى لوحة التحكم</p>
+            <h2 class="text-2xl font-black text-slate-900 mb-2 tracking-tight">تسجيل دخول الطبيب</h2>
+            <p class="text-gray-500 font-medium">أدخل بيانات الدخول للوصول إلى لوحة التحكم</p>
         </div>
-        
+
         <form id="doctorLoginForm">
             <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
-          <input type="email" id="doctorEmail" required 
-              placeholder="أدخل بريدك الإلكتروني"
-                       class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                <label class="block text-sm font-black text-slate-900 mb-2">البريد الإلكتروني</label>
+                <input type="email" id="doctorEmail" required
+                    placeholder="أدخل بريدك الإلكتروني"
+                    class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
             </div>
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
-                <input type="password" id="doctorPassword" required 
+                <label class="block text-sm font-black text-slate-900 mb-2">كلمة المرور</label>
+                <input type="password" id="doctorPassword" required
                        placeholder="أدخل كلمة المرور"
-                       class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                       class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
             </div>
             <div class="text-sm text-left mb-6">
-                <a href="#" onclick="showForgotPasswordModal(event)" class="font-medium text-green-600 hover:text-green-500">
+                <a href="#" onclick="showForgotPasswordModal(event)" class="font-black text-indigo-600 hover:text-indigo-500">
                     هل نسيت كلمة المرور؟
                 </a>
             </div>
-            <button type="submit" id="loginButton" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition-colors">
+            <button type="submit" id="loginButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-black transition-colors shadow-xl shadow-indigo-600/30">
                 تسجيل الدخول
             </button>
         </form>
-        
     </div>
 
     <!-- Main Dashboard (hidden initially) -->
     <div id="doctorDashboard" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pb-8">
         
         <!-- Navigation Tabs -->
-        <div class="bg-white rounded-lg shadow-md mb-6">
-            <div class="flex border-b border-gray-200">
-                <button onclick="showTab('dashboard')" id="dashboardTab" class="px-6 py-3 text-sm font-medium text-green-600 border-b-2 border-green-600 tab-active">
+        <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 mb-6">
+            <div class="flex border-b border-gray-100">
+                <button onclick="showTab('dashboard')" id="dashboardTab" class="px-6 py-4 text-sm font-black text-indigo-600 border-b-2 border-indigo-600 tab-active">
                     لوحة التحكم
                 </button>
-                <button onclick="showTab('profile')" id="profileTab" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                <button onclick="showTab('profile')" id="profileTab" class="px-6 py-4 text-sm font-black text-gray-500 hover:text-indigo-600 transition-colors">
                     الملف الشخصي
                 </button>
-                <button onclick="showTab('analytics')" id="analyticsTab" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                <button onclick="showTab('analytics')" id="analyticsTab" class="px-6 py-4 text-sm font-black text-gray-500 hover:text-indigo-600 transition-colors">
                     التحليلات والإحصائيات
                 </button>
-                <button onclick="showTab('patients')" id="patientsTab" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                <button onclick="showTab('patients')" id="patientsTab" class="px-6 py-4 text-sm font-black text-gray-500 hover:text-indigo-600 transition-colors">
                     المرضى المتابعين
                 </button>
-                <button onclick="showTab('templates')" id="templatesTab" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                <button onclick="showTab('templates')" id="templatesTab" class="px-6 py-4 text-sm font-black text-gray-500 hover:text-indigo-600 transition-colors">
                     القوالب
                 </button>
             </div>
@@ -125,7 +122,7 @@
         <div id="dashboardContent">
             <!-- Quick Stats -->
             <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-                <div class="bg-white rounded-lg shadow-md p-6 hover-scale cursor-pointer" onclick="filterDashboardAppointments('today')">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6 hover-scale cursor-pointer" onclick="filterDashboardAppointments('today')">
                     <div class="flex items-center">
                         <div class="bg-blue-500 p-3 rounded-full">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,7 +136,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6">
                     <div class="flex items-center">
                         <div class="bg-yellow-500 p-3 rounded-full">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,7 +150,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6">
                     <div class="flex items-center">
                         <div class="bg-green-500 p-3 rounded-full">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,7 +173,7 @@
                         <h2 class="text-xl font-bold text-gray-900">طلبات المرضى الجديدة</h2>
                         <span id="pendingCount" class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">0</span>
                     </div>
-                    <input type="text" id="pendingSearchInput" placeholder="ابحث باسم المريض أو الهاتف..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                    <input type="text" id="pendingSearchInput" placeholder="ابحث باسم المريض أو الهاتف..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
                 </div>
                 <div id="pendingRequestsGrid" class="p-6">
                     <!-- Pending requests will be loaded here -->
@@ -209,7 +206,7 @@
 
         <!-- Profile Tab -->
         <div id="profileContent" class="hidden">
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-6">الملف الشخصي</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -238,23 +235,23 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">الاسم</label>
-                                    <input type="text" id="doctorNameInput" placeholder="اسم الطبيب" title="اسم الطبيب" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <input type="text" id="doctorNameInput" placeholder="اسم الطبيب" title="اسم الطبيب" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">التخصص</label>
-                                    <input type="text" id="doctorSpecialtyInput" placeholder="تخصص الطبيب" title="تخصص الطبيب" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <input type="text" id="doctorSpecialtyInput" placeholder="تخصص الطبيب" title="تخصص الطبيب" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
-                                    <input type="email" id="doctorEmailInput" placeholder="البريد الإلكتروني" title="البريد الإلكتروني" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent" readonly>
+                                    <input type="email" id="doctorEmailInput" placeholder="البريد الإلكتروني" title="البريد الإلكتروني" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent" readonly>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">رسوم الاستشارة (الدينار العراقي)</label>
-                                    <input type="number" id="consultationFeeInput" placeholder="رسوم الاستشارة" title="رسوم الاستشارة" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <input type="number" id="consultationFeeInput" placeholder="رسوم الاستشارة" title="رسوم الاستشارة" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                                 </div>
                             </div>
                             <div class="mt-4">
-                                <button type="button" id="saveProfileButton" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg">
+                                <button type="button" id="saveProfileButton" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg">
                                     حفظ البيانات الشخصية
                                 </button>
                             </div>
@@ -268,15 +265,15 @@
                     <form id="passwordForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور الحالية</label>
-                            <input type="password" id="currentPassword" placeholder="كلمة المرور الحالية" title="كلمة المرور الحالية" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <input type="password" id="currentPassword" placeholder="كلمة المرور الحالية" title="كلمة المرور الحالية" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور الجديدة</label>
-                            <input type="password" id="newPassword" placeholder="كلمة المرور الجديدة" title="كلمة المرور الجديدة" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <input type="password" id="newPassword" placeholder="كلمة المرور الجديدة" title="كلمة المرور الجديدة" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">تأكيد كلمة المرور</label>
-                            <input type="password" id="confirmPassword" placeholder="تأكيد كلمة المرور" title="تأكيد كلمة المرور" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <input type="password" id="confirmPassword" placeholder="تأكيد كلمة المرور" title="تأكيد كلمة المرور" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                         </div>
                     </form>
                     <div class="mt-4 flex space-x-4 space-x-reverse">
@@ -292,11 +289,11 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">وقت الافتتاح</label>
-                            <input type="time" id="openingTime" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <input type="time" id="openingTime" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">وقت الإغلاق</label>
-                            <input type="time" id="closingTime" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <input type="time" id="closingTime" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                         </div>
                     </div>
                 </div>
@@ -308,17 +305,17 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">هل ترغب في إغلاق العيادة مؤقتاً؟</label>
                             <div class="flex items-center">
-                                <input type="checkbox" id="clinicClosed" class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                                <input type="checkbox" id="clinicClosed" class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-indigo-500">
                                 <label for="clinicClosed" class="mr-2 text-sm text-gray-700">نعم، إغلاق العيادة مؤقتاً</label>
                             </div>
                         </div>
                         <div id="closureDateContainer" class="hidden">
                             <label class="block text-sm font-medium text-gray-700 mb-2">تاريخ إعادة الفتح</label>
-                            <input type="date" id="closureEndDate" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <input type="date" id="closureEndDate" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                         </div>
                     </div>
                     <div class="mt-4">
-                        <button type="button" id="saveClinicSettingsButton" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg">
+                        <button type="button" id="saveClinicSettingsButton" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg">
                             حفظ إعدادات العيادة
                         </button>
                     </div>
@@ -330,20 +327,20 @@
         <div id="analyticsContent" class="hidden">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <!-- Revenue Chart -->
-                <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">الإيرادات الشهرية</h3>
                     <canvas id="revenueChart" width="400" height="200"></canvas>
                 </div>
 
                 <!-- Visits Chart -->
-                <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">زيارات العيادة الشهرية</h3>
                     <canvas id="visitsChart" width="400" height="200"></canvas>
                 </div>
             </div>
 
             <!-- Revenue Summary -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6 mb-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">ملخص الإيرادات</h3>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="text-center p-4 bg-green-50 rounded-lg">
@@ -368,10 +365,10 @@
 
         <!-- Patients Tab -->
         <div id="patientsContent" class="hidden">
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold text-gray-900">المرضى المتابعين</h2>
-                    <button onclick="loadRegularPatients()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                    <button onclick="loadRegularPatients()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">
                         تحديث القائمة
                     </button>
                 </div>
@@ -383,10 +380,10 @@
 
         <!-- Templates Tab -->
         <div id="templatesContent" class="hidden">
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold text-gray-900">القوالب الطبية</h2>
-                    <button onclick="showCreateTemplateModal()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                    <button onclick="showCreateTemplateModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">
                         <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
@@ -464,13 +461,13 @@
             <div class="p-6">
                 <div class="mb-4">
                     <label for="templateSelector" class="block text-sm font-medium text-gray-700 mb-2">استخدام قالب</label>
-                    <select id="templateSelector" onchange="applyTemplate(this.value)" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500">
+                    <select id="templateSelector" onchange="applyTemplate(this.value)" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
                         <option value="">اختر قالب</option>
                         <!-- Templates will be loaded here -->
                     </select>
                 </div>
                 <label for="completionNotesText" class="block text-sm font-medium text-gray-700 mb-2">ملاحظات الطبيب (اختياري)</label>
-                <textarea id="completionNotesText" rows="4" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500" placeholder="أضف ملاحظات عن حالة المريض، التشخيص، أو خطة العلاج..."></textarea>
+                <textarea id="completionNotesText" rows="4" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500" placeholder="أضف ملاحظات عن حالة المريض، التشخيص، أو خطة العلاج..."></textarea>
             </div>
             <div class="p-6 bg-gray-50 rounded-b-lg flex justify-end space-x-4 space-x-reverse">
                 <button type="button" onclick="closeCompletionNotesModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
@@ -506,7 +503,7 @@
                 <div class="p-6">
                     <p class="text-gray-600 mb-4">أدخل بريدك الإلكتروني المسجل وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.</p>
                     <label for="resetEmail" class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
-                    <input type="email" id="resetEmail" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500" placeholder="doctor@example.com">
+                    <input type="email" id="resetEmail" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500" placeholder="doctor@example.com">
                 </div>
                 <div class="p-6 bg-gray-50 rounded-b-lg flex justify-end space-x-4 space-x-reverse">
                     <button type="button" onclick="closeForgotPasswordModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
@@ -540,15 +537,15 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">تاريخ المتابعة</label>
-                        <input type="date" id="followupDate" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500" required>
+                        <input type="date" id="followupDate" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500" required>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">الوقت</label>
-                        <input type="time" id="followupTime" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500">
+                        <input type="time" id="followupTime" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">سبب المتابعة</label>
-                        <textarea id="followupReason" rows="3" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500" placeholder="اذكر سبب المتابعة..." required></textarea>
+                        <textarea id="followupReason" rows="3" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="اذكر سبب المتابعة..." required></textarea>
                     </div>
                 </div>
             </div>
@@ -582,7 +579,7 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">الملاحظات الطبية</label>
-                    <textarea id="appointmentNotesText" rows="6" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500" placeholder="أضف ملاحظاتك عن المريض، التشخيص، خطة العلاج، أو أي معلومات مهمة..."></textarea>
+                    <textarea id="appointmentNotesText" rows="6" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="أضف ملاحظاتك عن المريض، التشخيص، خطة العلاج، أو أي معلومات مهمة..."></textarea>
                     <p class="text-xs text-gray-500 mt-2">هذه الملاحظات ستكون متاحة للمراجعة المستقبلية</p>
                 </div>
             </div>
@@ -624,7 +621,7 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">ملاحظات إضافية (اختياري)</label>
-                    <textarea id="finishNotesText" rows="4" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500" placeholder="أضف أي ملاحظات أو تعليمات للمريض..."></textarea>
+                    <textarea id="finishNotesText" rows="4" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="أضف أي ملاحظات أو تعليمات للمريض..."></textarea>
                 </div>
             </div>
             <div class="p-6 bg-gray-50 rounded-b-lg flex justify-end space-x-4 space-x-reverse">
@@ -658,7 +655,7 @@
 
                 <!-- Search Bar -->
                 <div class="mb-6">
-                    <input type="text" id="appointmentSearchInput" placeholder="ابحث عن مريض بالاسم أو الهاتف..." class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500">
+                    <input type="text" id="appointmentSearchInput" placeholder="ابحث عن مريض بالاسم أو الهاتف..." class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500">
                 </div>
 
                 <!-- Appointments Table -->
@@ -939,7 +936,7 @@
                 <div id="treatmentsTab" class="emr-tab-content hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h4 class="text-lg font-bold text-gray-900">خطط العلاج</h4>
-                        <button onclick="showAddTreatmentPlanModal()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
+                        <button onclick="showAddTreatmentPlanModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
                             + إضافة خطة علاج
                         </button>
                     </div>

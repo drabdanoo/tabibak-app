@@ -11,22 +11,19 @@ firebase.initializeApp(firebaseConfig);
 // Initialize App Check and wait for token before creating Firestore instance
 let auth, db;
 
-(async function initializeFirebaseServices() {
-    try {
-        // Initialize App Check first
-        if (siteKey) {
-            const appCheck = firebase.appCheck();
-            appCheck.activate(siteKey, true);
-            // Wait for App Check token to be ready
-            await appCheck.getToken(/* forceRefresh= */ false);
-        }
-    } catch (e) {
-        console.warn('App Check init skipped:', e?.message || e);
-    }
+const firebaseReady = (async function initializeFirebaseServices() {
+    // App Check intentionally disabled — recaptcha key returns 403 (domain/app not registered).
+    // Re-enable once App Check is configured correctly in Firebase Console.
 
     // Now initialize auth and Firestore with App Check token ready
     auth = firebase.auth();
     db = firebase.firestore();
+
+    // Set persistence now that auth is initialized
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .catch((error) => {
+            console.error("Error setting auth persistence:", error);
+        });
 
     // Trigger auth state check after initialization
     auth.onAuthStateChanged((user) => {
@@ -35,24 +32,17 @@ let auth, db;
             db.collection('users').doc(user.uid).get().then(doc => {
                 if (doc.exists) {
                     updateUserInterface({ uid: user.uid, ...doc.data() });
+                } else if (profileCompletionPending) {
+                    // Mid-registration — user authed but hasn't set name/age yet. Don't logout.
                 } else {
                     logout();
                 }
             });
         } else {
-            console.log('Auth state changed: User is signed out.');
             resetUserInterface();
         }
     });
 })();
-
-// No emulator connections in production code.
-
-// Set authentication persistence to 'local' to keep users signed in.
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-    .catch((error) => {
-        console.error("Error setting auth persistence:", error);
-    });
 
 
 // === Global State ===
@@ -60,6 +50,9 @@ let selectedDoctorId = null;
 let selectedTimeSlot = null;
 let selectedRescheduleTimeSlot = null;
 let confirmationResult = null;
+let pendingBookingDoctorId = null;
+let profileCompletionPending = false;
+let countdownInterval = null;
 let doctors = {};          // id → doctor object (cache used by booking/profile)
 let doctorList = [];       // ordered list for the main grid
 let featuredDoctors = [];  // up to 8 featured
@@ -105,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusElement = document.getElementById('connectionStatus');
     if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_ACTUAL_API_KEY") {
         statusElement.className = 'connection-status connected';
-        loadDoctors();
+        firebaseReady.then(() => loadDoctors());
     }
 
     // Production: do not expose App Check status in the UI.
@@ -184,6 +177,18 @@ function specialtyGradient(specialty) {
     return 'from-blue-600 to-indigo-700';
 }
 
+function doctorAvatarHtml(d, sizeClass = 'w-14 h-14', textClass = 'text-base') {
+    if (d.photoURL) {
+        return `<img src="${d.photoURL}" alt="${sanitizeHtml(d.name)}" class="${sizeClass} rounded-full object-cover ml-3 flex-shrink-0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <div class="${sizeClass} doctor-avatar rounded-full items-center justify-center ml-3 flex-shrink-0" style="display:none">
+                    <span class="text-white font-bold ${textClass}">${sanitizeHtml(d.initials)}</span>
+                </div>`;
+    }
+    return `<div class="${sizeClass} doctor-avatar rounded-full flex items-center justify-center ml-3 flex-shrink-0">
+                <span class="text-white font-bold ${textClass}">${sanitizeHtml(d.initials)}</span>
+            </div>`;
+}
+
 function mapDoctorDoc(doc) {
     const data = doc.data();
     if (!data || !data.name || !data.specialty) return null;
@@ -196,6 +201,7 @@ function mapDoctorDoc(doc) {
         email: data.email || '',
         fee: fee,
         initials: data.initials || generateInitials(data.name),
+        photoURL: (data.photoURL && !data.photoURL.includes('users.png')) ? data.photoURL : null,
         experience: data.experience || '5+ سنوات خبرة',
         rating: data.rating || '4.5',
         reviews: data.reviews || '0',
@@ -285,8 +291,11 @@ async function _loadDoctorPage() {
         _appendDoctorCards(newDocs);
         _updateLoadMoreState();
     } catch (e) {
-        console.error('Error loading doctors page:', e);
-        window.showNotification('تعذّر تحميل الأطباء، حاول مرة أخرى', 'error');
+        console.error('Error loading doctors page:', e?.code, e?.message, e);
+        const msg = (e?.message || '').includes('offline') || (e?.message || '').includes('backend')
+            ? 'تعذّر الاتصال بالخادم. تأكد من اتصالك بالإنترنت وأن المتصفح لا يحجب Firebase.'
+            : 'تعذّر تحميل الأطباء، حاول مرة أخرى';
+        window.showNotification(msg, 'error');
     } finally {
         doctorsPageLoading = false;
     }
@@ -338,9 +347,7 @@ function _doctorCardHtml(d) {
              data-name="${d.name.toLowerCase()}" data-specialty="${d.specialty}">
             <div class="p-5">
                 <div class="flex items-center mb-4">
-                    <div class="w-14 h-14 doctor-avatar rounded-full flex items-center justify-center ml-3 flex-shrink-0">
-                        <span class="text-white font-bold text-base">${sanitizeHtml(d.initials)}</span>
-                    </div>
+                    ${doctorAvatarHtml(d, 'w-14 h-14', 'text-base')}
                     <div class="flex-1 min-w-0">
                         <h3 class="text-lg font-bold text-gray-900 truncate">${sanitizeHtml(d.name)}</h3>
                         <p class="text-blue-600 text-sm font-medium truncate">${sanitizeHtml(d.specialty)}</p>
@@ -535,13 +542,21 @@ function closeModal(modalId) {
 }
 
 function showBookingModal(doctorId = null) {
+    if (!auth.currentUser) {
+        pendingBookingDoctorId = doctorId;
+        showModal('authGateModal');
+        return;
+    }
+
     if (!doctorsLoaded) {
         window.showNotification('جاري تحميل قائمة الأطباء...', 'info');
         loadDoctors().then(() => showBookingModal(doctorId));
         return;
     }
 
-    const doctorSelectionDiv = document.getElementById('doctorSelection').parentElement;
+    const doctorSelectionEl = document.getElementById('doctorSelection');
+    if (!doctorSelectionEl) return;
+    const doctorSelectionDiv = doctorSelectionEl.parentElement;
     const user = auth.currentUser;
     if (user) {
         // Fetch the user's profile from Firestore to pre-fill the form
@@ -558,12 +573,15 @@ function showBookingModal(doctorId = null) {
         doctorSelectionDiv.style.display = 'none';
         selectedDoctorId = doctorId;
         updateSelectedDoctorInfo(doctors[doctorId]);
-        updateTimeSlots(doctorId);
+        // Slots load when date is chosen — just reset
+        const dateInput = document.getElementById('appointmentDate');
+        if (dateInput && dateInput.value) updateTimeSlots(doctorId, dateInput.value);
     } else {
         doctorSelectionDiv.style.display = 'block';
         if (selectedDoctorId && doctors[selectedDoctorId]) {
             updateSelectedDoctorInfo(doctors[selectedDoctorId]);
-            updateTimeSlots(selectedDoctorId);
+            const dateInput = document.getElementById('appointmentDate');
+            if (dateInput && dateInput.value) updateTimeSlots(selectedDoctorId, dateInput.value);
         } else {
             document.getElementById('timeSlots').innerHTML = '<p class="col-span-full text-center text-gray-500">الرجاء اختيار طبيب لعرض الأوقات المتاحة.</p>';
             document.getElementById('selectedDoctorName').textContent = 'يرجى اختيار طبيب';
@@ -574,16 +592,21 @@ function showBookingModal(doctorId = null) {
     }
 
     const dateInput = document.getElementById('appointmentDate');
-    const today = new Date().toISOString().split('T')[0];
-    dateInput.setAttribute('min', today);
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.setAttribute('min', today);
+    }
 
     showModal('bookingModal');
 }
 
 function closeBookingModal() {
+    if (slotListener) { slotListener(); slotListener = null; }
     closeModal('bookingModal');
     document.getElementById('bookingModal').querySelector('form').reset();
     selectedTimeSlot = null;
+    const section = document.getElementById('timeSlotsSection');
+    if (section) section.classList.add('hidden');
     document.querySelectorAll('.time-slot').forEach(slot => slot.classList.remove('selected'));
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => checkbox.checked = false);
 }
@@ -598,7 +621,11 @@ function showDoctorProfile(doctorId) {
     const profileContent = document.getElementById('doctorProfileContent');
     profileContent.innerHTML = `
         <div class="text-center mb-8">
-            <div class="w-24 h-24 doctor-avatar rounded-full flex items-center justify-center mx-auto mb-4"><span class="text-white font-bold text-2xl">${doctor.initials}</span></div>
+            ${doctor.photoURL
+                ? `<img src="${doctor.photoURL}" alt="${sanitizeHtml(doctor.name)}" class="w-24 h-24 rounded-full object-cover mx-auto mb-4" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                  + `<div class="w-24 h-24 doctor-avatar rounded-full items-center justify-center mx-auto mb-4" style="display:none"><span class="text-white font-bold text-2xl">${doctor.initials}</span></div>`
+                : `<div class="w-24 h-24 doctor-avatar rounded-full flex items-center justify-center mx-auto mb-4"><span class="text-white font-bold text-2xl">${doctor.initials}</span></div>`
+            }
             <h2 class="text-3xl font-bold text-gray-900 mb-2">${sanitizeHtml(doctor.name)}</h2>
             <p class="text-xl text-blue-600 font-medium mb-2">${sanitizeHtml(doctor.specialty)}</p>
             <p class="text-gray-600 mb-4">${sanitizeHtml(doctor.experience)}</p>
@@ -640,7 +667,7 @@ function updateDoctorSelection() {
     doctorSelection.innerHTML = Object.values(doctors).map(doctor => `
         <div class="doctor-option border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-300 transition-colors" onclick="selectDoctor('${doctor.id}', this)">
             <div class="flex items-center">
-                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${sanitizeHtml(doctor.initials)}</span></div>
+                ${doctorAvatarHtml(doctor, 'w-12 h-12', 'text-sm')}
                 <div class="flex-1">
                     <h4 class="font-bold text-gray-900">${sanitizeHtml(doctor.name)}</h4>
                     <p class="text-blue-600 text-sm">${sanitizeHtml(doctor.specialty)}</p>
@@ -707,8 +734,12 @@ async function loadAndDisplayReviews(doctorId, isFirstPage = false) {
         }
 
     } catch (error) {
-        console.error("Error loading reviews:", error);
-        reviewsContainer.innerHTML = '<p class="text-red-500">حدث خطأ في تحميل التقييمات.</p>';
+        if (error.code === 'permission-denied') {
+            if (isFirstPage) reviewsContainer.innerHTML = '<p class="text-gray-500">لا توجد تقييمات متاحة حالياً.</p>';
+        } else {
+            console.error("Error loading reviews:", error);
+            if (isFirstPage) reviewsContainer.innerHTML = '<p class="text-gray-500">لا توجد تقييمات متاحة حالياً.</p>';
+        }
     } finally {
         loadMoreBtn.disabled = false;
         loadMoreBtn.textContent = 'تحميل المزيد';
@@ -723,7 +754,7 @@ function updateDoctorSelection() {
     doctorSelection.innerHTML = Object.values(doctors).map(doctor => `
         <div class="doctor-option border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-300 transition-colors" onclick="selectDoctor('${doctor.id}', this)">
             <div class="flex items-center">
-                <div class="w-12 h-12 doctor-avatar rounded-full flex items-center justify-center ml-3"><span class="text-white font-bold">${sanitizeHtml(doctor.initials)}</span></div>
+                ${doctorAvatarHtml(doctor, 'w-12 h-12', 'text-sm')}
                 <div class="flex-1">
                     <h4 class="font-bold text-gray-900">${sanitizeHtml(doctor.name)}</h4>
                     <p class="text-blue-600 text-sm">${sanitizeHtml(doctor.specialty)}</p>
@@ -739,8 +770,8 @@ function selectDoctor(doctorId, element) {
     document.querySelectorAll('.doctor-option').forEach(opt => opt.classList.remove('border-blue-500', 'bg-blue-50'));
     element.classList.add('border-blue-500', 'bg-blue-50');
     updateSelectedDoctorInfo(doctors[doctorId]);
-    updateTimeSlots(doctorId);
-    updateTimeSlots(doctorId);
+    const dateInput = document.getElementById('appointmentDate');
+    if (dateInput && dateInput.value) updateTimeSlots(doctorId, dateInput.value);
 }
 
 function updateSelectedDoctorInfo(doctor) {
@@ -750,45 +781,115 @@ function updateSelectedDoctorInfo(doctor) {
     document.getElementById('selectedDoctorFee').textContent = doctor.fee !== null ? `${doctor.fee} ألف د.ع` : 'غير محدد';
 }
 
-function updateTimeSlots(doctorId) {
-    const doctor = doctors[doctorId];
-    if (!doctor) return;
+// Real-time listener handle for booked slots
+let slotListener = null;
 
-    const timeSlotsContainer = document.getElementById('timeSlots');
-    const { openingTime = '08:00', closingTime = '15:00', clinicClosed = false, closureEndDate } = doctor;
-
-    if (clinicClosed && closureEndDate && new Date() <= new Date(closureEndDate)) {
-        timeSlotsContainer.innerHTML = `<div class="col-span-full text-center py-4"><p class="text-red-600 font-medium">العيادة مغلقة مؤقتاً حتى ${new Date(closureEndDate).toLocaleDateString('ar-IQ')}</p></div>`;
-        return;
-    }
-
-    const timeSlots = generateTimeSlots(openingTime, closingTime);
-    if (timeSlots.length === 0) {
-        timeSlotsContainer.innerHTML = `<div class="col-span-full text-center py-4"><p class="text-gray-600">لا توجد أوقات متاحة للحجز</p></div>`;
-        return;
-    }
-
-    timeSlotsContainer.innerHTML = timeSlots.map(time => `
-        <button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '${time}')">${time}</button>
-    `).join('');
+function onDateChange(date) {
+    if (!date || !selectedDoctorId) return;
+    const section = document.getElementById('timeSlotsSection');
+    if (section) section.classList.remove('hidden');
+    selectedTimeSlot = null;
+    updateTimeSlots(selectedDoctorId, date);
 }
 
-function generateTimeSlots(openingTime, closingTime) {
+async function updateTimeSlots(doctorId, date) {
+    const container = document.getElementById('timeSlots');
+    if (!container) return;
+
+    // Unsubscribe previous real-time listener
+    if (slotListener) { slotListener(); slotListener = null; }
+
+    // If no date yet, show prompt
+    if (!date) {
+        container.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4">اختر تاريخاً لعرض الأوقات المتاحة</p>';
+        return;
+    }
+
+    container.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4 animate-pulse">جاري تحميل الأوقات...</p>';
+
+    try {
+        // Load doctor schedule
+        const schedDoc = await db.collection('schedules').doc(doctorId).get();
+        if (!schedDoc.exists) {
+            container.innerHTML = '<p class="col-span-full text-center text-amber-600 py-4 font-medium">لم يتم ضبط جدول هذا الطبيب بعد، يرجى التواصل معنا</p>';
+            return;
+        }
+        const sched = schedDoc.data();
+        const { clinicStart = '09:00', clinicEnd = '17:00', slotDuration = 30, weekDays = {}, absentDates = [] } = sched;
+
+        // Check absent dates
+        if (absentDates.includes(date)) {
+            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-4 font-medium">الطبيب غائب في هذا اليوم</p>';
+            return;
+        }
+
+        // Check weekday (date string "YYYY-MM-DD", parse without timezone shift)
+        const [y, mo, d] = date.split('-').map(Number);
+        const dayOfWeek = new Date(y, mo - 1, d).getDay().toString();
+        if (weekDays[dayOfWeek] === false) {
+            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-4 font-medium">العيادة مغلقة في هذا اليوم</p>';
+            return;
+        }
+
+        const allSlots = generateTimeSlots(clinicStart, clinicEnd, parseInt(slotDuration, 10));
+        if (!allSlots.length) {
+            container.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4">لا توجد أوقات متاحة</p>';
+            return;
+        }
+
+        // Real-time listener — refreshes slot grid whenever an appointment is booked/cancelled for this doctor+date
+        slotListener = db.collection('appointments')
+            .where('doctorId', '==', doctorId)
+            .where('appointmentDate', '==', date)
+            .onSnapshot((snap) => {
+                const booked = new Set(
+                    snap.docs
+                        .filter(doc => !['cancelled', 'rejected'].includes(doc.data().status))
+                        .map(doc => doc.data().appointmentTime)
+                );
+                const anyAvailable = allSlots.some(t => !booked.has(t));
+                if (!anyAvailable) {
+                    container.innerHTML = '<p class="col-span-full text-center text-red-600 py-4 font-medium">جميع المواعيد محجوزة في هذا اليوم</p>';
+                    return;
+                }
+                container.innerHTML = allSlots.map(time => {
+                    const taken = booked.has(time);
+                    return taken
+                        ? `<button type="button" disabled class="time-slot p-3 border border-gray-200 rounded-lg bg-gray-100 text-gray-400 text-sm font-medium cursor-not-allowed line-through">${time}</button>`
+                        : `<button type="button" class="time-slot p-3 border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-sm font-medium" onclick="selectTimeSlot(this, '${time}')">${time}</button>`;
+                }).join('');
+                // Re-apply selected state if user had already picked one
+                if (selectedTimeSlot) {
+                    container.querySelectorAll('.time-slot:not(:disabled)').forEach(btn => {
+                        if (btn.textContent.trim() === selectedTimeSlot) btn.classList.add('selected');
+                    });
+                }
+            }, (err) => {
+                console.error('Slot listener error:', err);
+            });
+
+    } catch (err) {
+        console.error('Error loading slots:', err);
+        container.innerHTML = '<p class="col-span-full text-center text-red-500 py-4">تعذر تحميل الأوقات، يرجى المحاولة مرة أخرى</p>';
+    }
+}
+
+function generateTimeSlots(openingTime, closingTime, durationMinutes = 30) {
     const slots = [];
     const [openHours, openMinutes] = openingTime.split(':').map(Number);
-    const [closeHours] = closingTime.split(':').map(Number);
-    let currentTime = new Date();
-    currentTime.setHours(openHours, openMinutes, 0, 0);
-    const closingTimeDate = new Date();
-    closingTimeDate.setHours(closeHours, 0, 0, 0);
+    const [closeHours, closeMinutes] = closingTime.split(':').map(Number);
+    let current = new Date();
+    current.setHours(openHours, openMinutes, 0, 0);
+    const close = new Date();
+    close.setHours(closeHours, closeMinutes || 0, 0, 0);
 
-    while (currentTime < closingTimeDate) {
-        const hours = currentTime.getHours();
-        const minutes = currentTime.getMinutes().toString().padStart(2, '0');
-        const ampm = hours >= 12 ? 'م' : 'ص';
-        const hours12 = hours % 12 || 12;
-        slots.push(`${hours12}:${minutes} ${ampm}`);
-        currentTime.setMinutes(currentTime.getMinutes() + 30);
+    while (current < close) {
+        const h = current.getHours();
+        const m = current.getMinutes().toString().padStart(2, '0');
+        const ampm = h >= 12 ? 'م' : 'ص';
+        const h12 = h % 12 || 12;
+        slots.push(`${h12}:${m} ${ampm}`);
+        current.setMinutes(current.getMinutes() + durationMinutes);
     }
     return slots;
 }
@@ -801,12 +902,25 @@ function selectTimeSlot(slotElement, time) {
 
 async function submitBooking(event) {
     event.preventDefault();
+    const appointmentDate = (document.getElementById('appointmentDate')?.value || '').trim();
+    if (!appointmentDate) {
+        window.showNotification('يرجى اختيار تاريخ الموعد', 'error');
+        return;
+    }
     if (!selectedTimeSlot) {
         window.showNotification('يرجى اختيار وقت للموعد', 'error');
         return;
     }
     const user = auth.currentUser;
     if (!user) { window.showNotification('يرجى تسجيل الدخول أولاً لحجز موعد', 'error'); closeBookingModal(); showLoginModal(); return; }
+
+    const [y, mo, d] = appointmentDate.split('-').map(Number);
+    const selectedDate = new Date(y, mo - 1, d);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+        window.showNotification('لا يمكن حجز موعد في الماضي.', 'error');
+        return;
+    }
 
     const chronicConditions = [];
     if (document.getElementById('hypertension').checked) chronicConditions.push('ضغط الدم المرتفع');
@@ -815,15 +929,6 @@ async function submitBooking(event) {
     if (document.getElementById('asthma').checked) chronicConditions.push('الربو');
     const otherConditions = document.getElementById('otherConditions').value;
     if (otherConditions) chronicConditions.push(otherConditions);
-
-    const appointmentDate = document.getElementById('appointmentDate').value;
-    const selectedDate = new Date(appointmentDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-        window.showNotification('لا يمكن حجز موعد في الماضي.', 'error');
-        return;
-    }
 
     const appointmentData = {
         doctorId: selectedDoctorId,
@@ -847,33 +952,36 @@ async function submitBooking(event) {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         appointmentId: generateAppointmentId()
     };
-    // Production: booking data validated and ready
-
     const submitBtn = document.getElementById('bookingSubmitBtn');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'جاري إرسال الطلب...';
+    submitBtn.textContent = 'جاري التحقق...';
 
     try {
-        // Ensure Auth ID token and App Check token are fresh so server sees request.auth and App Check
+        // Conflict check — make sure the slot wasn't just taken
+        const conflictSnap = await db.collection('appointments')
+            .where('doctorId', '==', selectedDoctorId)
+            .where('appointmentDate', '==', appointmentDate)
+            .where('appointmentTime', '==', selectedTimeSlot)
+            .get();
+        const taken = conflictSnap.docs.some(doc => !['cancelled', 'rejected'].includes(doc.data().status));
+        if (taken) {
+            window.showNotification('عذراً، تم حجز هذا الوقت للتو. يرجى اختيار وقت آخر.', 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'إرسال طلب الحجز';
+            updateTimeSlots(selectedDoctorId, appointmentDate);
+            return;
+        }
+
+        submitBtn.textContent = 'جاري إرسال الطلب...';
+
+        // Ensure Auth ID token is fresh
         try {
             if (auth && auth.currentUser) {
-                // Force-refresh ID token to avoid stale/expired token issues
                 await auth.currentUser.getIdToken(/* forceRefresh= */ true);
             }
         } catch (idErr) {
             console.error('ID token refresh error:', idErr);
             window.showNotification('خطأ في المصادقة. يرجى تسجيل الدخول مرة أخرى.', 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'إرسال طلب الحجز';
-            return;
-        }
-
-        try {
-            const appCheck = firebase.appCheck();
-            await appCheck.getToken(/* forceRefresh= */ true);
-        } catch (acErr) {
-            console.error('App Check token error:', acErr);
-            window.showNotification('خطأ في حماية التطبيق (App Check). يرجى إعادة تحميل الصفحة أو التأكد من إعداد App Check.', 'error');
             submitBtn.disabled = false;
             submitBtn.textContent = 'إرسال طلب الحجز';
             return;
@@ -937,6 +1045,10 @@ async function initializeRecaptcha() {
     return recaptchaInitPromise;
 }
 
+function closeAuthGateModal() {
+    closeModal('authGateModal');
+}
+
 function showLoginModal() {
     closeRegisterModal();
     showModal('loginModal');
@@ -997,8 +1109,19 @@ function closeRegisterModal() {
 
 async function handleRegister(event) {
     event.preventDefault();
-    const name = document.getElementById('registerName').value;
+    const name = document.getElementById('registerName').value.trim();
+    const ageRaw = document.getElementById('registerAge').value.trim();
+    const age = parseInt(ageRaw, 10);
     const phone = document.getElementById('registerPhone').value;
+
+    if (!name) {
+        window.showNotification('يرجى إدخال الاسم الكامل', 'error');
+        return;
+    }
+    if (!ageRaw || isNaN(age) || age < 1 || age > 120) {
+        window.showNotification('يرجى إدخال عمر صحيح', 'error');
+        return;
+    }
     if (!validateIraqiPhone(phone)) {
         window.showNotification('يرجى إدخال رقم هاتف عراقي صحيح (07XXXXXXXXX)', 'error');
         return;
@@ -1014,7 +1137,7 @@ async function handleRegister(event) {
     registerBtn.textContent = 'جاري إنشاء الحساب...';
 
     try {
-        localStorage.setItem('medconnect_temp_user', JSON.stringify({ name, phone }));
+        localStorage.setItem('medconnect_temp_user', JSON.stringify({ name, age, phone }));
         const internationalPhone = '+964' + phone.substring(1);
         const appVerifier = await initializeRecaptcha();
         confirmationResult = await auth.signInWithPhoneNumber(internationalPhone, appVerifier);
@@ -1053,6 +1176,57 @@ function closePhoneVerificationModal() {
     document.querySelectorAll('.verification-input').forEach(input => input.value = '');
 }
 
+function closeCompleteProfileModal() {
+    closeModal('completeProfileModal');
+    document.getElementById('completeProfileName').value = '';
+    document.getElementById('completeProfileAge').value = '';
+}
+
+async function handleCompleteProfile(event) {
+    event.preventDefault();
+    const user = auth.currentUser;
+    if (!user) { window.showNotification('انتهت الجلسة، يرجى المحاولة مرة أخرى', 'error'); closeCompleteProfileModal(); return; }
+
+    const name = document.getElementById('completeProfileName').value.trim();
+    const ageRaw = document.getElementById('completeProfileAge').value.trim();
+    const age = parseInt(ageRaw, 10);
+
+    if (!name) { window.showNotification('يرجى إدخال الاسم الكامل', 'error'); return; }
+    if (!ageRaw || isNaN(age) || age < 1 || age > 120) { window.showNotification('يرجى إدخال عمر صحيح', 'error'); return; }
+
+    const btn = document.getElementById('completeProfileBtn');
+    btn.disabled = true;
+    btn.textContent = 'جاري الحفظ...';
+
+    try {
+        const phone = localStorage.getItem('medconnect_login_phone') || '';
+        const newUser = {
+            uid: user.uid,
+            name,
+            age,
+            phone,
+            verified: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        await db.collection('users').doc(user.uid).set(newUser);
+        profileCompletionPending = false;
+        closeCompleteProfileModal();
+        window.showNotification(`مرحباً ${name}! تم إنشاء حسابك بنجاح`, 'success');
+        updateUserInterface({ uid: user.uid, ...newUser });
+        if (pendingBookingDoctorId !== null) {
+            const doctorIdToBook = pendingBookingDoctorId;
+            pendingBookingDoctorId = null;
+            setTimeout(() => showBookingModal(doctorIdToBook), 400);
+        }
+    } catch (error) {
+        console.error('Error saving profile:', error);
+        window.showNotification('حدث خطأ أثناء حفظ البيانات، يرجى المحاولة مرة أخرى', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'حفظ وإكمال';
+    }
+}
+
 async function handlePhoneVerification(event) {
     event.preventDefault();
     const inputs = document.querySelectorAll('.verification-input');
@@ -1079,7 +1253,11 @@ async function handlePhoneVerification(event) {
                 // onAuthStateChanged will handle the UI update.
                 window.showNotification(`مرحباً ${userDoc.data().name}! تم تسجيل الدخول بنجاح`, 'success');
             } else {
-                throw new Error('User not found');
+                // Phone verified but no profile yet — collect name + age
+                profileCompletionPending = true;
+                closePhoneVerificationModal();
+                showModal('completeProfileModal');
+                return;
             }
         } else {
             const tempUser = JSON.parse(localStorage.getItem('medconnect_temp_user'));
@@ -1091,11 +1269,19 @@ async function handlePhoneVerification(event) {
                 verified: true,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
+            if (tempUser.age) newUser.age = tempUser.age;
             await db.collection('users').doc(user.uid).set(newUser);
+            localStorage.removeItem('medconnect_temp_user');
             // onAuthStateChanged will handle the UI update.
             window.showNotification(`مرحباً ${newUser.name}! تم إنشاء حسابك بنجاح`, 'success');
         }
         closePhoneVerificationModal();
+        // Resume pending booking if user was trying to book before signing in
+        if (pendingBookingDoctorId !== null) {
+            const doctorIdToBook = pendingBookingDoctorId;
+            pendingBookingDoctorId = null;
+            setTimeout(() => showBookingModal(doctorIdToBook), 400);
+        }
     } catch (error) {
         console.error('Error verifying SMS code:', error);
         const message = {
@@ -1135,19 +1321,24 @@ function moveToNext(currentInput, index) {
 }
 
 function startCountdown() {
+    // Clear any running countdown before starting a new one
+    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
     let seconds = 60;
     const countdownElement = document.getElementById('countdown');
     const resendBtn = document.getElementById('resendBtn');
+    if (!countdownElement || !resendBtn) return;
     resendBtn.style.pointerEvents = 'none';
     resendBtn.style.opacity = '0.5';
-    const interval = setInterval(() => {
+    countdownInterval = setInterval(() => {
         seconds--;
-        countdownElement.textContent = seconds;
+        const el = document.getElementById('countdown');
+        if (!el) { clearInterval(countdownInterval); countdownInterval = null; return; }
+        el.textContent = seconds;
         if (seconds <= 0) {
-            clearInterval(interval);
-            resendBtn.style.pointerEvents = 'auto';
-            resendBtn.style.opacity = '1';
-            resendBtn.innerHTML = 'إعادة الإرسال';
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            const btn = document.getElementById('resendBtn');
+            if (btn) { btn.style.pointerEvents = 'auto'; btn.style.opacity = '1'; btn.innerHTML = 'إعادة الإرسال'; }
         }
     }, 1000);
 }
@@ -1232,20 +1423,30 @@ async function showUserAppointments() {
     showModal('appointmentsModal');
 
     try {
-        const appointmentsQuery = await db.collection('appointments').where('userId', '==', user.uid).orderBy('createdAt', 'desc').get();
-        userAppointments = appointmentsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Query by userId, no orderBy to avoid needing a composite index
+        const [byUserId, byPatientId] = await Promise.all([
+            db.collection('appointments').where('userId', '==', user.uid).get(),
+            db.collection('appointments').where('patientId', '==', user.uid).get()
+        ]);
+        // Merge, deduplicate by doc id, sort client-side
+        const seen = new Set();
+        const merged = [];
+        for (const snap of [byUserId, byPatientId]) {
+            snap.docs.forEach(doc => {
+                if (!seen.has(doc.id)) { seen.add(doc.id); merged.push({ id: doc.id, ...doc.data() }); }
+            });
+        }
+        merged.sort((a, b) => {
+            const ta = a.createdAt?.toMillis?.() ?? 0;
+            const tb = b.createdAt?.toMillis?.() ?? 0;
+            return tb - ta;
+        });
+        userAppointments = merged;
         displayUserAppointments();
     } catch (error) {
         console.error('Error fetching appointments:', error);
-        let errorMessage = 'حدث خطأ في تحميل المواعيد.';
-        // If Firestore provides an index creation link, show it to the developer.
-        if (error.code === 'failed-precondition' && error.message.includes('https://console.firebase.google.com')) {
-            const urlMatch = error.message.match(/(https?:\/\/[^\s]+)/);
-            if (urlMatch) {
-                errorMessage = `تحتاج قاعدة البيانات إلى فهرس جديد. <a href="${urlMatch[0]}" target="_blank" class="text-blue-500 underline">اضغط هنا لإنشاء الفهرس</a> ثم حاول مرة أخرى.`;
-            }
-        }
-        document.getElementById('appointmentsContent').innerHTML = `<div class="text-center py-8 text-red-500">${errorMessage}</div>`;
+        document.getElementById('appointmentsContent').innerHTML =
+            `<div class="text-center py-8 text-red-500">حدث خطأ في تحميل المواعيد. يرجى المحاولة مرة أخرى.</div>`;
     }
 }
 

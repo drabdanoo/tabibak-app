@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedConnect - لوحة الاستقبال</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>Digital Health Iraq - لوحة الاستقبال</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
@@ -21,35 +21,33 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+<body class="bg-slate-50 min-h-screen">
     <!-- Notifications container -->
     <div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-3"></div>
 
     <!-- Header -->
-    <header class="bg-white shadow-lg border-b-4 border-blue-500">
+    <header class="glass sticky top-0 z-40 border-b border-white/30 shadow-lg shadow-indigo-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-6">
-                <div class="flex items-center space-x-4 space-x-reverse">
-                    <!-- Back Button -->
-                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-all duration-200 mr-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 p-2 rounded-xl transition-all duration-200 ml-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
                     </button>
-                    
-                    <div class="bg-blue-500 p-3 rounded-full">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-11 h-11 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center ml-3 shadow-lg shadow-indigo-600/30">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                         </svg>
                     </div>
                     <div>
-                        <h1 class="text-3xl font-bold text-gray-900">لوحة الاستقبال</h1>
-                        <p class="text-gray-600" id="receptionistWelcome">مرحباً بك</p>
+                        <h1 class="text-xl font-black text-slate-900 tracking-tight">Digital Health Iraq</h1>
+                        <p class="text-xs text-gray-500 font-semibold" id="receptionistWelcome">لوحة الاستقبال</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4 space-x-reverse">
                     <div class="relative">
-                        <button onclick="toggleNotificationPanel()" class="relative bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                        <button onclick="toggleNotificationPanel()" class="relative bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors flex items-center gap-2 font-black shadow-lg shadow-indigo-600/30">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
@@ -57,7 +55,7 @@
                             الحجوزات الجديدة
                         </button>
                     </div>
-                    <button id="logoutButton" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    <button id="logoutButton" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl transition-colors font-black">
                         تسجيل الخروج
                     </button>
                 </div>
@@ -66,31 +64,31 @@
     </header>
 
     <!-- Receptionist Login -->
-    <div id="receptionistLogin" class="max-w-md mx-auto mt-20 bg-white rounded-lg shadow-lg p-8">
+    <div id="receptionistLogin" class="max-w-md mx-auto mt-20 bg-white rounded-3xl shadow-2xl shadow-indigo-100 border border-gray-100 p-8">
         <div class="text-center mb-6">
-            <div class="bg-blue-500 p-4 rounded-full w-16 h-16 mx-auto mb-4">
+            <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-600/30">
                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                 </svg>
             </div>
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">تسجيل دخول الاستقبال</h2>
-            <p class="text-gray-600">أدخل بيانات الدخول للوصول إلى لوحة الاستقبال</p>
+            <h2 class="text-2xl font-black text-slate-900 mb-2 tracking-tight">تسجيل دخول الاستقبال</h2>
+            <p class="text-gray-500 font-medium">أدخل بيانات الدخول للوصول إلى لوحة الاستقبال</p>
         </div>
-        
+
         <form id="receptionistLoginForm">
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
-                <input type="email" id="receptionistEmail" required 
+                <label class="block text-sm font-black text-slate-900 mb-2">البريد الإلكتروني</label>
+                <input type="email" id="receptionistEmail" required
                     placeholder="أدخل بريدك الإلكتروني"
-                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
             </div>
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
-                <input type="password" id="receptionistPassword" required 
+                <label class="block text-sm font-black text-slate-900 mb-2">كلمة المرور</label>
+                <input type="password" id="receptionistPassword" required
                     placeholder="أدخل كلمة المرور"
-                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
             </div>
-            <button type="submit" id="loginButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition-colors">
+            <button type="submit" id="loginButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-black transition-colors shadow-xl shadow-indigo-600/30">
                 تسجيل الدخول
             </button>
         </form>
@@ -100,11 +98,12 @@
     <div id="receptionistDashboard" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pb-8">
         
         <!-- Navigation Tabs -->
-        <div class="bg-white rounded-lg shadow-md mb-6">
-            <div class="flex border-b border-gray-200">
-                <button onclick="showTab('queue')" id="queueTab" class="px-6 py-3 text-sm font-medium text-blue-600 border-b-2 border-blue-600 tab-active">قائمة الانتظار</button>
-                <button onclick="showTab('appointments')" id="appointmentsTab" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">جميع الحجوزات</button>
-                <button onclick="showTab('chat')" id="chatTab" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">المحادثات</button>
+        <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 mb-6">
+            <div class="flex border-b border-gray-100">
+                <button onclick="showTab('queue')" id="queueTab" class="px-6 py-4 text-sm font-black text-indigo-600 border-b-2 border-indigo-600 tab-active">قائمة الانتظار</button>
+                <button onclick="showTab('appointments')" id="appointmentsTab" class="px-6 py-4 text-sm font-black text-gray-500 hover:text-indigo-600 transition-colors">جميع الحجوزات</button>
+                <button onclick="showTab('schedule')" id="scheduleTab" class="px-6 py-4 text-sm font-black text-gray-500 hover:text-indigo-600 transition-colors">جدول العيادة</button>
+                <button onclick="showTab('chat')" id="chatTab" class="px-6 py-4 text-sm font-black text-gray-500 hover:text-indigo-600 transition-colors">المحادثات</button>
             </div>
         </div>
 
@@ -112,7 +111,7 @@
         <div id="queueContent">
             <!-- Stats -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white rounded-lg shadow-md p-6 hover-scale">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6 hover-scale">
                     <div class="flex items-center">
                         <div class="bg-yellow-500 p-3 rounded-full">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,7 +125,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-md p-6 hover-scale">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6 hover-scale">
                     <div class="flex items-center">
                         <div class="bg-green-500 p-3 rounded-full">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,7 +139,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-md p-6 hover-scale">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6 hover-scale">
                     <div class="flex items-center">
                         <div class="bg-red-500 p-3 rounded-full">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +153,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-md p-6 hover-scale">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-6 hover-scale">
                     <div class="flex items-center">
                         <div class="bg-blue-500 p-3 rounded-full">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,7 +171,7 @@
             <!-- Kanban Board -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Confirmed Column -->
-                <div class="bg-white rounded-lg shadow-md">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100">
                     <div class="p-4 border-b border-gray-200 flex justify-between items-center">
                         <h3 class="text-lg font-bold text-gray-900">مؤكد</h3>
                         <span id="confirmedColumnBadge" class="bg-gray-200 text-gray-700 px-2 py-1 text-xs font-bold rounded-full">0</span>
@@ -183,7 +182,7 @@
                 </div>
 
                 <!-- Checked-in Column -->
-                <div class="bg-white rounded-lg shadow-md">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100">
                     <div class="p-4 border-b border-gray-200 flex justify-between items-center">
                         <h3 class="text-lg font-bold text-gray-900">في الانتظار</h3>
                         <span id="checkedInColumnBadge" class="bg-blue-200 text-blue-800 px-2 py-1 text-xs font-bold rounded-full">0</span>
@@ -194,7 +193,7 @@
                 </div>
 
                 <!-- In Consultation Column -->
-                <div class="bg-white rounded-lg shadow-md">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100">
                     <div class="p-4 border-b border-gray-200 flex justify-between items-center">
                         <h3 class="text-lg font-bold text-gray-900">في العيادة</h3>
                         <span id="inConsultationColumnBadge" class="bg-green-200 text-green-800 px-2 py-1 text-xs font-bold rounded-full">0</span>
@@ -205,7 +204,7 @@
                 </div>
 
                 <!-- Finished Column -->
-                <div class="bg-white rounded-lg shadow-md">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100">
                     <div class="p-4 border-b border-gray-200 flex justify-between items-center">
                         <h3 class="text-lg font-bold text-gray-900">انتهت الزيارة</h3>
                         <span id="completedColumnBadge" class="bg-purple-200 text-purple-800 px-2 py-1 text-xs font-bold rounded-full">0</span>
@@ -220,13 +219,13 @@
         <!-- Appointments Tab -->
         <div id="appointmentsContent" class="hidden">
             <!-- All Appointments Table -->
-            <div class="bg-white rounded-lg shadow-md">
+            <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100">
                 <div class="p-6 border-b border-gray-200">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-xl font-bold text-gray-900">جميع الحجوزات</h2>
                         <div class="flex items-center space-x-4 space-x-reverse">
-                            <input type="text" id="appointmentSearch" placeholder="ابحث باسم المريض أو الهاتف..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 w-64">
-                            <button onclick="exportAppointmentsToCSV()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">تصدير إلى CSV</button>
+                            <input type="text" id="appointmentSearch" placeholder="ابحث باسم المريض أو الهاتف..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 w-64">
+                            <button onclick="exportAppointmentsToCSV()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl">تصدير إلى CSV</button>
                         </div>
                     </div>
                 </div>
@@ -250,9 +249,67 @@
             </div>
         </div>
 
+        <!-- Schedule Tab -->
+        <div id="scheduleContent" class="hidden">
+            <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 p-8">
+                <h3 class="text-xl font-black text-slate-900 mb-6">إعداد جدول العيادة</h3>
+
+                <!-- Clinic Hours & Duration -->
+                <div class="grid md:grid-cols-3 gap-6 mb-8">
+                    <div>
+                        <label class="block text-sm font-black text-slate-700 mb-2">وقت بدء الدوام</label>
+                        <input type="time" id="clinicStart" value="09:00"
+                            class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-black text-slate-700 mb-2">وقت انتهاء الدوام</label>
+                        <input type="time" id="clinicEnd" value="17:00"
+                            class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-black text-slate-700 mb-2">مدة كل موعد</label>
+                        <select id="slotDuration" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                            <option value="15">15 دقيقة</option>
+                            <option value="20">20 دقيقة</option>
+                            <option value="30" selected>30 دقيقة</option>
+                            <option value="45">45 دقيقة</option>
+                            <option value="60">ساعة كاملة</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Weekday Toggles -->
+                <div class="mb-8">
+                    <h4 class="text-base font-black text-slate-800 mb-4">أيام العمل الأسبوعية</h4>
+                    <div class="grid grid-cols-4 sm:grid-cols-7 gap-3" id="weekdayToggles">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Absent Dates -->
+                <div class="mb-8">
+                    <h4 class="text-base font-black text-slate-800 mb-3">أيام غياب الطبيب (تواريخ محددة)</h4>
+                    <div class="flex gap-3 mb-3">
+                        <input type="date" id="newAbsentDate"
+                            class="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                        <button onclick="addAbsentDate()"
+                            class="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl font-black transition-colors">
+                            + إضافة يوم غياب
+                        </button>
+                    </div>
+                    <div id="absentDatesList" class="space-y-2"></div>
+                </div>
+
+                <button onclick="saveSchedule()"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-4 rounded-xl font-black text-lg shadow-xl shadow-indigo-600/30 transition-all">
+                    💾 حفظ الجدول
+                </button>
+            </div>
+        </div>
+
         <!-- Chat Tab -->
         <div id="chatContent" class="hidden">
-            <div class="bg-white rounded-lg shadow-md h-[75vh] flex">
+            <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-gray-100 h-[75vh] flex">
                 <!-- Chat List Sidebar -->
                 <div class="w-1/3 border-l border-gray-200">
                     <div class="p-4 border-b">
@@ -271,7 +328,7 @@
                         <div id="chatMessages" class="flex-1 p-4 overflow-y-auto bg-gray-50"></div>
                         <div class="p-4 border-t">
                             <form id="chatForm" class="flex items-center gap-3">
-                                <input type="text" id="chatMessageInput" placeholder="اكتب رسالتك..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
+                                <input type="text" id="chatMessageInput" placeholder="اكتب رسالتك..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" disabled>
                                 <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700" disabled>إرسال</button>
                             </form>
                         </div>

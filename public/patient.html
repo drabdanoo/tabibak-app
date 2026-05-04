@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedConnect - منصة الاستشارات الطبية</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>Digital Health Iraq - بوابة المرضى</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
     <script src="config.js"></script>
     <script src="i18n.js"></script>
@@ -21,23 +20,6 @@
         body {
             box-sizing: border-box;
             font-family: 'Cairo', sans-serif;
-        }
-        .hero-gradient {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .card-hover {
-            transition: all 0.3s ease;
-        }
-        .card-hover:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-        .fade-in {
-            animation: fadeIn 0.6s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
         }
         .modal {
             display: none !important;
@@ -98,12 +80,12 @@
             transition: all 0.3s ease;
         }
         .tab-button.active {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            background-color: #6366f1;
             color: white;
-            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
         }
         .doctor-avatar {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
         }
         /* Featured doctor cards */
         .featured-card {
@@ -144,45 +126,42 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-slate-50 min-h-screen">
 
     <!-- Connection Status -->
     <div id="connectionStatus" class="connection-status connected">
     </div>
 
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg sticky top-0 z-40">
+    <nav class="glass sticky top-0 z-40 border-b border-white/30 shadow-lg shadow-indigo-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center">
-                    <!-- Back Button -->
-                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-all duration-200 ml-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onclick="window.location.href='index.html'" title="العودة للصفحة الرئيسية" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 p-2 rounded-xl transition-all duration-200 ml-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
                     </button>
-                    
-                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center ml-3">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-11 h-11 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center ml-3 shadow-lg shadow-indigo-600/30">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                         </svg>
                     </div>
                     <div>
-                        <h1 class="text-xl font-bold text-gray-900">MedConnect</h1>
-                        <p class="text-xs text-gray-500">منصة الاستشارات الطبية</p>
+                        <h1 class="text-xl font-black text-slate-900 tracking-tight">Digital Health Iraq</h1>
+                        <p class="text-xs text-gray-500 font-semibold">بوابة المرضى</p>
                     </div>
                 </div>
-                
                 <div class="flex items-center space-x-4 space-x-reverse">
-                    <button onclick="showDocumentsModal()" class="text-gray-600 hover:text-gray-900 transition-colors hidden" id="documentsButton" aria-label="مستنداتي الطبية" title="مستنداتي الطبية">
+                    <button onclick="showDocumentsModal()" class="text-indigo-600 hover:text-indigo-800 transition-colors hidden" id="documentsButton" aria-label="مستنداتي الطبية" title="مستنداتي الطبية">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </button>
-                    <button onclick="showBookingModal()" class="bg-gradient-to-r from-green-600 to-blue-600 text-white px-6 py-2 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium">
+                    <button onclick="showBookingModal()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl hover:bg-indigo-700 transition-all font-black shadow-lg shadow-indigo-600/30">
                         احجز موعد
                     </button>
-                    <button onclick="showLoginModal()" class="text-gray-600 hover:text-gray-900 transition-colors" aria-label="تسجيل الدخول" title="تسجيل الدخول">
+                    <button onclick="showLoginModal()" class="text-indigo-600 hover:text-indigo-800 transition-colors" aria-label="تسجيل الدخول" title="تسجيل الدخول">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                         </svg>
@@ -193,85 +172,45 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero-gradient text-white py-32">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid lg:grid-cols-2 gap-12 items-center">
-                <div class="text-center lg:text-right">
-                    <h1 class="text-5xl md:text-7xl font-bold mb-8 fade-in leading-tight">
-                        استشارات طبية
-                        <span class="block text-yellow-300">موثوقة</span>
-                    </h1>
-                    <p class="text-xl md:text-2xl mb-10 opacity-90 fade-in leading-relaxed">
-                        احجز موعدك مع أفضل الأطباء المتخصصين في العراق واحصل على استشارة طبية عالية الجودة
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                        <button onclick="showBookingModal()" class="bg-white text-blue-600 px-10 py-5 rounded-xl text-xl font-bold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl fade-in">
-                            احجز الآن
-                        </button>
-                        <button onclick="switchTab('about')" class="border-2 border-white text-white px-10 py-5 rounded-xl text-xl font-bold hover:bg-white hover:text-blue-600 transition-all duration-300 fade-in">
-                            تعرف علينا
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="hidden lg:block">
-                    <div class="relative">
-                        <!-- Medical Icons Animation -->
-                        <div class="absolute inset-0 flex items-center justify-center">
-                            <div class="w-96 h-96 relative">
-                                <!-- Floating Medical Icons -->
-                                <div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center animate-bounce">
-                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                                    </svg>
-                                </div>
-                                
-                                <div class="absolute top-1/4 right-0 w-12 h-12 bg-yellow-300 bg-opacity-30 rounded-full flex items-center justify-center animate-pulse">
-                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                </div>
-                                
-                                <div class="absolute bottom-1/4 left-0 w-14 h-14 bg-green-300 bg-opacity-25 rounded-full flex items-center justify-center animate-bounce animate-delay-0-5s">
-                                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                </div>
-                                
-                                <div class="absolute bottom-0 right-1/3 w-10 h-10 bg-purple-300 bg-opacity-20 rounded-full flex items-center justify-center animate-pulse animate-delay-1s">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                    </svg>
-                                </div>
-                                
-                                <!-- Central Medical Cross -->
-                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white bg-opacity-10 rounded-3xl flex items-center justify-center backdrop-blur-sm">
-                                    <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl">
-                                        <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                        </svg>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <section class="bg-slate-950 text-white py-10 md:py-24 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-20">
+            <div class="absolute top-10 right-20 w-72 h-72 bg-indigo-600 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-10 left-20 w-72 h-72 bg-purple-600 rounded-full blur-3xl"></div>
+        </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <div class="inline-block mb-4 md:mb-6">
+                <span class="badge-pulse bg-indigo-600 text-white px-6 py-2 rounded-2xl font-black text-sm">بوابة المرضى</span>
+            </div>
+            <h1 class="text-4xl md:text-7xl font-black mb-4 md:mb-6 tracking-tight leading-tight">
+                استشارات طبية
+                <span class="block text-indigo-400">موثوقة</span>
+            </h1>
+            <p class="text-base md:text-2xl mb-6 md:mb-10 opacity-90 font-medium max-w-3xl mx-auto leading-relaxed hidden sm:block">
+                احجز موعدك مع أفضل الأطباء المتخصصين في العراق واحصل على استشارة طبية عالية الجودة
+            </p>
+            <div class="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
+                <button onclick="showBookingModal()" class="bg-indigo-600 text-white px-8 py-4 md:px-10 md:py-5 rounded-2xl text-lg md:text-xl font-black hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-600/30">
+                    احجز الآن
+                </button>
+                <button onclick="document.getElementById('mainContent').scrollIntoView({behavior:'smooth'})" class="glass-dark text-white px-8 py-4 md:px-10 md:py-5 rounded-2xl text-lg md:text-xl font-black hover:bg-white/10 transition-all">
+                    تصفح الأطباء ↓
+                </button>
             </div>
         </div>
     </section>
 
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div id="mainContent" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         
         <!-- Tabs Navigation -->
-        <div class="flex flex-wrap justify-center mb-8 bg-white rounded-xl p-2 shadow-sm">
-            <button onclick="switchTab('doctors')" id="doctorsTab" class="tab-button active px-6 py-3 rounded-lg font-medium text-sm mx-1 mb-2">
+        <div class="flex flex-wrap justify-center mb-8 bg-white rounded-2xl p-2 shadow-xl shadow-indigo-100 border border-gray-100">
+            <button onclick="switchTab('doctors')" id="doctorsTab" class="tab-button active px-6 py-3 rounded-xl font-black text-sm mx-1 mb-2">
                 الأطباء المتاحون
             </button>
-            <button onclick="switchTab('specialties')" id="specialtiesTab" class="tab-button px-6 py-3 rounded-lg font-medium text-sm mx-1 mb-2 text-gray-600 hover:text-gray-900">
+            <button onclick="switchTab('specialties')" id="specialtiesTab" class="tab-button px-6 py-3 rounded-xl font-black text-sm mx-1 mb-2 text-gray-600 hover:text-indigo-600 transition-colors">
                 التخصصات
             </button>
-            <button onclick="switchTab('about')" id="aboutTab" class="tab-button px-6 py-3 rounded-lg font-medium text-sm mx-1 mb-2 text-gray-600 hover:text-gray-900">
+            <button onclick="switchTab('about')" id="aboutTab" class="tab-button px-6 py-3 rounded-xl font-black text-sm mx-1 mb-2 text-gray-600 hover:text-indigo-600 transition-colors">
                 عن المنصة
             </button>
         </div>
@@ -286,20 +225,19 @@
             </div>
 
             <div class="max-w-4xl mx-auto mb-8">
-                <div class="bg-white rounded-xl shadow-sm p-6">
+                <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100 p-6 border border-gray-100">
                     <div class="flex flex-col md:flex-row gap-4">
                         <div class="flex-1">
                             <label for="doctorSearch" class="sr-only">البحث عن طبيب</label>
-                            <input type="text" id="doctorSearch" placeholder="ابحث عن طبيب بالاسم" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" id="doctorSearch" placeholder="ابحث عن طبيب بالاسم" class="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         </div>
                         <div class="flex-1">
                             <label for="specialtyFilter" class="sr-only">تصفية حسب التخصص</label>
-                            <select id="specialtyFilter" title="تصفية حسب التخصص" class="p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <select id="specialtyFilter" title="تصفية حسب التخصص" class="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">جميع التخصصات</option>
-                                <!-- Specialties will be loaded dynamically -->
                             </select>
                         </div>
-                        <button onclick="filterDoctors()" class="bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        <button onclick="filterDoctors()" class="bg-indigo-600 text-white px-6 py-4 rounded-xl hover:bg-indigo-700 transition-colors font-black shadow-lg shadow-indigo-600/30">
                             بحث
                         </button>
                     </div>
@@ -338,7 +276,7 @@
             <!-- Load-more fallback (shown when IntersectionObserver unavailable) -->
             <div id="loadMoreContainer" class="text-center py-6 hidden">
                 <button id="loadMoreBtn" onclick="loadMoreDoctors()"
-                        class="bg-blue-600 text-white px-8 py-3 rounded-xl hover:bg-blue-700 transition-colors font-medium">
+                        class="bg-indigo-600 text-white px-8 py-3 rounded-xl hover:bg-indigo-700 transition-colors font-black shadow-lg shadow-indigo-600/30">
                     تحميل المزيد
                 </button>
             </div>
@@ -413,7 +351,7 @@
                     </div>
                 </div>
 
-                <div class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+                <div class="bg-slate-950 rounded-2xl p-8 text-white shadow-2xl shadow-indigo-900/30">
                     <h4 class="text-xl font-bold mb-4">إحصائيات المنصة</h4>
                     <div class="space-y-4">
                         <div class="flex justify-between items-center">
@@ -511,9 +449,21 @@
                     </div>
                 </div>
 
-                <!-- Note: Date and time will be selected by receptionist after confirmation -->
-                <div class="bg-blue-50 rounded-lg p-4 mb-6">
-                    <p class="text-sm text-blue-700 font-medium">📅 سيتم تحديد الموعد والوقت من قبل الاستقبال بعد تأكيد طلبك</p>
+                <!-- Date & Time Selection -->
+                <div class="space-y-4 border border-gray-200 rounded-xl p-4 bg-slate-50">
+                    <h4 class="text-base font-black text-slate-800">📅 اختر موعدك</h4>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">تاريخ الموعد <span class="text-red-500">*</span></label>
+                        <input type="date" id="appointmentDate"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            required onchange="onDateChange(this.value)">
+                    </div>
+                    <div id="timeSlotsSection" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">الوقت المتاح <span class="text-red-500">*</span></label>
+                        <div id="timeSlots" class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            <p class="col-span-full text-center text-gray-500 py-2">اختر تاريخاً أولاً</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Medical History -->
@@ -570,7 +520,7 @@
                     <button type="button" onclick="closeBookingModal()" class="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 transition-colors">
                         إلغاء
                     </button>
-                    <button type="submit" id="bookingSubmitBtn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors">
+                    <button type="submit" id="bookingSubmitBtn" class="bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors font-black shadow-lg shadow-indigo-600/30">
                         إرسال طلب الحجز
                     </button>
                 </div>
@@ -600,7 +550,7 @@
     <div id="loginModal" class="modal">
         <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
             <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                     </svg>
@@ -617,7 +567,7 @@
                 
                 <!-- Phone-only authentication - no passwords needed -->
                 
-                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium text-lg">
+                <button type="submit" class="w-full bg-indigo-600 text-white py-4 px-6 rounded-xl hover:bg-indigo-700 transition-all font-black text-lg shadow-xl shadow-indigo-600/30">
                     إرسال رمز التحقق
                 </button>
             </form>
@@ -628,11 +578,35 @@
         </div>
     </div>
 
+    <!-- Auth Gate Modal (shown when unauthenticated user tries to book) -->
+    <div id="authGateModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center">
+            <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">يلزم تسجيل الدخول</h2>
+            <p class="text-gray-600 mb-6">لحجز موعد يجب أن تكون مسجلاً في المنصة</p>
+            <div class="space-y-3">
+                <button onclick="closeAuthGateModal(); showLoginModal();" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-xl hover:bg-indigo-700 transition-all font-black text-lg shadow-lg shadow-indigo-600/30">
+                    تسجيل الدخول
+                </button>
+                <button onclick="closeAuthGateModal(); showRegisterModal();" class="w-full bg-white text-indigo-600 border-2 border-indigo-600 py-3 px-6 rounded-xl hover:bg-indigo-50 transition-all font-bold text-lg">
+                    إنشاء حساب جديد
+                </button>
+                <button onclick="closeAuthGateModal();" class="w-full text-gray-500 hover:text-gray-700 py-2 text-sm transition-colors">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Register Modal -->
     <div id="registerModal" class="modal">
         <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
             <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-gradient-to-br from-green-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                     </svg>
@@ -641,20 +615,23 @@
                 <p class="text-gray-600">أدخل بياناتك لإنشاء حساب</p>
             </div>
 
-            <form onsubmit="handleRegister(event)" class="space-y-6">
+            <form onsubmit="handleRegister(event)" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل <span class="text-red-500">*</span></label>
                     <input type="text" id="registerName" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
                 </div>
-                
+
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">العمر <span class="text-red-500">*</span></label>
+                    <input type="number" id="registerAge" min="1" max="120" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="مثال: 30" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف <span class="text-red-500">*</span></label>
                     <input type="tel" id="registerPhone" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="07XXXXXXXXX" required>
                 </div>
-                
-                <!-- Phone-only authentication - no passwords needed -->
-                
-                <button type="submit" id="registerBtn" class="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-4 px-6 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium text-lg">
+
+                <button type="submit" id="registerBtn" class="w-full bg-indigo-600 text-white py-4 px-6 rounded-xl hover:bg-indigo-700 transition-all font-black text-lg shadow-xl shadow-indigo-600/30">
                     إنشاء الحساب
                 </button>
             </form>
@@ -662,6 +639,34 @@
             <div class="mt-6 text-center">
                 <p class="text-gray-600">لديك حساب بالفعل؟ <button onclick="showLoginModal()" class="text-blue-600 hover:text-blue-800 font-medium">سجل الدخول</button></p>
             </div>
+        </div>
+    </div>
+
+    <!-- Complete Profile Modal (shown when phone login succeeds but no user doc exists) -->
+    <div id="completeProfileModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">أكمل ملفك الشخصي</h2>
+                <p class="text-gray-600">تم التحقق من رقمك. أدخل اسمك وعمرك لإتمام التسجيل</p>
+            </div>
+            <form onsubmit="handleCompleteProfile(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل <span class="text-red-500">*</span></label>
+                    <input type="text" id="completeProfileName" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">العمر <span class="text-red-500">*</span></label>
+                    <input type="number" id="completeProfileAge" min="1" max="120" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="مثال: 30" required>
+                </div>
+                <button type="submit" id="completeProfileBtn" class="w-full bg-indigo-600 text-white py-4 px-6 rounded-xl hover:bg-indigo-700 transition-all font-black text-lg shadow-xl shadow-indigo-600/30">
+                    حفظ وإكمال
+                </button>
+            </form>
         </div>
     </div>
 

@@ -170,8 +170,8 @@ service cloud.firestore {
 
     // === Ratings ===
     match /ratings/{ratingId} {
-      // Any authenticated user can read ratings.
-      allow read: if signedIn();
+      // Anyone can read ratings — reviews are public info.
+      allow read: if true;
       // Only patients can create ratings for their own appointments.
       allow create: if isPatient() && request.resource.data.patientId == request.auth.uid;
     }
