@@ -6,7 +6,9 @@
 const functionsV1 = require("firebase-functions/v1"); // ✅ explicit v1
 const logger = require("firebase-functions/logger");
 const admin = require('firebase-admin');
-require('dotenv').config({ path: require('path').join(__dirname, 'medconnect-2.env') });
+const { defineJsonSecret } = require('firebase-functions/params');
+
+const twilioConfig = defineJsonSecret('FUNCTIONS_CONFIG_EXPORT');
 
 // For local development
 if (process.env.FIREBASE_PRIVATE_KEY) {
@@ -427,7 +429,9 @@ exports.cleanupHolds = functionsV1.pubsub.schedule("every 5 minutes").onRun(asyn
 /**
  * Sends an SMS notification to the patient when their appointment is confirmed.
  */
-exports.onAppointmentConfirmed = functionsV1.firestore
+exports.onAppointmentConfirmed = functionsV1
+  .runWith({ secrets: [twilioConfig] })
+  .firestore
   .document("appointments/{appointmentId}")
   .onUpdate(async (change, context) => {
     const beforeData = change.before.data();
@@ -448,14 +452,15 @@ exports.onAppointmentConfirmed = functionsV1.firestore
       }
 
       const twilio = require("twilio");
-      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+      const cfg = twilioConfig.value().twilio;
+      const client = new twilio(cfg.sid, cfg.token);
 
       const message = `تم تأكيد موعدك مع ${doctorName} في تاريخ ${appointmentDate} الساعة ${appointmentTime}. - MedConnect`;
 
       return client.messages.create({
         body: message,
         to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
-        from: process.env.TWILIO_PHONE_NUMBER,
+        from: cfg.phone_number,
       });
     }
 
@@ -465,7 +470,9 @@ exports.onAppointmentConfirmed = functionsV1.firestore
 /**
  * Sends an SMS to the patient when a doctor cancels their appointment.
  */
-exports.onAppointmentCancelledByDoctor = functionsV1.firestore
+exports.onAppointmentCancelledByDoctor = functionsV1
+  .runWith({ secrets: [twilioConfig] })
+  .firestore
   .document("appointments/{appointmentId}")
   .onUpdate(async (change, context) => {
     const beforeData = change.before.data();
@@ -483,14 +490,15 @@ exports.onAppointmentCancelledByDoctor = functionsV1.firestore
       }
 
       const twilio = require("twilio");
-      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+      const cfg = twilioConfig.value().twilio;
+      const client = new twilio(cfg.sid, cfg.token);
 
       const message = `تم إلغاء موعدك مع ${doctorName} في تاريخ ${appointmentDate} الساعة ${appointmentTime}. السبب: "${cancellationReason}". نعتذر عن هذا الإزعاج. - MedConnect`;
 
       return client.messages.create({
         body: message,
         to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
-        from: process.env.TWILIO_PHONE_NUMBER,
+        from: cfg.phone_number,
       });
     }
     return null;
@@ -499,7 +507,9 @@ exports.onAppointmentCancelledByDoctor = functionsV1.firestore
 /**
  * Sends an SMS to the patient when their reschedule request is approved or denied.
  */
-exports.onRescheduleResolved = functionsV1.firestore
+exports.onRescheduleResolved = functionsV1
+  .runWith({ secrets: [twilioConfig] })
+  .firestore
   .document("appointments/{appointmentId}")
   .onUpdate(async (change, context) => {
     const beforeData = change.before.data();
@@ -515,7 +525,8 @@ exports.onRescheduleResolved = functionsV1.firestore
       }
 
       const twilio = require("twilio");
-      const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+      const cfg = twilioConfig.value().twilio;
+      const client = new twilio(cfg.sid, cfg.token);
       let message;
 
       // Check if it was an approval (date or time changed)
@@ -530,7 +541,7 @@ exports.onRescheduleResolved = functionsV1.firestore
       return client.messages.create({
         body: message,
         to: `+964${patientPhone.substring(1)}`, // Assumes Iraqi number format 07...
-        from: twilioConfig.phone_number,
+        from: cfg.phone_number,
       });
     }
     return null;
@@ -597,7 +608,9 @@ exports.setReceptionistClaim = functionsV1.https.onCall(async (data, context) =>
 });
 
 // === SEND SMS CONFIRMATION ===
-exports.sendAppointmentConfirmationSMS = functionsV1.https.onCall(async (data, context) => {
+exports.sendAppointmentConfirmationSMS = functionsV1
+  .runWith({ secrets: [twilioConfig] })
+  .https.onCall(async (data, context) => {
   verifyAppCheck(context);
   if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be authenticated');
 
@@ -613,9 +626,10 @@ exports.sendAppointmentConfirmationSMS = functionsV1.https.onCall(async (data, c
   try {
     const twilio = require('twilio');
 
-    const accountSid = process.env.TWILIO_SID;
-    const authToken = process.env.TWILIO_TOKEN;
-    const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+    const cfg = twilioConfig.value().twilio;
+    const accountSid = cfg.sid;
+    const authToken = cfg.token;
+    const phoneNumber = cfg.phone_number;
 
     logger.info('Twilio config check:', { hasSid: !!accountSid, hasToken: !!authToken, hasPhone: !!phoneNumber });
     
