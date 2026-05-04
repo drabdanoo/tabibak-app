@@ -18,7 +18,7 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "buildNumber": "2",
       "config": {
-        "googleMapsApiKey": "AIzaSyAnsDB584i5_CDzAyTOjRnLFdeoTti6Yew"
+        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

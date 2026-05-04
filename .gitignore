@@ -126,3 +126,15 @@ service-account-key.json
 .env
 .env.*
 functions/medconnect-2.env
+functions/.runtimeconfig.json
+
+# IDE config
+.vscode/
+.idea/
+*.iml
+
+# Debug / tester scripts
+public/debug/
+
+# Local backups
+scripts/photo_backup/
