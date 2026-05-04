@@ -23,9 +23,9 @@ exports.calculateMonthlyRevenue = functions.https.onCall(async (data, context) =
 
   const doctorId = context.auth.uid;
   
-  // Optional: Check if the user is actually a doctor
-  // const userSnapshot = await db.collection('users').doc(doctorId).get();
-  // if (userSnapshot.data().role !== 'doctor') { ... }
+  if (context.auth.token.doctor !== true) {
+    throw new functions.https.HttpsError("permission-denied", "Only doctors can view monthly revenue.");
+  }
 
   try {
     // 2. Date Range Calculation

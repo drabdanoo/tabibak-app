@@ -12,6 +12,11 @@ service firebase.storage {
       return request.resource.size < 10 * 1024 * 1024; // 10MB limit
     }
     
+    function isDoctorForPatient(patientUid) {
+      return isDoctor() &&
+        patientUid in firestore.get(/databases/(default)/documents/doctors/$(request.auth.uid)).data.patients;
+    }
+    
     match /patientFiles/{uid}/{file=**} {
       allow read, write: if signedIn() && request.auth.uid == uid;
     }
@@ -32,12 +37,12 @@ service firebase.storage {
     // Medical Documents (Prescriptions, Lab Results, Reports)
     match /medicalDocuments/{patientId}/{documentId} {
       // Patients can read their own documents
-      // Doctors can read/write documents for their patients
-      allow read: if signedIn() && (request.auth.uid == patientId || isDoctor());
-      allow write: if (isDoctor() || (isPatient() && request.auth.uid == patientId))
+      // Doctors can read/write documents only for their own patients
+      allow read: if signedIn() && (request.auth.uid == patientId || isDoctorForPatient(patientId));
+      allow write: if (isDoctorForPatient(patientId) || (isPatient() && request.auth.uid == patientId))
         && isValidFileType() 
         && isValidFileSize();
-      allow delete: if isDoctor();
+      allow delete: if isDoctorForPatient(patientId);
     }
     
     // Expense Receipts

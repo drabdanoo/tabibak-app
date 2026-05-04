@@ -73,6 +73,7 @@ function generateInitials(fullName) {
 // -----------------------------------------------------------------------------
 
 exports.setDoctorClaim = functionsV1.https.onCall(async (data, context) => {
+  verifyAppCheck(context);
   if (!context.auth) throw new functionsV1.https.HttpsError("unauthenticated", "Must be authenticated");
   if (context.auth.token.admin !== true)
     throw new functionsV1.https.HttpsError("permission-denied", "Must be admin to set doctor claim");
@@ -96,6 +97,7 @@ exports.setDoctorClaim = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.setUserRole = functionsV1.https.onCall(async (data, context) => {
+  verifyAppCheck(context);
   if (!context.auth) throw new functionsV1.https.HttpsError("unauthenticated", "Must be authenticated");
   if (context.auth.token.admin !== true)
     throw new functionsV1.https.HttpsError("permission-denied", "Must be admin");
@@ -121,6 +123,7 @@ exports.setUserRole = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.getUserRole = functionsV1.https.onCall(async (data, context) => {
+  verifyAppCheck(context);
   if (!context.auth) throw new functionsV1.https.HttpsError("unauthenticated", "Must be authenticated");
 
   try {
@@ -135,8 +138,7 @@ exports.getUserRole = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.ensurePatientClaim = functionsV1.https.onCall(async (data, context) => {
-  // App Check is optional for this function since it's called during phone verification
-  // when App Check token might not be fully initialized yet
+  verifyAppCheck(context);
   if (!context.auth) throw new functionsV1.https.HttpsError("unauthenticated", "Must be authenticated");
 
   try {
@@ -366,8 +368,15 @@ exports.reserveSlot = functionsV1.https.onCall(async (data, context) => {
       date,
       slotId,
       status: "pending",
+      appointmentDate: (payload && payload.appointmentDate) || null,
+      appointmentTime: (payload && payload.appointmentTime) || null,
+      type: (payload && payload.type) || null,
+      notes: (payload && payload.notes) || null,
+      patientName: (payload && payload.patientName) || null,
+      patientPhone: (payload && payload.patientPhone) || null,
+      doctorName: (payload && payload.doctorName) || null,
+      symptoms: (payload && payload.symptoms) || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      ...(payload || {}),
     });
     // Add patient to doctor's patients[] so Firestore rules can scope access
     tx.update(doctorRef, {
@@ -567,6 +576,11 @@ exports.onRatingCreate = functionsV1.firestore
 
 // === SET RECEPTIONIST CLAIM ===
 exports.setReceptionistClaim = functionsV1.https.onCall(async (data, context) => {
+  verifyAppCheck(context);
+  if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be authenticated');
+  if (context.auth.token.admin !== true)
+    throw new functionsV1.https.HttpsError('permission-denied', 'Must be admin');
+
   const uid = data && data.uid;
   if (!uid) {
     throw new functionsV1.https.HttpsError('invalid-argument', 'User UID is required');
@@ -584,6 +598,9 @@ exports.setReceptionistClaim = functionsV1.https.onCall(async (data, context) =>
 
 // === SEND SMS CONFIRMATION ===
 exports.sendAppointmentConfirmationSMS = functionsV1.https.onCall(async (data, context) => {
+  verifyAppCheck(context);
+  if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be authenticated');
+
   const { patientPhone, patientName, doctorName, appointmentDate, appointmentTime } = data;
   
   logger.info('SMS request received:', { patientPhone, patientName, doctorName, appointmentDate, appointmentTime });

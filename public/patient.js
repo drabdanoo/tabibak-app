@@ -12,10 +12,16 @@ firebase.initializeApp(firebaseConfig);
 let auth, db;
 
 const firebaseReady = (async function initializeFirebaseServices() {
-    // App Check intentionally disabled — recaptcha key returns 403 (domain/app not registered).
-    // Re-enable once App Check is configured correctly in Firebase Console.
+    if (siteKey) {
+      try {
+        const appCheck = firebase.appCheck();
+        await appCheck.activate(siteKey, false);
+        console.log("App Check activated successfully");
+      } catch (err) {
+        console.warn("App Check activation failed:", err.message);
+      }
+    }
 
-    // Now initialize auth and Firestore with App Check token ready
     auth = firebase.auth();
     db = firebase.firestore();
 
