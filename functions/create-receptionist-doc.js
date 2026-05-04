@@ -7,7 +7,7 @@
  */
 
 const admin = require('firebase-admin');
-const serviceAccount = require('./medconnect-2-firebase-adminsdk-fbsvc-72fcc82703.json');
+const serviceAccount = require('./medconnect-2-firebase-adminsdk-fbsvc-a234e0b73a.json');
 
 // Initialize Firebase Admin
 admin.initializeApp({
